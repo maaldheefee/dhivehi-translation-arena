@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - Dhivehi Translation Arena</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add Tharujaamaanu font -->
+    <style>
+        @font-face { font-family: 'Tharujamaanu';
+            src: url("https://fonts.hassaanmv.com/fonts/merged-light.woff2") format("woff2"), url("https://fonts.hassaanmv.com/fonts/merged-light.woff") format("woff");
+            font-weight: 400;
+            font-style: normal;
+            font-stretch: normal;
+            font-display: swap;
+        }
+        
+        @font-face { font-family: 'Tharujamaanu';
+            src: url("https://fonts.hassaanmv.com/fonts/merged-bold.woff2") format("woff2"), url("https://fonts.hassaanmv.com/fonts/merged-bold.woff") format("woff");
+            font-weight: 700;
+            font-style: normal;
+            font-stretch: normal;
+            font-display: swap;
+        }
+        
+        /* Apply Tharujaamaanu font to Dhivehi text */
+        td {
+            font-family: 'Tharujamaanu', sans-serif;
+        }
+        
+        /* RTL support for table cells */
+        .rtl-align {
+            text-align: right;
+        }
+        
+        .recent-translations td:nth-child(3) {
+            direction: rtl;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Dhivehi Translation Arena</h1>
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('main.index') }}">Home</a></li>
+                    <li><a href="{{ url_for('main.stats') }}" class="active">Statistics</a></li>
+                </ul>
+            </nav>
+            <div class="user-selection">
+                <span>Current User: <strong id="current-username">{{ username }}</strong></span>
+                <div class="user-login-form">
+                    <select id="username-select" class="user-dropdown">
+                        <option value="">Select User</option>
+                        <!-- Will be populated via JavaScript -->
+                    </select>
+                    <input type="password" id="user-password" placeholder="PIN/Password" class="user-password">
+                    <button id="login-btn" class="btn secondary">Login</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="stats-section">
+            <h2>Translation Statistics</h2>
+            
+            <div class="stats-cards">
+                <div class="stats-card">
+                    <h3>Votes by Model</h3>
+                    <div class="chart-container">
+                        <canvas id="votes-chart"></canvas>
+                    </div>
+                    <div class="stats-details">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Votes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for model, votes in stats.votes_by_model.items() %}
+                                <tr>
+                                    <td>{{ model }}</td>
+                                    <td>{{ votes }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="stats-card">
+                    <h3>API Costs by Model</h3>
+                    <div class="chart-container">
+                        <canvas id="costs-chart"></canvas>
+                    </div>
+                    <div class="stats-details">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for model, cost in stats.cost_by_model.items() %}
+                                <tr>
+                                    <td>{{ model }}</td>
+                                    <td>${{ cost }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="stats-card">
+                    <h3>Votes by User</h3>
+                    <div class="chart-container">
+                        <canvas id="user-votes-chart"></canvas>
+                    </div>
+                    <div class="stats-details">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Votes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user, votes in stats.votes_by_user.items() %}
+                                <tr>
+                                    <td>{{ user }}</td>
+                                    <td>{{ votes }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recent-translations">
+                <h3>Recent Translations</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="rtl-align">Query</th>
+                            <th>Model</th>
+                            <th class="rtl-align">Translation</th>
+                            <th>Votes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stats.recent_translations %}
+                        <tr>
+                            <td>{{ item.query }}</td>
+                            <td>{{ item.model }}</td>
+                            <td>{{ item.translation }}</td>
+                            <td>{{ item.votes }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Dhivehi Translation Arena</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Chart colors
+            const colors = {
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(255, 206, 86, 0.7)',
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(153, 102, 255, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(153, 102, 255, 1)'
+                ]
+            };
+            
+            // Get stats data
+            const statsData = {
+                votesByModel: JSON.parse('{{ stats.votes_by_model | tojson | safe }}'),
+                costByModel: JSON.parse('{{ stats.cost_by_model | tojson | safe }}'),
+                votesByUser: JSON.parse('{{ stats.votes_by_user | tojson | safe }}')
+            };
+            
+            // Model votes chart
+            const voteLabels = Object.keys(statsData.votesByModel);
+            const voteData = Object.values(statsData.votesByModel);
+            
+            if (voteLabels.length > 0) {
+                const votesCtx = document.getElementById('votes-chart').getContext('2d');
+                new Chart(votesCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: voteLabels,
+                        datasets: [{
+                            label: 'Votes',
+                            data: voteData,
+                            backgroundColor: colors.backgroundColor,
+                            borderColor: colors.borderColor,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Cost by model chart
+            const costLabels = Object.keys(statsData.costByModel);
+            const costData = Object.values(statsData.costByModel);
+            
+            if (costLabels.length > 0) {
+                const costsCtx = document.getElementById('costs-chart').getContext('2d');
+                new Chart(costsCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: costLabels,
+                        datasets: [{
+                            label: 'API Costs ($)',
+                            data: costData,
+                            backgroundColor: colors.backgroundColor,
+                            borderColor: colors.borderColor,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        return `${label}: $${value.toFixed(6)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // User votes chart
+            const userLabels = Object.keys(statsData.votesByUser);
+            const userData = Object.values(statsData.votesByUser);
+            
+            if (userLabels.length > 0) {
+                const userVotesCtx = document.getElementById('user-votes-chart').getContext('2d');
+                new Chart(userVotesCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: userLabels,
+                        datasets: [{
+                            label: 'Votes',
+                            data: userData,
+                            backgroundColor: colors.backgroundColor,
+                            borderColor: colors.borderColor,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        return `${label}: ${value} votes`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

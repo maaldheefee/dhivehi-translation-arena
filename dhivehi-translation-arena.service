@@ -1,0 +1,14 @@
+[Unit]
+Description=Dhivehi Translation Arena Gunicorn Service
+After=network.target
+
+[Service]
+User=hassaan
+Group=hassaan
+WorkingDirectory=/DATA/Repos/dhivehi-translation-arena
+ExecStart=/home/hassaan/.local/bin/uv run python app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

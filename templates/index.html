@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dhivehi Translation Arena</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Add Tharujaamaanu font -->
+    <style>
+        @font-face {
+            font-family: 'Tharujaamaanu';
+            src: url('https://dhivehi.mv/fonts/Tharujamaanu.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        /* Apply Tharujaamaanu font to Dhivehi text */
+        .translation-text {
+            font-family: 'Tharujaamaanu', 'Tharujamaanu', sans-serif;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        /* RTL support for other elements */
+        .card-body {
+            direction: rtl;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Dhivehi Translation Arena</h1>
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('main.index') }}" class="active">Home</a></li>
+                    <li><a href="{{ url_for('main.stats') }}">Statistics</a></li>
+                </ul>
+            </nav>
+            <div class="user-selection">
+                <span>Current User: <strong id="current-username">{{ username }}</strong></span>
+                <div class="user-login-form">
+                    <select id="username-select" class="user-dropdown">
+                        <option value="">Select User</option>
+                        <!-- Will be populated via JavaScript -->
+                    </select>
+                    <input type="password" id="user-password" placeholder="PIN/Password" class="user-password">
+                    <button id="login-btn" class="btn secondary">Login</button>
+                    <button id="clear-cache-btn" class="btn secondary">Clear Cache</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="translation-section">
+            <h2>Arabic to Dhivehi Translation Comparison</h2>
+            <p>Compare translations from different AI models and vote for the best one.</p>
+            
+            
+            <div class="predefined-queries">
+                <h3>Select a predefined query:</h3>
+                <div class="query-buttons">
+                    {% for query in predefined_queries %}
+                        <button class="predefined-query btn secondary">{{ query }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="input-section">
+                <h3>Or enter your own Arabic text:</h3>
+
+                <div class="form-group">
+                    <label for="query-input">Arabic Text:</label>
+                    <textarea id="query-input" placeholder="Enter Arabic text here..."></textarea>
+                </div>
+
+                <button id="translate-btn" class="btn primary">Translate</button>
+            </div>
+
+            <div id="results-section" class="results-section hidden">
+                <h3>Translation Results</h3>
+                <p>The translations below are presented in random order. Vote for the one you think is best.</p>
+
+                <div class="translations-container">
+                    <div class="loader">Loading translations...</div>
+                </div>
+
+                <div class="cost-info">
+                    <p>Total cost for this query: <span id="total-cost">$0.00</span></p>
+                </div>
+            </div>
+        </section>
+</main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Dhivehi Translation Arena</p>
+        </div>
+    </footer>
+
+    <!-- Templates for dynamic content -->
+    <template id="translation-template">
+        <div class="translation-card" data-id="">
+            <div class="card-header">
+                <h4>Translation Option <span class="position"></span></h4>
+                <div class="model-name hidden">Model: <span class="model"></span></div>
+            </div>
+            <div class="card-body">
+                <p class="translation-text"></p>
+            </div>
+            <div class="card-footer">
+                <button class="vote-btn btn primary">Vote for this translation</button>
+                <span class="voted-badge hidden">Your vote ✓</span>
+            </div>
+        </div>
+    </template>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Environment variables
+.env
+
+# Python virtual environment
+.venv
+venv
+.env.local
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+data/*.db
+*.sqlite
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
