@@ -118,16 +118,14 @@ class GeminiClient(TranslationClient):
             )
 
             response_text = response.text or "No response generated"
-            input_tokens = (
-                response.usage_metadata.prompt_token_count
-                if response.usage_metadata
-                else 0
-            )
-            output_tokens = (
-                response.usage_metadata.candidates_token_count
-                if response.usage_metadata
-                else 0
-            )
+
+            # Safely get token counts, defaulting to 0 if not available
+            input_tokens = 0
+            output_tokens = 0
+            if response.usage_metadata:
+                input_tokens = response.usage_metadata.prompt_token_count or 0
+                output_tokens = response.usage_metadata.candidates_token_count or 0
+
             cost = self._calculate_cost(input_tokens, output_tokens)
 
             logger.info(f"Gemini translation successful for {self.model_name}.")
@@ -162,9 +160,19 @@ class OpenRouterClient(TranslationClient):
             )
 
             translation = completion.choices[0].message.content or ""
+
+            # Safely get token counts
             usage = completion.usage
-            input_tokens = usage.prompt_tokens if usage else len(text) / 4
-            output_tokens = usage.completion_tokens if usage else len(translation) / 4
+            input_tokens = (
+                usage.prompt_tokens
+                if usage and usage.prompt_tokens is not None
+                else len(text) / 4
+            )
+            output_tokens = (
+                usage.completion_tokens
+                if usage and usage.completion_tokens is not None
+                else len(translation) / 4
+            )
 
             cost = self._calculate_cost(input_tokens, output_tokens)
 
@@ -208,5 +216,9 @@ def get_translation_client(model_key: str) -> TranslationClient:
 
 
 def get_available_models() -> dict[str, str]:
-    """Get a dictionary of available models."""
-    return {key: model["display_name"] for key, model in config.MODELS.items()}
+    """Get a dictionary of available, active models."""
+    return {
+        key: model["display_name"]
+        for key, model in config.MODELS.items()
+        if model.get("is_active", True)
+    }

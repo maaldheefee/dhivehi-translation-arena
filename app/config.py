@@ -12,6 +12,7 @@ class ModelConfig(TypedDict):
     type: str
     input_cost_per_mtok: float
     output_cost_per_mtok: float
+    is_active: bool
     rate_limit: NotRequired[float | None]
     thinking_budget: NotRequired[int | None]
 
@@ -47,6 +48,7 @@ class Config:
             "type": "gemini",
             "input_cost_per_mtok": 0.1,
             "output_cost_per_mtok": 0.4,
+            "is_active": True,
             "rate_limit": None,
         },
         "gemini-2.5-pro": {
@@ -55,6 +57,7 @@ class Config:
             "type": "gemini",
             "input_cost_per_mtok": 1.25,
             "output_cost_per_mtok": 10.00,
+            "is_active": True,
             "rate_limit": None,
         },
         "gemini-2.5-flash": {
@@ -63,6 +66,7 @@ class Config:
             "type": "gemini",
             "input_cost_per_mtok": 0.2,
             "output_cost_per_mtok": 2.5,
+            "is_active": True,
             "rate_limit": None,
             "thinking_budget": 0,
         },
@@ -72,6 +76,7 @@ class Config:
             "type": "gemini",
             "input_cost_per_mtok": 0.1,
             "output_cost_per_mtok": 0.4,
+            "is_active": True,
             "rate_limit": None,
             "thinking_budget": 0,
         },
@@ -81,6 +86,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 3.0,
             "output_cost_per_mtok": 15.0,
+            "is_active": True,
             "rate_limit": None,
         },
         "claude-sonnet-4": {
@@ -89,6 +95,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 3.0,
             "output_cost_per_mtok": 15.0,
+            "is_active": True,
             "rate_limit": None,
         },
     }

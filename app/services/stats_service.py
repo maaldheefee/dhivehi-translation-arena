@@ -1,6 +1,9 @@
+from app.config import get_config
 from app.database import db_session
 from app.repositories.translation_repository import TranslationRepository
 from app.repositories.vote_repository import VoteRepository
+
+config = get_config()
 
 
 def calculate_model_scores():
@@ -68,6 +71,7 @@ def calculate_model_scores():
         stats_list.append(
             {
                 "model_name": model_name,
+                "is_active": config.MODELS.get(model_name, {}).get("is_active", False),
                 "score": total_score,
                 "appearances": stats["appearances"],
                 "votes_cast": votes_cast,

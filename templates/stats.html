@@ -23,21 +23,6 @@
             font-stretch: normal;
             font-display: swap;
         }
-        
-        /* Apply Tharujaamaanu font to Dhivehi text */
-        td {
-            font-family: 'Tharujamaanu', sans-serif;
-        }
-        
-        /* RTL support for table cells */
-        .rtl-align {
-            text-align: right;
-        }
-        
-        .recent-translations td:nth-child(3) {
-            direction: rtl;
-            text-align: right;
-        }
     </style>
 </head>
 <body>
@@ -80,9 +65,12 @@
                     </thead>
                     <tbody>
                         {% for model in model_scores %}
-                        <tr>
+                        <tr class="{% if not model.is_active %}deprecated-model{% endif %}">
                             <td><span class="rank-badge">{{ loop.index }}</span></td>
-                            <td><strong>{{ model.model_name }}</strong></td>
+                            <td>
+                                <strong>{{ model.model_name }}</strong>
+                                {% if not model.is_active %}<span class="deprecated-tag">(Deprecated)</span>{% endif %}
+                            </td>
                             <td>
                                 {% set score = model.average_score %}
                                 {% if score > 1.5 %}

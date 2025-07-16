@@ -67,8 +67,14 @@
     <main class="container">
         <section class="translation-section">
             <h2>Arabic to Dhivehi Translation Comparison</h2>
-            <p>Compare translations from different AI models and vote for the best one.</p>
+            <p>Select at least two models, provide your text, and vote for the best translation.</p>
 
+            <div class="model-selection-container">
+                <h4>Select models to compare (minimum 2):</h4>
+                <div id="model-selection-checkboxes" class="model-checkbox-group">
+                    <div class="loader">Loading models...</div>
+                </div>
+            </div>
 
             <div class="predefined-queries">
                 <h3>Select a predefined query:</h3>
@@ -115,7 +121,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Dhivehi Translation Arena</p>
+            <p>© 2025 Dhivehi Translation Arena</p>
         </div>
     </footer>
 
@@ -132,12 +138,12 @@
             <div class="card-footer">
                 <input type="hidden" class="rating-value" name="rating-" value="0">
                 <div class="star-rating">
-                    <span class="star" data-value="3">&#9733;</span>
-                    <span class="star" data-value="2">&#9733;</span>
-                    <span class="star" data-value="1">&#9733;</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="1">★</span>
                 </div>
                 <button class="reject-btn-new" title="Reject this translation">
-                    &#128465;
+                    
                 </button>
             </div>
         </div>

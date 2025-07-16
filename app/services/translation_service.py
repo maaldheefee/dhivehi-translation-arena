@@ -10,13 +10,14 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.vote_repository import VoteRepository
 
 
-def get_translations(source_text, username="Guest"):
+def get_translations(source_text, username="Guest", selected_models=None):
     """
-    Gets translations for the given source text from multiple models.
+    Gets translations for the given source text from a selected subset of models.
     Returns query_id and list of translation results.
     """
-    models = list(get_available_models().keys())
-    random.shuffle(models)
+    models_to_use = selected_models or list(get_available_models().keys())
+
+    random.shuffle(models_to_use)
 
     query_repo = QueryRepository(db_session)
     translation_repo = TranslationRepository(db_session)
@@ -74,7 +75,7 @@ def get_translations(source_text, username="Guest"):
     with ThreadPoolExecutor() as executor:
         future_to_model = {
             executor.submit(get_translation, model, i): model
-            for i, model in enumerate(models, 1)
+            for i, model in enumerate(models_to_use, 1)
         }
         for future in future_to_model:
             try:
@@ -92,7 +93,11 @@ def get_translations(source_text, username="Guest"):
         if user_obj:
             votes = vote_repo.get_by_user_and_query(user_obj.id, query.id)
             if votes:
-                voted_translation = votes[0].translation_id
+                # Find a valid vote to get the translation ID
+                for vote in votes:
+                    if vote.translation_id:
+                        voted_translation = vote.translation_id
+                        break
 
     return {
         "query_id": query.id,

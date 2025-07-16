@@ -265,6 +265,41 @@ textarea {
     /* Adjust as needed */
 }
 
+/* Model Selection Checkboxes */
+.model-selection-container {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid var(--mid-gray);
+    border-radius: var(--border-radius);
+}
+
+.model-selection-container h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.model-checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+}
+
+.checkbox-wrapper label {
+    font-weight: normal;
+    cursor: pointer;
+}
+
 /* Results Section */
 .results-section {
     margin-top: 40px;
@@ -362,7 +397,7 @@ textarea {
     flex-wrap: wrap;
 }
 
-.rank-selection>label:first-child {
+.rank-selection > label:first-child {
     font-weight: 500;
     margin-right: 5px;
 }
@@ -528,11 +563,9 @@ footer {
         margin-left: 0;
     }
 }
-
 /* Star Rating */
 .star-rating {
-    direction: ltr;
-    /* Stars should be LTR */
+    direction: ltr; /* Stars should be LTR */
     display: inline-block;
 }
 
@@ -545,13 +578,11 @@ footer {
 
 .star:hover,
 .star.hovered {
-    color: #ffc107;
-    /* Amber color */
+    color: #ffc107; /* Amber color */
 }
 
 .star.selected {
-    color: #ffb300;
-    /* Darker amber */
+    color: #ffb300; /* Darker amber */
 }
 
 .reject-btn-new {
@@ -564,15 +595,12 @@ footer {
 }
 
 .reject-btn-new:hover {
-    color: #f44336;
-    /* Red */
+    color: #f44336; /* Red */
 }
 
 .reject-btn-new.selected {
-    color: #d32f2f;
-    /* Darker red */
+    color: #d32f2f; /* Darker red */
 }
-
 
 /* Stats Page Enhancements */
 .stats-section .chart-container {
@@ -581,8 +609,8 @@ footer {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     margin-bottom: 30px;
-    height: 40vh;
-    min-height: 300px;
+    height: 50vh;
+    min-height: 400px;
     width: 100%;
 }
 
@@ -646,22 +674,9 @@ footer {
     text-align: center;
 }
 
-.high-score {
-    background-color: #4CAF50;
-}
-
-/* Green */
-.medium-score {
-    background-color: #FFC107;
-    color: var(--black)
-}
-
-/* Amber */
-.low-score {
-    background-color: #F44336;
-}
-
-/* Red */
+.high-score { background-color: #4CAF50; } /* Green */
+.medium-score { background-color: #FFC107; color: var(--black) } /* Amber */
+.low-score { background-color: #F44336; } /* Red */
 
 /* Mini histogram for rating distribution */
 .rating-dist-bar {
@@ -693,27 +708,25 @@ footer {
     padding: 0 5px;
 }
 
-.rating-dist-bar .excellent {
-    background-color: #2196F3;
+.rating-dist-bar .excellent { background-color: #2196F3; } /* Blue */
+.rating-dist-bar .good { background-color: #8BC34A; } /* Light Green */
+.rating-dist-bar .okay { background-color: #FFEB3B; color: var(--black); } /* Yellow */
+.rating-dist-bar .rejected { background-color: #E53935; } /* Red */
+.rating-dist-bar .no-votes { background-color: var(--dark-gray); }
+
+/* Deprecated model styling */
+.deprecated-model {
+    opacity: 0.6;
+    background-color: #fafafa;
 }
 
-/* Blue */
-.rating-dist-bar .good {
-    background-color: #8BC34A;
+.deprecated-model td strong {
+    text-decoration: line-through;
 }
 
-/* Light Green */
-.rating-dist-bar .okay {
-    background-color: #FFEB3B;
-    color: var(--black);
-}
-
-/* Yellow */
-.rating-dist-bar .rejected {
-    background-color: #E53935;
-}
-
-/* Red */
-.rating-dist-bar .no-votes {
-    background-color: var(--dark-gray);
+.deprecated-tag {
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: var(--dark-gray);
+    margin-left: 5px;
 }
