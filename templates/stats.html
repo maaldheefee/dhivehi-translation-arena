@@ -47,7 +47,7 @@
             <nav>
                 <ul>
                     <li><a href="{{ url_for('main.index') }}">Home</a></li>
-                    <li><a href="{{ url_for('main.stats') }}" class="active">Statistics</a></li>
+                    <li><a href="{{ url_for('stats.stats') }}" class="active">Statistics</a></li>
                 </ul>
             </nav>
             <div class="user-selection">
@@ -66,103 +66,31 @@
 
     <main class="container">
         <section class="stats-section">
-            <h2>Translation Statistics</h2>
+            <h2>Model Performance Statistics</h2>
             
-            <div class="stats-cards">
-                <div class="stats-card">
-                    <h3>Votes by Model</h3>
-                    <div class="chart-container">
-                        <canvas id="votes-chart"></canvas>
-                    </div>
-                    <div class="stats-details">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Model</th>
-                                    <th>Votes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for model, votes in stats.votes_by_model.items() %}
-                                <tr>
-                                    <td>{{ model }}</td>
-                                    <td>{{ votes }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <div class="stats-card">
-                    <h3>API Costs by Model</h3>
-                    <div class="chart-container">
-                        <canvas id="costs-chart"></canvas>
-                    </div>
-                    <div class="stats-details">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Model</th>
-                                    <th>Total Cost</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for model, cost in stats.cost_by_model.items() %}
-                                <tr>
-                                    <td>{{ model }}</td>
-                                    <td>${{ cost }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <div class="stats-card">
-                    <h3>Votes by User</h3>
-                    <div class="chart-container">
-                        <canvas id="user-votes-chart"></canvas>
-                    </div>
-                    <div class="stats-details">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>User</th>
-                                    <th>Votes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user, votes in stats.votes_by_user.items() %}
-                                <tr>
-                                    <td>{{ user }}</td>
-                                    <td>{{ votes }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="recent-translations">
-                <h3>Recent Translations</h3>
+            <div class="stats-details">
                 <table>
                     <thead>
                         <tr>
-                            <th class="rtl-align">Query</th>
-                            <th>Model</th>
-                            <th class="rtl-align">Translation</th>
-                            <th>Votes</th>
+                            <th>Model Name</th>
+                            <th>Total Score</th>
+                            <th>Total Appearances</th>
+                            <th>Excellent (⭐️⭐️⭐️)</th>
+                            <th>Good (⭐️⭐️)</th>
+                            <th>Okay (⭐️)</th>
+                            <th>Rejected</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in stats.recent_translations %}
+                        {% for model in model_scores %}
                         <tr>
-                            <td>{{ item.query }}</td>
-                            <td>{{ item.model }}</td>
-                            <td>{{ item.translation }}</td>
-                            <td>{{ item.votes }}</td>
+                            <td>{{ model.model_name }}</td>
+                            <td>{{ model.score }}</td>
+                            <td>{{ model.appearances }}</td>
+                            <td>{{ model.excellent_count }}</td>
+                            <td>{{ model.good_count }}</td>
+                            <td>{{ model.okay_count }}</td>
+                            <td>{{ model.rejected_count }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -178,137 +106,7 @@
     </footer>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Chart colors
-            const colors = {
-                backgroundColor: [
-                    'rgba(54, 162, 235, 0.7)',
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(255, 206, 86, 0.7)',
-                    'rgba(255, 99, 132, 0.7)',
-                    'rgba(153, 102, 255, 0.7)'
-                ],
-                borderColor: [
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(153, 102, 255, 1)'
-                ]
-            };
-            
-            // Get stats data
-            const statsData = {
-                votesByModel: JSON.parse('{{ stats.votes_by_model | tojson | safe }}'),
-                costByModel: JSON.parse('{{ stats.cost_by_model | tojson | safe }}'),
-                votesByUser: JSON.parse('{{ stats.votes_by_user | tojson | safe }}')
-            };
-            
-            // Model votes chart
-            const voteLabels = Object.keys(statsData.votesByModel);
-            const voteData = Object.values(statsData.votesByModel);
-            
-            if (voteLabels.length > 0) {
-                const votesCtx = document.getElementById('votes-chart').getContext('2d');
-                new Chart(votesCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: voteLabels,
-                        datasets: [{
-                            label: 'Votes',
-                            data: voteData,
-                            backgroundColor: colors.backgroundColor,
-                            borderColor: colors.borderColor,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    precision: 0
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // Cost by model chart
-            const costLabels = Object.keys(statsData.costByModel);
-            const costData = Object.values(statsData.costByModel);
-            
-            if (costLabels.length > 0) {
-                const costsCtx = document.getElementById('costs-chart').getContext('2d');
-                new Chart(costsCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: costLabels,
-                        datasets: [{
-                            label: 'API Costs ($)',
-                            data: costData,
-                            backgroundColor: colors.backgroundColor,
-                            borderColor: colors.borderColor,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.raw || 0;
-                                        return `${label}: $${value.toFixed(6)}`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // User votes chart
-            const userLabels = Object.keys(statsData.votesByUser);
-            const userData = Object.values(statsData.votesByUser);
-            
-            if (userLabels.length > 0) {
-                const userVotesCtx = document.getElementById('user-votes-chart').getContext('2d');
-                new Chart(userVotesCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: userLabels,
-                        datasets: [{
-                            label: 'Votes',
-                            data: userData,
-                            backgroundColor: colors.backgroundColor,
-                            borderColor: colors.borderColor,
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const label = context.label || '';
-                                        const value = context.raw || 0;
-                                        return `${label}: ${value} votes`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        });
+        // Any new JS can go here if needed.
     </script>
 </body>
 </html>

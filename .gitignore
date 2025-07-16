@@ -31,3 +31,4 @@ build/
 # Logs
 logs/
 *.log
+llm.txt

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiohttp>=3.11.13",
+    "dotenv>=0.9.9",
     "flask[async]>=3.1.0",
     "google-genai>=1.5.0",
     "gunicorn>=23.0.0",
@@ -13,6 +14,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "requests>=2.32.3",
     "sqlalchemy>=2.0.38",
+    "werkzeug>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -31,3 +33,11 @@ profile = "black"
 
 [tool.basedpyright]
 typeCheckingMode = "off"
+
+
+[tool.ty.environment]
+python = "./.venv"
+
+
+[tool.ruff.lint]
+ignore = ["TRY300"]

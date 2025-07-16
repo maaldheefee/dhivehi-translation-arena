@@ -1,14 +1,21 @@
+import logging
 import os
-
-from dotenv import load_dotenv
 from datetime import timedelta
 
+from dotenv import load_dotenv
 from flask import Flask
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+
+from app.blueprints.admin import admin_bp
+from app.blueprints.auth import auth_bp
+from app.blueprints.main import main_bp, translation_cache
+from app.blueprints.stats import stats_bp
+from app.database import teardown_db_session
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 
 def create_app():
@@ -22,26 +29,16 @@ def create_app():
     )
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
 
-    # Set up main database
-    engine = create_engine(app.config["DATABASE_URI"])
-    app.db_session = scoped_session(
-        sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    )
+    # Register blueprints
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(stats_bp)
 
-    # Set up cache database (will be used in future implementation)
-    cache_engine = create_engine(app.config["CACHE_DATABASE_URI"])
-    app.cache_db_session = scoped_session(
-        sessionmaker(autocommit=False, autoflush=False, bind=cache_engine)
-    )
+    # Initialize cache
+    translation_cache.init_app(app)
 
-    # Import and register blueprints
-    from app.routes import main
-
-    app.register_blueprint(main)
-
-    @app.teardown_appcontext
-    def shutdown_session(exception=None):
-        app.db_session.remove()
-        app.cache_db_session.remove()  # Also remove cache session
+    # Register teardown function
+    app.teardown_appcontext(teardown_db_session)
 
     return app

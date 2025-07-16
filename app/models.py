@@ -7,6 +7,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -20,7 +21,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     username = Column(String(50), nullable=False, unique=True)
-    password_hash = Column(String(128), nullable=False)
+    password_hash = Column(String(256), nullable=False)
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
 
@@ -32,16 +33,16 @@ class Query(Base):
     __tablename__ = "queries"
 
     id = Column(Integer, primary_key=True)
-    text = Column(Text, nullable=False)
-    is_predefined = Column(Integer, default=0)  # 0 = user-supplied, 1 = predefined
-    created_at = Column(DateTime, default=func.now())
+    source_text = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=func.now())
 
     translations = relationship(
         "Translation", back_populates="query", cascade="all, delete-orphan"
     )
+    votes = relationship("Vote", back_populates="query", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Query id={self.id} text={self.text[:20]}...>"
+        return f"<Query id={self.id} source_text={self.source_text[:20]}...>"
 
 
 class Translation(Base):
@@ -69,17 +70,24 @@ class Translation(Base):
 
 class Vote(Base):
     __tablename__ = "votes"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "query_id",
+            "translation_id",
+            name="unique_user_query_translation_vote",
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     translation_id = Column(Integer, ForeignKey("translations.id"), nullable=False)
-    user = Column(
-        String(50), nullable=False
-    )  # Changed from 36 to 50 to accommodate usernames
-    created_at = Column(DateTime, default=func.now())
+    query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
+    rating = Column(Integer, nullable=True)  # 3=Excellent, 2=Good, 1=Okay, -1=Rejected
 
+    user = relationship("User")
     translation = relationship("Translation", back_populates="votes")
+    query = relationship("Query", back_populates="votes")
 
     def __repr__(self):
-        return (
-            f"<Vote id={self.id} translation_id={self.translation_id} user={self.user}>"
-        )
+        return f"<Vote id={self.id} user_id={self.user_id} query_id={self.query_id} translation_id={self.translation_id} rating={self.rating}>"

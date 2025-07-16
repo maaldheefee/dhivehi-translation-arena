@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,24 +11,34 @@
     <style>
         @font-face {
             font-family: 'Tharujaamaanu';
-            src: url('https://dhivehi.mv/fonts/Tharujamaanu.ttf') format('truetype');
+            src: url('https://fonts.hassaanmv.com/fonts/merged-light.woff2') format('woff2'), 
+                 url('https://fonts.hassaanmv.com/fonts/merged-light.woff') format('woff');
             font-weight: normal;
             font-style: normal;
         }
-        
+
+        @font-face {
+            font-family: 'Tharujamaanu';
+            src: url('https://fonts.hassaanmv.com/fonts/merged-bold.woff2') format('woff2'), 
+                 url('https://fonts.hassaanmv.com/fonts/merged-bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+
         /* Apply Tharujaamaanu font to Dhivehi text */
         .translation-text {
             font-family: 'Tharujaamaanu', 'Tharujamaanu', sans-serif;
             direction: rtl;
             text-align: right;
         }
-        
+
         /* RTL support for other elements */
         .card-body {
             direction: rtl;
         }
     </style>
 </head>
+
 <body>
     <header>
         <div class="container">
@@ -35,7 +46,7 @@
             <nav>
                 <ul>
                     <li><a href="{{ url_for('main.index') }}" class="active">Home</a></li>
-                    <li><a href="{{ url_for('main.stats') }}">Statistics</a></li>
+                    <li><a href="{{ url_for('stats.stats') }}">Statistics</a></li>
                 </ul>
             </nav>
             <div class="user-selection">
@@ -57,13 +68,13 @@
         <section class="translation-section">
             <h2>Arabic to Dhivehi Translation Comparison</h2>
             <p>Compare translations from different AI models and vote for the best one.</p>
-            
-            
+
+
             <div class="predefined-queries">
                 <h3>Select a predefined query:</h3>
                 <div class="query-buttons">
                     {% for query in predefined_queries %}
-                        <button class="predefined-query btn secondary">{{ query }}</button>
+                    <button class="predefined-query btn secondary">{{ query }}</button>
                     {% endfor %}
                 </div>
             </div>
@@ -81,10 +92,18 @@
 
             <div id="results-section" class="results-section hidden">
                 <h3>Translation Results</h3>
-                <p>The translations below are presented in random order. Vote for the one you think is best.</p>
+                <p>The translations below are presented in random order. Rate each translation from 1 to 3 stars, or reject it.</p>
+
+                <!-- Hidden field to store query_id -->
+                <input type="hidden" id="query-id" value="">
 
                 <div class="translations-container">
                     <div class="loader">Loading translations...</div>
+                </div>
+
+                <div class="voting-actions">
+                    <button id="submit-votes-btn" class="btn primary" style="display: none;">Submit Votes</button>
+                    <div id="vote-status" class="vote-status hidden"></div>
                 </div>
 
                 <div class="cost-info">
@@ -92,7 +111,7 @@
                 </div>
             </div>
         </section>
-</main>
+    </main>
 
     <footer>
         <div class="container">
@@ -111,12 +130,20 @@
                 <p class="translation-text"></p>
             </div>
             <div class="card-footer">
-                <button class="vote-btn btn primary">Vote for this translation</button>
-                <span class="voted-badge hidden">Your vote ✓</span>
+                <input type="hidden" class="rating-value" name="rating-" value="0">
+                <div class="star-rating">
+                    <span class="star" data-value="3">&#9733;</span>
+                    <span class="star" data-value="2">&#9733;</span>
+                    <span class="star" data-value="1">&#9733;</span>
+                </div>
+                <button class="reject-btn-new" title="Reject this translation">
+                    &#128465;
+                </button>
             </div>
         </div>
     </template>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
+
 </html>

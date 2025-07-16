@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginBtn = document.getElementById('login-btn');
     const clearCacheBtn = document.getElementById('clear-cache-btn');
     const currentUsernameElement = document.getElementById('current-username');
+    const submitVotesBtn = document.getElementById('submit-votes-btn');
+    const queryIdField = document.getElementById('query-id');
+    const voteStatusDiv = document.getElementById('vote-status');
     
     // Event Listeners
     translateBtn.addEventListener('click', handleTranslate);
@@ -34,6 +37,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear cache button event listener
     if (clearCacheBtn) {
         clearCacheBtn.addEventListener('click', handleClearCache);
+    }
+    
+    // Submit votes button event listener
+    if (submitVotesBtn) {
+        submitVotesBtn.addEventListener('click', handleSubmitVotes);
     }
     
     // Function to load users from the server
@@ -147,6 +155,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayTranslations(data) {
         translationsContainer.innerHTML = '';
 
+        // Store query_id for voting
+        if (queryIdField && data.query_id) {
+            queryIdField.value = data.query_id;
+        }
+
         // Calculate total cost
         let totalCost = 0;
 
@@ -160,6 +173,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update total cost display
         totalCostElement.textContent = '$' + totalCost.toFixed(6);
+        
+        // Show submit button if not previously voted
+        if (!data.voted_translation) {
+             if (submitVotesBtn) {
+                submitVotesBtn.style.display = 'inline-block';
+            }
+        } else {
+            // Hide submit button if already voted
+            if (submitVotesBtn) {
+                submitVotesBtn.style.display = 'none';
+            }
+        }
     }
 
    // Create a translation card from template
@@ -184,28 +209,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Hide model name until after voting
         card.querySelector('.model-name').classList.add('hidden');
 
-        const voteBtn = card.querySelector('.vote-btn');
-        const votedBadge = card.querySelector('.voted-badge');
         const modelName = card.querySelector('.model-name');
+
+        // Set unique name for rating input
+        const ratingInput = card.querySelector('.rating-value');
+        ratingInput.name = `rating-${translation.id}`;
 
         // Check if this is the voted translation
         if (votedTranslationId && translation.id === votedTranslationId) {
-            voteBtn.classList.add('hidden');
-            votedBadge.classList.remove('hidden');
             //Always show model name
             modelName.classList.remove('hidden');
         }
 
-
-        // Add vote event listener
-        voteBtn.addEventListener('click', function() {
-            vote(translation.id);
-        });
+        // Add star rating event listeners
+        setupStarRatingListeners(card);
 
         return card;
     }
 
-    // Handle voting
     // Function to handle clearing the cache
     function handleClearCache() {
         if (!confirm('Are you sure you want to clear the translation cache?')) {
@@ -232,50 +253,171 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function vote(translationId) {
-         fetch('/vote', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    translation_id: translationId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    // Update UI to show vote and model
-                    document.querySelectorAll('.translation-card').forEach( card => {
-                        const cardId = parseInt(card.dataset.id);
-                        const voteBtn = card.querySelector('.vote-btn');
-                        const votedBadge = card.querySelector('.voted-badge');
-                        const modelName = card.querySelector('.model-name');
+    // Setup star rating event listeners for a card
+    function setupStarRatingListeners(card) {
+        const stars = card.querySelectorAll('.star');
+        const rejectBtn = card.querySelector('.reject-btn-new');
+        const ratingInput = card.querySelector('.rating-value');
 
-                        if (cardId === translationId) {
-                            // This is the voted card
-                            voteBtn.classList.add('hidden');
-                            votedBadge.classList.remove('hidden');
-                        } else {
-                            // Reset other cards
-                            voteBtn.classList.remove('hidden');
-                            votedBadge.classList.add('hidden');
-                        }
-                        // Reveal model name
-                        modelName.classList.remove('hidden');
+        stars.forEach(star => {
+            star.addEventListener('click', function() {
+                const value = this.dataset.value;
+                ratingInput.value = value;
 
-                        // Update model name if it was returned from the server
-                        if (data.model && cardId === translationId) {
-                            card.dataset.model = data.model;
-                        }
-                        // Set the model text from the dataset
-                        card.querySelector('.model').textContent = card.dataset.model;
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error submitting vote:', error);
-                alert('Error submitting vote. Please try again.');
+                // Update star visual state
+                stars.forEach(s => {
+                    s.classList.toggle('selected', s.dataset.value <= value);
+                });
+
+                // Clear reject state
+                rejectBtn.classList.remove('selected');
             });
+
+            star.addEventListener('mouseover', function() {
+                const value = this.dataset.value;
+                stars.forEach(s => {
+                    s.classList.toggle('hovered', s.dataset.value <= value);
+                });
+            });
+
+            star.addEventListener('mouseout', function() {
+                stars.forEach(s => {
+                    s.classList.remove('hovered');
+                });
+            });
+        });
+
+        rejectBtn.addEventListener('click', function() {
+            const wasSelected = this.classList.contains('selected');
+            
+            if (wasSelected) {
+                this.classList.remove('selected');
+                ratingInput.value = 0;
+            } else {
+                this.classList.add('selected');
+                ratingInput.value = -1;
+
+                // Clear star rating
+                stars.forEach(s => {
+                    s.classList.remove('selected');
+                });
+            }
+        });
+    }
+
+    // Handle submit votes
+    function handleSubmitVotes() {
+        const queryId = queryIdField ? queryIdField.value : null;
+        
+        if (!queryId) {
+            showVoteStatus('No query ID found', 'error');
+            return;
+        }
+
+        const votes = [];
+        const cards = document.querySelectorAll('.translation-card');
+
+        cards.forEach(card => {
+            const translationId = parseInt(card.dataset.id);
+            const ratingInput = card.querySelector('.rating-value');
+            const rating = parseInt(ratingInput.value);
+
+            // Only include votes that have a non-zero rating
+            if (rating !== 0) {
+                votes.push({
+                    translation_id: translationId,
+                    rating: rating
+                });
+            }
+        });
+
+        if (votes.length === 0) {
+            showVoteStatus('Please rate or reject at least one translation', 'error');
+            return;
+        }
+
+        // Disable submit button during submission
+        if (submitVotesBtn) {
+            submitVotesBtn.disabled = true;
+            submitVotesBtn.textContent = 'Submitting...';
+        }
+
+        // Submit votes to server
+        fetch('/vote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                query_id: parseInt(queryId),
+                votes: votes
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showVoteStatus('Thank you for voting! Your votes have been submitted.', 'success');
+                // Hide voting controls and submit button
+                disableVotingControls();
+                if (submitVotesBtn) {
+                    submitVotesBtn.style.display = 'none';
+                }
+                // Show model names
+                document.querySelectorAll('.model-name').forEach(el => {
+                    el.classList.remove('hidden');
+                });
+            } else {
+                showVoteStatus(data.error || 'Error submitting votes', 'error');
+                // Re-enable submit button
+                if (submitVotesBtn) {
+                    submitVotesBtn.disabled = false;
+                    submitVotesBtn.textContent = 'Submit Votes';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error submitting votes:', error);
+            showVoteStatus('Error submitting votes. Please try again.', 'error');
+            // Re-enable submit button
+            if (submitVotesBtn) {
+                submitVotesBtn.disabled = false;
+                submitVotesBtn.textContent = 'Submit Votes';
+            }
+        });
+    }
+
+    // Show vote status message
+    function showVoteStatus(message, type) {
+        if (voteStatusDiv) {
+            voteStatusDiv.textContent = message;
+            voteStatusDiv.className = `vote-status ${type}`;
+            voteStatusDiv.classList.remove('hidden');
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    voteStatusDiv.classList.add('hidden');
+                }, 5000);
+            }
+        }
+    }
+
+    // Disable voting controls after submission
+    function disableVotingControls() {
+        const cards = document.querySelectorAll('.translation-card');
+        cards.forEach(card => {
+            const stars = card.querySelectorAll('.star');
+            const rejectBtn = card.querySelector('.reject-btn-new');
+
+            // Disable all interactive elements
+            if (rejectBtn) {
+                rejectBtn.disabled = true;
+                rejectBtn.style.cursor = 'default';
+            }
+            stars.forEach(star => {
+                star.style.pointerEvents = 'none';
+                star.style.cursor = 'default';
+            });
+        });
     }
 });
