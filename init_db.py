@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.database import DATABASE_URI, db_session, engine
-from app.models import Base
+from app.models import Base, User
 from app.services.user_service import create_user
 
 # Default users configuration
@@ -25,7 +25,6 @@ Base.metadata.create_all(engine)
 print("Database initialized successfully with new schema!")
 
 # Create default users if database is empty
-from app.models import User
 user_count = db_session.query(User).count()
 if user_count == 0:
     for user_data in DEFAULT_USERS:

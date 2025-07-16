@@ -52,45 +52,63 @@
             </nav>
             <div class="user-selection">
                 <span>Current User: <strong id="current-username">{{ username }}</strong></span>
-                <div class="user-login-form">
-                    <select id="username-select" class="user-dropdown">
-                        <option value="">Select User</option>
-                        <!-- Will be populated via JavaScript -->
-                    </select>
-                    <input type="password" id="user-password" placeholder="PIN/Password" class="user-password">
-                    <button id="login-btn" class="btn secondary">Login</button>
-                </div>
             </div>
         </div>
     </header>
 
     <main class="container">
         <section class="stats-section">
-            <h2>Model Performance Statistics</h2>
+            <h2>Model Performance Dashboard</h2>
             
+            <div class="chart-container">
+                <canvas id="modelPerformanceChart"></canvas>
+            </div>
+
             <div class="stats-details">
+                <h3>Detailed Breakdown</h3>
                 <table>
                     <thead>
                         <tr>
+                            <th>Rank</th>
                             <th>Model Name</th>
-                            <th>Total Score</th>
-                            <th>Total Appearances</th>
-                            <th>Excellent (⭐️⭐️⭐️)</th>
-                            <th>Good (⭐️⭐️)</th>
-                            <th>Okay (⭐️)</th>
-                            <th>Rejected</th>
+                            <th>Avg. Score</th>
+                            <th>Rating Distribution ({{ total_votes }} total votes)</th>
+                            <th>Total Cost</th>
+                            <th>Score per $1</th>
+                            <th>Generations</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for model in model_scores %}
                         <tr>
-                            <td>{{ model.model_name }}</td>
-                            <td>{{ model.score }}</td>
+                            <td><span class="rank-badge">{{ loop.index }}</span></td>
+                            <td><strong>{{ model.model_name }}</strong></td>
+                            <td>
+                                {% set score = model.average_score %}
+                                {% if score > 1.5 %}
+                                    {% set score_class = 'high-score' %}
+                                {% elif score > 0 %}
+                                    {% set score_class = 'medium-score' %}
+                                {% else %}
+                                    {% set score_class = 'low-score' %}
+                                {% endif %}
+                                <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
+                            </td>
+                            <td>
+                                <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
+                                    {% if model.votes_cast > 0 %}
+                                    <div class="bar excellent" style="width: {{ (model.excellent_count / model.votes_cast) * 100 }}%"><span>{{ model.excellent_count }}</span></div>
+                                    <div class="bar good" style="width: {{ (model.good_count / model.votes_cast) * 100 }}%"><span>{{ model.good_count }}</span></div>
+                                    <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
+                                    <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
+                                    {% else %}
+                                    <div class="bar no-votes" style="width: 100%">No Votes Yet</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>${{ "%.4f"|format(model.total_cost) }}</td>
+                            <td>{{ "%.2f"|format(model.score_per_dollar) }}</td>
                             <td>{{ model.appearances }}</td>
-                            <td>{{ model.excellent_count }}</td>
-                            <td>{{ model.good_count }}</td>
-                            <td>{{ model.okay_count }}</td>
-                            <td>{{ model.rejected_count }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -101,12 +119,72 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Dhivehi Translation Arena</p>
+            <p>© 2025 Dhivehi Translation Arena</p>
         </div>
     </footer>
 
     <script>
-        // Any new JS can go here if needed.
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('modelPerformanceChart');
+            if (ctx) {
+                const chartLabels = {{ chart_labels | tojson }};
+                const chartData = {{ chart_data | tojson }};
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Average Score per Vote',
+                            data: chartData,
+                            backgroundColor: [
+                                'rgba(54, 162, 235, 0.6)',
+                                'rgba(75, 192, 192, 0.6)',
+                                'rgba(255, 206, 86, 0.6)',
+                                'rgba(153, 102, 255, 0.6)',
+                                'rgba(255, 159, 64, 0.6)',
+                                'rgba(255, 99, 132, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(255, 99, 132, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y', // For horizontal bar chart
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Average Score (Higher is Better)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Model Comparison by Average Score',
+                                font: {
+                                    size: 18
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>
