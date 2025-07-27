@@ -38,14 +38,27 @@ docker-status:
 build:
     docker build -t dhivehi-translation-arena .
 
-# Run with Docker Compose (local deployment) - builds if needed
+# Run with Docker Compose (production deployment) - builds if needed
 up:
     @just docker-status
     docker-compose up -d --build
 
-# Stop Docker containers
+# Run in development mode with live reload
+up-dev:
+    @just docker-status
+    docker-compose -f compose.dev.yml up -d --build
+
+# Run explicit production configuration
+up-prod:
+    @just docker-status
+    docker-compose -f compose.yml up -d --build
+
+# Stop Docker containers (auto-detects which compose file)
 down:
-    docker-compose down
+    @echo "Stopping all containers..."
+    -docker-compose down 2>/dev/null || true
+    -docker-compose -f compose.dev.yml down 2>/dev/null || true
+    -docker-compose -f compose.yml down 2>/dev/null || true
 
 # View logs from Docker containers
 logs:
