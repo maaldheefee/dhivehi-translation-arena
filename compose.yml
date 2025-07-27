@@ -13,7 +13,7 @@ services:
       - .env
     environment:
       - FLASK_ENV=production
-    command: ["gunicorn", "-w", "4", "-b", "0.0.0.0:8101", "app:app"]
+    command: ["gunicorn", "-w", "1", "-b", "0.0.0.0:8101", "wsgi:app"]
     networks:
       - translation-net-prod
 

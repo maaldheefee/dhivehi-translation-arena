@@ -11,18 +11,12 @@ WORKDIR /app
 # Install system dependencies, including SSL certificates
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Install uv, the package manager
-RUN pip install uv
-
-# Create a virtual environment
-RUN uv venv
-
-# Copy project definition and lock file
-COPY pyproject.toml uv.lock ./
+# Copy requirements file
+COPY requirements.txt ./
 
 # Install dependencies
-# This layer is cached as long as the lock file doesn't change
-RUN . .venv/bin/activate && uv pip install --no-cache-dir -e .[dev]
+# This layer is cached as long as the requirements file doesn't change
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application source code
 COPY . .
@@ -31,7 +25,7 @@ COPY . .
 RUN mkdir -p /app/data && chown -R nobody:nogroup /app/data
 
 # Run the database initialization script
-RUN . .venv/bin/activate && python init_db.py
+RUN python init_db.py
 
 # Expose the port the app runs on
 EXPOSE 8101
@@ -41,4 +35,4 @@ USER nobody
 
 # Command to run the application using Gunicorn
 # This is the production server command
-CMD [".venv/bin/gunicorn", "--bind", "0.0.0.0:8101", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "app:create_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8101", "--workers", "1", "wsgi:app"]
