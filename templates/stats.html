@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Statistics - Dhivehi Translation Arena</title>
+    <title>{{ _('stats_title') }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Add Tharujaamaanu font -->
     <style>
         @font-face { font-family: 'Tharujamaanu';
             src: url("https://fonts.hassaanmv.com/fonts/merged-light.woff2") format("woff2"), url("https://fonts.hassaanmv.com/fonts/merged-light.woff") format("woff");
@@ -27,40 +26,51 @@
 </head>
 <body>
     <header>
-        <div class="container">
-            <h1>Dhivehi Translation Arena</h1>
+        <div class="container header-container">
+            <h1>{{ _('title') }}</h1>
             <nav>
                 <ul>
-                    <li><a href="{{ url_for('main.index') }}">Home</a></li>
-                    <li><a href="{{ url_for('stats.stats') }}" class="active">Statistics</a></li>
+                    <li><a href="{{ url_for('main.index') }}">{{ _('nav_home') }}</a></li>
+                    <li><a href="{{ url_for('stats.stats') }}" class="active">{{ _('nav_stats') }}</a></li>
                 </ul>
             </nav>
-            <div class="user-selection">
-                <span>Current User: <strong id="current-username">{{ username }}</strong></span>
+            <div class="header-controls">
+                <details class="user-login-details">
+                    <summary>
+                        <span>{{ _('current_user') }}: <strong id="current-username">{{ username }}</strong></span>
+                    </summary>
+                    <div class="user-login-form-popup">
+                        <select id="username-select" class="user-dropdown">
+                            <option value="">{{ _('select_user') }}</option>
+                        </select>
+                        <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="user-password">
+                        <button id="login-btn" class="btn secondary small-btn">{{ _('login') }}</button>
+                    </div>
+                </details>
             </div>
         </div>
     </header>
 
     <main class="container">
         <section class="stats-section">
-            <h2>Model Performance Dashboard</h2>
+            <h2>{{ _('stats_header') }}</h2>
             
             <div class="chart-container">
                 <canvas id="modelPerformanceChart"></canvas>
             </div>
 
             <div class="stats-details">
-                <h3>Detailed Breakdown</h3>
+                <h3>{{ _('stats_table_header') }}</h3>
                 <table>
                     <thead>
                         <tr>
-                            <th>Rank</th>
-                            <th>Model Name</th>
-                            <th>Avg. Score</th>
-                            <th>Rating Distribution ({{ total_votes }} total votes)</th>
-                            <th>Total Cost</th>
-                            <th>Score per $1</th>
-                            <th>Generations</th>
+                            <th>{{ _('rank') }}</th>
+                            <th>{{ _('model_name') }}</th>
+                            <th>{{ _('avg_score') }}</th>
+                            <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
+                            <th>{{ _('total_cost') }}</th>
+                            <th>{{ _('score_per_dollar') }}</th>
+                            <th>{{ _('generations') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -69,7 +79,7 @@
                             <td><span class="rank-badge">{{ loop.index }}</span></td>
                             <td>
                                 <strong>{{ model.model_name }}</strong>
-                                {% if not model.is_active %}<span class="deprecated-tag">(Deprecated)</span>{% endif %}
+                                {% if not model.is_active %}<span class="deprecated-tag">({{ _('deprecated') }})</span>{% endif %}
                             </td>
                             <td>
                                 {% set score = model.average_score %}
@@ -90,7 +100,7 @@
                                     <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
                                     <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
                                     {% else %}
-                                    <div class="bar no-votes" style="width: 100%">No Votes Yet</div>
+                                    <div class="bar no-votes" style="width: 100%">{{ _('no_votes_yet') }}</div>
                                     {% endif %}
                                 </div>
                             </td>
@@ -107,7 +117,7 @@
 
     <footer>
         <div class="container">
-            <p>© 2025 Dhivehi Translation Arena</p>
+            <p>© 2025 {{ _('title') }}</p>
         </div>
     </footer>
 

@@ -1,16 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}" dir="rtl">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dhivehi Translation Arena</title>
+    <title>{{ _('title') }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- Add Tharujaamaanu font -->
     <style>
         @font-face {
-            font-family: 'Tharujaamaanu';
+            font-family: 'Tharujamaanu';
             src: url('https://fonts.hassaanmv.com/fonts/merged-light.woff2') format('woff2'), 
                  url('https://fonts.hassaanmv.com/fonts/merged-light.woff') format('woff');
             font-weight: normal;
@@ -24,60 +23,53 @@
             font-weight: bold;
             font-style: normal;
         }
-
-        /* Apply Tharujaamaanu font to Dhivehi text */
-        .translation-text {
-            font-family: 'Tharujaamaanu', 'Tharujamaanu', sans-serif;
-            direction: rtl;
-            text-align: right;
-        }
-
-        /* RTL support for other elements */
-        .card-body {
-            direction: rtl;
-        }
     </style>
 </head>
 
 <body>
     <header>
-        <div class="container">
-            <h1>Dhivehi Translation Arena</h1>
+        <div class="container header-container">
+            <h1>{{ _('title') }}</h1>
             <nav>
                 <ul>
-                    <li><a href="{{ url_for('main.index') }}" class="active">Home</a></li>
-                    <li><a href="{{ url_for('stats.stats') }}">Statistics</a></li>
+                    <li><a href="{{ url_for('main.index') }}" class="active">{{ _('nav_home') }}</a></li>
+                    <li><a href="{{ url_for('stats.stats') }}">{{ _('nav_stats') }}</a></li>
                 </ul>
             </nav>
-            <div class="user-selection">
-                <span>Current User: <strong id="current-username">{{ username }}</strong></span>
-                <div class="user-login-form">
-                    <select id="username-select" class="user-dropdown">
-                        <option value="">Select User</option>
-                        <!-- Will be populated via JavaScript -->
-                    </select>
-                    <input type="password" id="user-password" placeholder="PIN/Password" class="user-password">
-                    <button id="login-btn" class="btn secondary">Login</button>
-                    <button id="clear-cache-btn" class="btn secondary">Clear Cache</button>
-                </div>
+            <div class="header-controls">
+                <details class="user-login-details">
+                    <summary>
+                        <span>{{ _('current_user') }}: <strong id="current-username">{{ username }}</strong></span>
+                    </summary>
+                    <div class="user-login-form-popup">
+                        <select id="username-select" class="user-dropdown">
+                            <option value="">{{ _('select_user') }}</option>
+                        </select>
+                        <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="user-password">
+                        <button id="login-btn" class="btn secondary small-btn">{{ _('login') }}</button>
+                    </div>
+                </details>
             </div>
         </div>
     </header>
 
     <main class="container">
         <section class="translation-section">
-            <h2>Arabic to Dhivehi Translation Comparison</h2>
-            <p>Select at least two models, provide your text, and vote for the best translation.</p>
+            <h2>{{ _('main_header') }}</h2>
+            <p>{{ _('main_subheader') }}</p>
 
-            <div class="model-selection-container">
-                <h4>Select models to compare (minimum 2):</h4>
-                <div id="model-selection-checkboxes" class="model-checkbox-group">
-                    <div class="loader">Loading models...</div>
+            <details class="model-selection-details">
+                <summary>{{ _('configure_models') }}</summary>
+                <div class="model-selection-container">
+                    <h4>{{ _('select_models_prompt') }}</h4>
+                    <div id="model-selection-checkboxes" class="model-checkbox-group">
+                        <div class="loader">{{ _('loading_models') }}</div>
+                    </div>
                 </div>
-            </div>
+            </details>
 
             <div class="predefined-queries">
-                <h3>Select a predefined query:</h3>
+                <h3>{{ _('predefined_queries_header') }}</h3>
                 <div class="query-buttons">
                     {% for query in predefined_queries %}
                     <button class="predefined-query btn secondary">{{ query }}</button>
@@ -86,34 +78,28 @@
             </div>
 
             <div class="input-section">
-                <h3>Or enter your own Arabic text:</h3>
-
+                <h3>{{ _('custom_text_header') }}</h3>
                 <div class="form-group">
-                    <label for="query-input">Arabic Text:</label>
-                    <textarea id="query-input" placeholder="Enter Arabic text here..."></textarea>
+                    <label for="query-input">{{ _('arabic_text_label') }}</label>
+                    <textarea id="query-input" placeholder="{{ _('arabic_text_placeholder') }}"></textarea>
                 </div>
-
-                <button id="translate-btn" class="btn primary">Translate</button>
+                <button id="translate-btn" class="btn primary">{{ _('translate') }}</button>
             </div>
 
             <div id="results-section" class="results-section hidden">
-                <h3>Translation Results</h3>
-                <p>The translations below are presented in random order. Rate each translation from 1 to 3 stars, or reject it.</p>
+                <h3>{{ _('results_header') }}</h3>
+                <p>{{ _('results_subheader') }}</p>
 
-                <!-- Hidden field to store query_id -->
                 <input type="hidden" id="query-id" value="">
-
-                <div class="translations-container">
-                    <div class="loader">Loading translations...</div>
-                </div>
+                <div class="translations-container"></div>
 
                 <div class="voting-actions">
-                    <button id="submit-votes-btn" class="btn primary" style="display: none;">Submit Votes</button>
+                    <button id="submit-votes-btn" class="btn primary" style="display: none;">{{ _('submit_votes') }}</button>
                     <div id="vote-status" class="vote-status hidden"></div>
                 </div>
 
                 <div class="cost-info">
-                    <p>Total cost for this query: <span id="total-cost">$0.00</span></p>
+                    <p>{{ _('total_cost_label') }} <span id="total-cost">$0.00</span></p>
                 </div>
             </div>
         </section>
@@ -121,32 +107,40 @@
 
     <footer>
         <div class="container">
-            <p>© 2025 Dhivehi Translation Arena</p>
+            <p>© 2025 {{ _('title') }}</p>
         </div>
     </footer>
 
-    <!-- Templates for dynamic content -->
-    <template id="translation-template">
-        <div class="translation-card" data-id="">
-            <div class="card-header">
-                <h4>Translation Option <span class="position"></span></h4>
-                <div class="model-name hidden">Model: <span class="model"></span></div>
+    <template id="translation-placeholder-template">
+        <div class="translation-card placeholder" data-model-key="">
+             <div class="card-header">
+                <h4>{{ _('translation_option') }} <span class="position"></span></h4>
             </div>
             <div class="card-body">
-                <p class="translation-text"></p>
+                <div class="spinner"></div>
             </div>
-            <div class="card-footer">
-                <input type="hidden" class="rating-value" name="rating-" value="0">
-                <div class="star-rating">
-                    <span class="star" data-value="3">★</span>
-                    <span class="star" data-value="2">★</span>
-                    <span class="star" data-value="1">★</span>
-                </div>
-                <button class="reject-btn-new" title="Reject this translation">
-                    
-                </button>
-            </div>
+            <div class="card-footer"></div>
         </div>
+    </template>
+
+    <template id="translation-card-content-template">
+        <div class="model-name hidden">{{ _('model_label') }}: <span class="model"></span></div>
+        <div class="card-body-content">
+            <p class="translation-text"></p>
+        </div>
+        <div class="card-footer-content">
+            <input type="hidden" class="rating-value" value="0">
+            <div class="star-rating">
+                <span class="star icon" data-value="3" title="{{ _('rating_excellent_title') }}">★</span>
+                <span class="star icon" data-value="2" title="{{ _('rating_good_title') }}">★</span>
+                <span class="star icon" data-value="1" title="{{ _('rating_okay_title') }}">★</span>
+            </div>
+            <button class="reject-btn-new icon" title="{{ _('reject_translation_title') }}"></button>
+        </div>
+    </template>
+    
+    <template id="retry-button-template">
+        <button class="btn secondary small-btn retry-btn">{{ _('retry') }} <span class="icon">↺</span></button>
     </template>
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

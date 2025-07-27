@@ -9,13 +9,6 @@ from app.services.user_service import check_password, create_user, get_user_by_u
 auth_bp = Blueprint("auth", __name__)
 
 
-def init_default_users(db_session):
-    """Initialize default users if none exist - now handled by init_db.py"""
-    # This function is now a no-op since default user creation is handled exclusively by init_db.py
-    # Keeping it for backward compatibility but it does nothing
-    pass
-
-
 @auth_bp.before_request
 def before_request():
     """Initializes session."""
@@ -83,7 +76,7 @@ def add_user():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    user = create_user(username, password, is_admin)
+    user = create_user(username, password, is_admin=is_admin)
     if not user:
         return jsonify({"error": "Username already exists"}), 400
 
@@ -94,6 +87,8 @@ def add_user():
 def select_user():
     """Allows selecting a user without a password (for demo purposes)."""
     data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid JSON data"}), 400
     username = data.get("username")
 
     # This is an insecure way to switch users, for demo only.

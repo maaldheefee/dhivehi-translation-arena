@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dhivehi-translation-arena-prod
+    restart: always
+    volumes:
+      - ./data:/app/data
+    expose:
+      - 8101
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+    command: ["gunicorn", "-w", "4", "-b", "0.0.0.0:8101", "app:app"]
+    networks:
+      - translation-net-prod
+
+networks:
+  translation-net-prod:
+    driver: bridge

@@ -1,21 +1,19 @@
-import os
-
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
-# It's better to get this from a config, but for now, to match the existing
-# structure, we'll define it here.
-DATABASE_URI = os.environ.get("DATABASE_URI", "sqlite:///data/translations.db")
-
-engine = create_engine(DATABASE_URI)
-db_session = scoped_session(
-    sessionmaker(autocommit=False, autoflush=False, bind=engine)
-)
+engine = None
+SessionFactory = sessionmaker(autocommit=False, autoflush=False)
+db_session = scoped_session(SessionFactory)
 Base = declarative_base()
 Base.query = db_session.query_property()
 
 
-def teardown_db_session(exception=None):
-    """Remove the database session."""
+def init_db(app):
+    global engine
+    engine = create_engine(app.config["DATABASE_URI"])
+    db_session.configure(bind=engine)
+    Base.metadata.bind = engine
+
+
+def shutdown_session(exception=None):
     db_session.remove()

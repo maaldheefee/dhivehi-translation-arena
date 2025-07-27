@@ -1,3 +1,7 @@
+from typing import cast
+
+from sqlalchemy.orm import Session
+
 from app.config import get_config
 from app.database import db_session
 from app.repositories.translation_repository import TranslationRepository
@@ -10,8 +14,9 @@ def calculate_model_scores():
     """
     Calculates comprehensive scores and stats for each model, including cost-effectiveness.
     """
-    vote_repo = VoteRepository(db_session)
-    translation_repo = TranslationRepository(db_session)
+    session = cast(Session, db_session)
+    vote_repo = VoteRepository(session)
+    translation_repo = TranslationRepository(session)
 
     votes = vote_repo.get_all()
     translations = translation_repo.get_all()

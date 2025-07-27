@@ -1,0 +1,23 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dhivehi-translation-arena-dev
+    restart: always
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    ports:
+      - "8101:8101"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=development
+    command: ["uv", "run", "--no-cache", "app.py"]
+    networks:
+      - translation-net-dev
+
+networks:
+  translation-net-dev:
+    driver: bridge

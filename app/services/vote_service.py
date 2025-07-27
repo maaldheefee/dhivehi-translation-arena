@@ -1,6 +1,9 @@
 """Vote service for processing hybrid voting system votes."""
 
 import logging
+from typing import cast
+
+from sqlalchemy.orm import Session
 
 from app.database import db_session
 from app.models import Vote
@@ -23,7 +26,8 @@ def process_votes(user_id, query_id, votes_data):
     Returns:
         dict: Result of the voting process
     """
-    vote_repo = VoteRepository(db_session)
+    session = cast(Session, db_session)
+    vote_repo = VoteRepository(session)
 
     try:
         # Remove existing votes for this user and query
@@ -54,8 +58,9 @@ def process_votes(user_id, query_id, votes_data):
         if new_votes:
             vote_repo.bulk_add(new_votes)
 
-        return {"success": True, "message": "Votes processed successfully"}
-
     except Exception:
         logger.exception("Error processing votes")
         return {"success": False, "error": "An error occurred while processing votes"}
+
+    else:
+        return {"success": True, "message": "Votes processed successfully"}

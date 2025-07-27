@@ -9,21 +9,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const usernameSelect = document.getElementById('username-select');
     const userPassword = document.getElementById('user-password');
     const loginBtn = document.getElementById('login-btn');
-    const clearCacheBtn = document.getElementById('clear-cache-btn');
-    const currentUsernameElement = document.getElementById('current-username');
     const submitVotesBtn = document.getElementById('submit-votes-btn');
     const queryIdField = document.getElementById('query-id');
     const voteStatusDiv = document.getElementById('vote-status');
     const modelSelectionCheckboxes = document.getElementById('model-selection-checkboxes');
 
+    let eventSource = null;
+    let totalCost = 0;
+
     // Event Listeners
-    if (translateBtn) {
-        translateBtn.addEventListener('click', handleTranslate);
-    }
+    if (translateBtn) translateBtn.addEventListener('click', handleTranslate);
     
     predefinedQueryButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            queryInput.value = this.textContent.trim();
+        button.addEventListener('click', () => {
+            queryInput.value = button.textContent.trim();
             handleTranslate();
         });
     });
@@ -31,223 +30,230 @@ document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     loadModelsForSelection();
     
-    if (loginBtn) {
-        loginBtn.addEventListener('click', handleLogin);
-    }
-    
-    if (clearCacheBtn) {
-        clearCacheBtn.addEventListener('click', handleClearCache);
-    }
-    
-    if (submitVotesBtn) {
-        submitVotesBtn.addEventListener('click', handleSubmitVotes);
-    }
-    
+    if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+    if (submitVotesBtn) submitVotesBtn.addEventListener('click', handleSubmitVotes);
+
     function loadUsers() {
         fetch('/get_users')
             .then(response => response.json())
             .then(data => {
-                if (data.users && usernameSelect) {
-                    while (usernameSelect.options.length > 1) {
-                        usernameSelect.remove(1);
-                    }
-                    data.users.forEach(user => {
-                        const option = document.createElement('option');
-                        option.value = user.username;
-                        option.textContent = user.username;
-                        usernameSelect.appendChild(option);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error loading users:', error);
-            });
+                if (!data.users || !usernameSelect) return;
+                while (usernameSelect.options.length > 1) usernameSelect.remove(1);
+                data.users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.username;
+                    option.textContent = user.username;
+                    usernameSelect.appendChild(option);
+                });
+            }).catch(error => console.error('Error loading users:', error));
     }
 
     function loadModelsForSelection() {
         fetch('/get_available_models')
             .then(response => response.json())
             .then(data => {
-                if (data.models && modelSelectionCheckboxes) {
-                    modelSelectionCheckboxes.innerHTML = ''; // Clear loader
-                    for (const [key, displayName] of Object.entries(data.models)) {
-                        const div = document.createElement('div');
-                        div.className = 'checkbox-wrapper';
-                        
-                        const input = document.createElement('input');
-                        input.type = 'checkbox';
-                        input.id = `model-${key}`;
-                        input.name = 'models';
-                        input.value = key;
-                        input.checked = true; // Default to checked
-
-                        const label = document.createElement('label');
-                        label.htmlFor = `model-${key}`;
-                        label.textContent = displayName;
-                        
-                        div.appendChild(input);
-                        div.appendChild(label);
-                        modelSelectionCheckboxes.appendChild(div);
-                    }
-                }
-            })
-            .catch(error => {
+                if (!data.models || !modelSelectionCheckboxes) return;
+                modelSelectionCheckboxes.innerHTML = '';
+                Object.entries(data.models).forEach(([key, displayName]) => {
+                    const div = document.createElement('div');
+                    div.className = 'checkbox-wrapper';
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.id = `model-${key}`;
+                    input.name = 'models';
+                    input.value = key;
+                    input.checked = true;
+                    const label = document.createElement('label');
+                    label.htmlFor = `model-${key}`;
+                    label.textContent = displayName;
+                    div.append(input, label);
+                    modelSelectionCheckboxes.appendChild(div);
+                });
+            }).catch(error => {
                 console.error('Error loading models:', error);
-                if(modelSelectionCheckboxes) {
-                    modelSelectionCheckboxes.innerHTML = '<div class="error">Could not load models.</div>';
-                }
+                if (modelSelectionCheckboxes) modelSelectionCheckboxes.innerHTML = '<div class="error">Could not load models.</div>';
             });
     }
 
     function handleLogin() {
-        const username = usernameSelect.value;
-        const password = userPassword.value;
-        
-        if (!username || !password) {
+        if (!usernameSelect.value || !userPassword.value) {
             alert('Please select a user and enter the password.');
             return;
         }
-        
         fetch('/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
-            if (data.success) {
-                window.location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Error logging in:', error);
-            alert('Error logging in. Please try again.');
-        });
+            body: JSON.stringify({ username: usernameSelect.value, password: userPassword.value })
+        }).then(response => response.json()).then(data => {
+            if (data.error) return alert(data.error);
+            if (data.success) window.location.reload();
+        }).catch(error => console.error('Error logging in:', error));
     }
     
     function handleTranslate() {
         const query = queryInput.value.trim();
         const selectedModels = Array.from(document.querySelectorAll('#model-selection-checkboxes input:checked')).map(cb => cb.value);
 
-        if (!query) {
-            alert('Please enter text to translate');
-            return;
-        }
+        if (!query) return alert('Please enter text to translate');
+        if (selectedModels.length < 2) return alert('Please select at least two models to compare.');
 
-        if (selectedModels.length < 2) {
-            alert('Please select at least two models to compare.');
-            return;
-        }
-
+        if (eventSource) eventSource.close();
+        
         resultsSection.classList.remove('hidden');
-        translationsContainer.innerHTML = '<div class="loader">Loading translations...</div>';
+        translationsContainer.innerHTML = '';
         if (submitVotesBtn) submitVotesBtn.style.display = 'none';
         if (voteStatusDiv) voteStatusDiv.classList.add('hidden');
+        totalCost = 0;
+        totalCostElement.textContent = '$0.000000';
 
-        fetch('/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                query: query,
-                models: selectedModels
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
+        selectedModels.forEach((modelKey, index) => {
+            const placeholder = createPlaceholderCard(modelKey, index + 1);
+            translationsContainer.appendChild(placeholder);
+        });
+
+        const params = new URLSearchParams({ query: query });
+        selectedModels.forEach(model => params.append('models', model));
+        
+        eventSource = new EventSource(`/stream-translate?${params.toString()}`);
+        
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
             if (data.error) {
-                translationsContainer.innerHTML = `<div class="error">${data.error}</div>`;
+                console.error(`Error for model ${data.model}: ${data.error}`);
+                updateCardWithError(data.model, data.error);
                 return;
             }
-            displayTranslations(data);
-        })
-        .catch(error => {
-            console.error('Error fetching translations:', error);
-            translationsContainer.innerHTML = '<div class="error">Error fetching translations. Please try again.</div>';
-        });
-    }
+            updateCardWithTranslation(data);
+        };
 
-    function displayTranslations(data) {
-        translationsContainer.innerHTML = '';
-        if (queryIdField) queryIdField.value = data.query_id;
-
-        let totalCost = 0;
-        data.translations.forEach(translation => {
-            const card = createTranslationCard(translation);
-            translationsContainer.appendChild(card);
-            totalCost += translation.cost;
+        eventSource.addEventListener('end', function(event) {
+            eventSource.close();
+            eventSource = null;
+            if (submitVotesBtn) submitVotesBtn.style.display = 'inline-block';
+            console.log('Stream finished.');
         });
 
-        totalCostElement.textContent = '$' + totalCost.toFixed(6);
-        
-        if (submitVotesBtn) {
-            submitVotesBtn.style.display = 'inline-block';
-            submitVotesBtn.disabled = false;
-            submitVotesBtn.textContent = 'Submit Votes';
-        }
+        eventSource.onerror = function(err) {
+            console.error('EventSource failed:', err);
+            translationsContainer.innerHTML = `<div class="error">A network error occurred. Please try again.</div>`;
+            if(eventSource) eventSource.close();
+        };
     }
 
-    function createTranslationCard(translation) {
-        const template = document.getElementById('translation-template');
-        const card = document.importNode(template.content, true).querySelector('.translation-card');
-
-        card.dataset.id = translation.id;
-        card.dataset.model = translation.model || "Unknown";
-        card.querySelector('.position').textContent = translation.position;
-        card.querySelector('.translation-text').textContent = translation.translation;
-        
-        const modelElement = card.querySelector('.model');
-        if (modelElement) modelElement.textContent = translation.model;
-        
-        const ratingInput = card.querySelector('.rating-value');
-        if (ratingInput) ratingInput.name = `rating-${translation.id}`;
-
-        setupStarRatingListeners(card);
+    function createPlaceholderCard(modelKey, position) {
+        const template = document.getElementById('translation-placeholder-template');
+        const card = template.content.cloneNode(true).querySelector('.translation-card');
+        card.dataset.modelKey = modelKey;
+        card.querySelector('.position').textContent = position;
         return card;
     }
 
-    function handleClearCache() {
-        if (!confirm('Are you sure you want to clear the translation cache?')) return;
+    function updateCardWithTranslation(data) {
+        const card = document.querySelector(`.translation-card[data-model-key="${data.model}"]`);
+        if (!card) return;
+
+        card.classList.remove('placeholder');
+        card.dataset.id = data.id;
+        if (queryIdField && !queryIdField.value) queryIdField.value = data.query_id;
+
+        const contentTemplate = document.getElementById('translation-card-content-template');
+        const content = contentTemplate.content.cloneNode(true);
+
+        const modelNameDiv = content.querySelector('.model-name');
+        modelNameDiv.querySelector('.model').textContent = data.model;
+        card.querySelector('.card-header').appendChild(modelNameDiv);
         
-        fetch('/clear_cache', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message || data.error);
-        })
-        .catch(error => {
-            console.error('Error clearing cache:', error);
-            alert('Error clearing cache.');
+        content.querySelector('.translation-text').textContent = data.translation;
+        card.querySelector('.card-body').innerHTML = '';
+        card.querySelector('.card-body').appendChild(content.querySelector('.card-body-content'));
+        
+        card.querySelector('.card-footer').innerHTML = '';
+        card.querySelector('.card-footer').appendChild(content.querySelector('.card-footer-content'));
+        
+        setupStarRatingListeners(card);
+
+        totalCost += data.cost;
+        totalCostElement.textContent = '$' + totalCost.toFixed(6);
+    }
+    
+    function updateCardWithError(modelKey, errorMsg) {
+        const card = document.querySelector(`.translation-card[data-model-key="${modelKey}"]`);
+        if (!card) return;
+        card.classList.add('error-card');
+        card.querySelector('.card-body').innerHTML = `<div class="error-message"><strong>Error:</strong> ${errorMsg}</div>`;
+        
+        const retryTemplate = document.getElementById('retry-button-template');
+        if (retryTemplate) {
+            const retryButton = retryTemplate.content.cloneNode(true).querySelector('button');
+            retryButton.addEventListener('click', () => {
+                const query = queryInput.value.trim();
+                retrySingleTranslation(query, modelKey);
+            });
+            const footer = card.querySelector('.card-footer');
+            footer.innerHTML = '';
+            footer.appendChild(retryButton);
+        }
+    }
+    
+    function retrySingleTranslation(query, modelKey) {
+        if (!query || !modelKey) return;
+
+        const card = document.querySelector(`.translation-card[data-model-key="${modelKey}"]`);
+        if (!card) return;
+
+        card.classList.remove('error-card');
+        card.querySelector('.card-body').innerHTML = '<div class="spinner"></div>';
+        card.querySelector('.card-footer').innerHTML = '';
+
+        const params = new URLSearchParams({ query: query, models: modelKey });
+        const singleEventSource = new EventSource(`/stream-translate?${params.toString()}`);
+
+        singleEventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                console.error(`Retry error for model ${data.model}: ${data.error}`);
+                updateCardWithError(data.model, data.error);
+            } else {
+                updateCardWithTranslation(data);
+            }
+        };
+
+        singleEventSource.addEventListener('end', function(event) {
+            singleEventSource.close();
+            console.log(`Retry stream for ${modelKey} finished.`);
         });
+
+        singleEventSource.onerror = function(err) {
+            console.error('Single EventSource failed:', err);
+            updateCardWithError(modelKey, 'A network error occurred during retry.');
+            singleEventSource.close();
+        };
     }
 
     function setupStarRatingListeners(card) {
         const stars = card.querySelectorAll('.star');
         const rejectBtn = card.querySelector('.reject-btn-new');
         const ratingInput = card.querySelector('.rating-value');
+        if (!ratingInput) return;
 
         stars.forEach(star => {
-            star.addEventListener('click', function() {
-                const value = this.dataset.value;
+            star.addEventListener('click', () => {
+                const value = star.dataset.value;
                 ratingInput.value = value;
                 stars.forEach(s => s.classList.toggle('selected', s.dataset.value <= value));
                 if (rejectBtn) rejectBtn.classList.remove('selected');
             });
-            star.addEventListener('mouseover', function() {
-                const value = this.dataset.value;
+            star.addEventListener('mouseover', () => {
+                const value = star.dataset.value;
                 stars.forEach(s => s.classList.toggle('hovered', s.dataset.value <= value));
             });
-            star.addEventListener('mouseout', function() {
-                stars.forEach(s => s.classList.remove('hovered'));
-            });
+            star.addEventListener('mouseout', () => stars.forEach(s => s.classList.remove('hovered')));
         });
 
         if (rejectBtn) {
-            rejectBtn.addEventListener('click', function() {
-                const wasSelected = this.classList.contains('selected');
-                this.classList.toggle('selected', !wasSelected);
+            rejectBtn.addEventListener('click', () => {
+                const wasSelected = rejectBtn.classList.contains('selected');
+                rejectBtn.classList.toggle('selected', !wasSelected);
                 ratingInput.value = wasSelected ? 0 : -1;
                 if (!wasSelected) stars.forEach(s => s.classList.remove('selected'));
             });
@@ -256,27 +262,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function handleSubmitVotes() {
         const queryId = queryIdField ? queryIdField.value : null;
-        if (!queryId) {
-            showVoteStatus('No query ID found', 'error');
-            return;
-        }
+        if (!queryId) return showVoteStatus('No query ID found', 'error');
 
         const votes = [];
-        document.querySelectorAll('.translation-card').forEach(card => {
+        document.querySelectorAll('.translation-card:not(.placeholder):not(.error-card)').forEach(card => {
             const ratingInput = card.querySelector('.rating-value');
-            const rating = parseInt(ratingInput.value, 10);
-            if (rating !== 0) {
+            if (ratingInput && ratingInput.value != 0) {
                 votes.push({
                     translation_id: parseInt(card.dataset.id, 10),
-                    rating: rating
+                    rating: parseInt(ratingInput.value, 10)
                 });
             }
         });
 
-        if (votes.length === 0) {
-            showVoteStatus('Please rate or reject at least one translation', 'error');
-            return;
-        }
+        if (votes.length === 0) return showVoteStatus('Please rate or reject at least one translation', 'error');
 
         if (submitVotesBtn) {
             submitVotesBtn.disabled = true;
@@ -287,9 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query_id: parseInt(queryId, 10), votes: votes })
-        })
-        .then(response => response.json())
-        .then(data => {
+        }).then(response => response.json()).then(data => {
             if (data.status === 'success') {
                 showVoteStatus('Thank you for voting!', 'success');
                 disableVotingControls();
@@ -302,11 +299,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitVotesBtn.textContent = 'Submit Votes';
                 }
             }
-        })
-        .catch(error => {
+        }).catch(error => {
             console.error('Error submitting votes:', error);
             showVoteStatus('Error submitting votes. Please try again.', 'error');
-            if (submitVotesBtn) {
+             if (submitVotesBtn) {
                 submitVotesBtn.disabled = false;
                 submitVotesBtn.textContent = 'Submit Votes';
             }
@@ -318,9 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
             voteStatusDiv.textContent = message;
             voteStatusDiv.className = `vote-status ${type}`;
             voteStatusDiv.classList.remove('hidden');
-            if (type === 'success') {
-                setTimeout(() => voteStatusDiv.classList.add('hidden'), 5000);
-            }
+            if (type === 'success') setTimeout(() => voteStatusDiv.classList.add('hidden'), 5000);
         }
     }
 

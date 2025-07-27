@@ -25,8 +25,8 @@ class Config:
     OPENROUTER_API_KEY: ClassVar[str | None] = os.environ.get("OPENROUTER_API_KEY")
 
     # Database
-    DATABASE_URI: ClassVar[str] = os.environ.get(
-        "DATABASE_URI", "sqlite:///dhivehi_translation_arena.db"
+    DATABASE_URI: ClassVar[str] = os.getenv(
+        "DATABASE_URI", "sqlite:///data/dhivehi_translation_arena.db"
     )
 
     # Application settings
@@ -57,6 +57,7 @@ class Config:
             "type": "gemini",
             "input_cost_per_mtok": 1.25,
             "output_cost_per_mtok": 10.00,
+            # This is the pricing for <=200K tokens. There's a higher price for >200K tokens, but we don't expect to use that much.
             "is_active": True,
             "rate_limit": None,
         },
@@ -64,21 +65,29 @@ class Config:
             "name": "gemini-2.5-flash",
             "display_name": "Gemini 2.5 Flash",
             "type": "gemini",
-            "input_cost_per_mtok": 0.2,
+            "input_cost_per_mtok": 0.3,
             "output_cost_per_mtok": 2.5,
             "is_active": True,
             "rate_limit": None,
             "thinking_budget": 0,
         },
-        "gemini-2.5-flash-lite": {
-            "name": "gemini-2.5-flash-lite-preview-06-17",
-            "display_name": "Gemini 2.5 Flash Lite Preview",
+        "gemini-2.5-flash-thinking": {
+            "name": "gemini-2.5-flash",
+            "display_name": "Gemini 2.5 Flash (Thinking Enabled)",
             "type": "gemini",
-            "input_cost_per_mtok": 0.1,
-            "output_cost_per_mtok": 0.4,
+            "input_cost_per_mtok": 0.3,
+            "output_cost_per_mtok": 2.5,
             "is_active": True,
             "rate_limit": None,
-            "thinking_budget": 0,
+        },
+        "gemini-2.5-flash-lite": {
+            "name": "gemini-2.5-flash-lite",
+            "display_name": "Gemini 2.5 Flash Lite",
+            "type": "gemini",
+            "input_cost_per_mtok": 0.10,
+            "output_cost_per_mtok": 0.40,
+            "is_active": True,
+            "rate_limit": None,
         },
         "claude-sonnet-3.7": {
             "name": "anthropic/claude-3.7-sonnet",
@@ -95,7 +104,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 3.0,
             "output_cost_per_mtok": 15.0,
-            "is_active": True,
+            "is_active": False,
             "rate_limit": None,
         },
     }
@@ -106,7 +115,7 @@ class Config:
 
     # Model settings
     DEFAULT_TEMPERATURE = 0.85
-    MAX_OUTPUT_TOKENS = 2048
+    MAX_OUTPUT_TOKENS = 4096  # Increased from 2048
 
     # Rate limiting
     GEMINI_PRO_RATE_LIMIT = 5  # requests per minute

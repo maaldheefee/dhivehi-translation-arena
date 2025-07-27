@@ -1,41 +1,49 @@
-import random
-from concurrent.futures import ThreadPoolExecutor
+from sqlalchemy.orm import Session
 
-from app.database import db_session
-from app.llm_clients import get_available_models, get_translation_client
+from app.database import SessionFactory
+from app.llm_clients import get_translation_client
 from app.models import Query, Translation
 from app.repositories.query_repository import QueryRepository
 from app.repositories.translation_repository import TranslationRepository
-from app.repositories.user_repository import UserRepository
-from app.repositories.vote_repository import VoteRepository
 
 
-def get_translations(source_text, username="Guest", selected_models=None):
+def get_translation_for_model(source_text: str, model: str, position: int) -> dict:
     """
-    Gets translations for the given source text from a selected subset of models.
-    Returns query_id and list of translation results.
+    Retrieves or creates a translation for a given source text and model.
+
+    This function first checks the database for an existing translation.
+    If found, it returns the cached translation. Otherwise, it calls the
+    external translation API, stores the new translation in the database,
+    and then returns it.
+
+    A new database session is created and managed within this function to ensure
+    thread safety when handling concurrent translation requests.
+
+    Args:
+        source_text: The text to be translated.
+        model: The identifier for the translation model to use.
+        position: The display order for the translation in the UI.
+
+    Returns:
+        A dictionary containing the translation details.
     """
-    models_to_use = selected_models or list(get_available_models().keys())
+    session: Session = SessionFactory()
+    try:
+        query_repo = QueryRepository(session)
+        translation_repo = TranslationRepository(session)
 
-    random.shuffle(models_to_use)
+        query = query_repo.get_by_source_text(source_text)
+        if not query:
+            session.rollback()
+            query = query_repo.get_by_source_text(source_text)
+            if not query:
+                query = Query(source_text=source_text)
+                query = query_repo.add(query)
 
-    query_repo = QueryRepository(db_session)
-    translation_repo = TranslationRepository(db_session)
-    user_repo = UserRepository(db_session)
-    vote_repo = VoteRepository(db_session)
-
-    query = query_repo.get_by_source_text(source_text)
-    if not query:
-        query = Query(source_text=source_text)
-        query = query_repo.add(query)
-
-    translations = []
-
-    def get_translation(model, position):
-        """Fetch translation from DB or API."""
-        existing = translation_repo.get_by_query_and_model(query.id, model)
+        existing = translation_repo.get_by_query_and_model(query.id, model)  # ty: ignore [invalid-argument-type]
         if existing:
             return {
+                "query_id": existing.query_id,
                 "id": existing.id,
                 "model": model,
                 "position": position,
@@ -45,62 +53,36 @@ def get_translations(source_text, username="Guest", selected_models=None):
 
         client = get_translation_client(model)
         try:
-            result, cost = client.translate(source_text)
-            if "Error:" in result:
-                return None
-        except Exception:
-            return None
+            result_text, cost = client.translate(source_text)
+            if "Error:" in result_text or "Rate limit" in result_text:
+                raise ConnectionError(result_text)
+        except Exception as e:
+            msg = f"API call failed for {model}: {e!s}"
+            raise ConnectionError(msg) from e
 
         translation = Translation(
             query_id=query.id,
             model=model,
-            translation=result,
+            translation=result_text,
             system_prompt=client.SYSTEM_PROMPT,
             position=position,
             cost=cost,
         )
+        new_translation = translation_repo.add(translation)
 
-        try:
-            translation = translation_repo.add(translation)
-            return {
-                "id": translation.id,
-                "model": model,
-                "position": position,
-                "translation": result,
-                "cost": cost,
-            }
-        except Exception:
-            return None
+    except Exception:
+        session.rollback()
+        raise
 
-    with ThreadPoolExecutor() as executor:
-        future_to_model = {
-            executor.submit(get_translation, model, i): model
-            for i, model in enumerate(models_to_use, 1)
+    else:
+        return {
+            "query_id": new_translation.query_id,
+            "id": new_translation.id,
+            "model": model,
+            "position": position,
+            "translation": result_text,
+            "cost": cost,
         }
-        for future in future_to_model:
-            try:
-                result = future.result()
-                if result:
-                    translations.append(result)
-            except Exception:
-                continue
 
-    translations = sorted([t for t in translations if t], key=lambda x: x["position"])
-
-    voted_translation = None
-    if username != "Guest":
-        user_obj = user_repo.get_by_username(username)
-        if user_obj:
-            votes = vote_repo.get_by_user_and_query(user_obj.id, query.id)
-            if votes:
-                # Find a valid vote to get the translation ID
-                for vote in votes:
-                    if vote.translation_id:
-                        voted_translation = vote.translation_id
-                        break
-
-    return {
-        "query_id": query.id,
-        "translations": translations,
-        "voted_translation": voted_translation,
-    }
+    finally:
+        session.close()

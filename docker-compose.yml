@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: dhivehi-translation-arena
+    restart: always
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8101:8080"
+    env_file:
+      - .env
+    networks:
+      - translation-net
+
+networks:
+  translation-net:
+    driver: bridge
