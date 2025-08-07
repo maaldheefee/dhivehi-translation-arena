@@ -16,21 +16,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "black",
-    "isort"
-]
+dev = ["black", "isort", "pytest"]
 
 [tool.black]
 line-length = 120
 
-[tool.isort]
-profile = "black"
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.8.4,<0.9.0"]
 
-
-[tool.basedpyright]
-typeCheckingMode = "off"
+[tool.uv.build-backend]
+module-name = "app"
+module-root = ""
 
 
 [tool.ty.environment]
@@ -39,8 +36,3 @@ python = "./.venv"
 
 [tool.ruff.lint]
 ignore = ["TRY300"]
-
-
-[tool.setuptools]
-packages = ["app"]
-

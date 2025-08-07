@@ -6,7 +6,7 @@ After=network.target
 User=hassaan
 Group=hassaan
 WorkingDirectory=/DATA/Repos/dhivehi-translation-arena
-ExecStart=/home/hassaan/.local/bin/uv run python app.py
+ExecStart=/home/hassaan/.local/bin/uv run python wsgi.py
 Restart=always
 RestartSec=5
 
