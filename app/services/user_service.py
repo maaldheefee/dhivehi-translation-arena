@@ -46,3 +46,15 @@ def check_password(user, password):
     if not user or not password:
         return False
     return check_password_hash(user.password_hash, password)
+
+
+def delete_user(username):
+    """Deletes a user by username."""
+    session = cast(Session, db_session)
+    user_repo = UserRepository(session)
+    user = user_repo.get_by_username(username)
+    if user:
+        session.delete(user)
+        session.commit()
+        return True
+    return False

@@ -15,6 +15,7 @@ setup:
 
 # Run the application in development mode
 dev:
+    export DATA_DIR='data'
     uv run --no-cache flask run --host 0.0.0.0 --port 8101
 
 # Initialize the database (⚠️  WARNING: This will create/reset the database)

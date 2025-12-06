@@ -36,12 +36,17 @@ def calculate_model_scores():
                 "good_count": 0,
                 "okay_count": 0,
                 "rejected_count": 0,
+                "source_word_count": 0,
             }
 
     # Aggregate total cost and the number of times each model's translation was generated
     for t in translations:
         model_stats[t.model]["appearances"] += 1
         model_stats[t.model]["total_cost"] += t.cost if t.cost else 0.0
+        if t.query and t.query.source_text:
+            model_stats[t.model]["source_word_count"] += len(
+                t.query.source_text.split()
+            )
 
     # Aggregate scores based on votes
     for vote in votes:
@@ -70,8 +75,15 @@ def calculate_model_scores():
 
         # Calculate average score (normalized by number of votes)
         average_score = (total_score / votes_cast) if votes_cast > 0 else 0
-        # Calculate performance per dollar
+        # Calculate performance per dollar (Bang for Buck)
         score_per_dollar = (total_score / total_cost) if total_cost > 0 else 0
+
+        # Calculate projected cost for 100k words
+        source_word_count = stats["source_word_count"]
+        projected_cost_100k = 0.0
+        if source_word_count > 0:
+            cost_per_word = total_cost / source_word_count
+            projected_cost_100k = cost_per_word * 100_000
 
         stats_list.append(
             {
@@ -87,10 +99,20 @@ def calculate_model_scores():
                 "average_score": average_score,
                 "total_cost": total_cost,
                 "score_per_dollar": score_per_dollar,
+                "bang_for_buck": score_per_dollar,  # Alias for template if needed
+                "projected_cost_100k": projected_cost_100k,
+                "source_word_count": source_word_count,
             }
         )
 
-    # Sort by average_score in descending order to rank the models
     stats_list.sort(key=lambda x: x["average_score"], reverse=True)
 
     return stats_list
+
+
+def get_model_usage_stats() -> dict[str, int]:
+    """
+    Returns a dictionary mapping model names to their usage count (appearances).
+    """
+    stats = calculate_model_scores()
+    return {item["model_name"]: item["appearances"] for item in stats}

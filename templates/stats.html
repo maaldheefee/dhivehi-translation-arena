@@ -69,7 +69,8 @@
                             <th>{{ _('avg_score') }}</th>
                             <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
                             <th>{{ _('total_cost') }}</th>
-                            <th>{{ _('score_per_dollar') }}</th>
+                            <th>{{ _('projected_cost_100k') }}</th>
+                            <th>{{ _('bang_for_buck') }}</th>
                             <th>{{ _('generations') }}</th>
                         </tr>
                     </thead>
@@ -105,7 +106,13 @@
                                 </div>
                             </td>
                             <td>${{ "%.4f"|format(model.total_cost) }}</td>
-                            <td>{{ "%.2f"|format(model.score_per_dollar) }}</td>
+                            <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
+                            <td>
+                                <div class="bang-for-buck-bar-container">
+                                    <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck / 10) * 100 }}%; max-width: 100%; background-color: #4CAF50; height: 10px; border-radius: 5px;"></div>
+                                    <span>{{ "%.2f"|format(model.bang_for_buck) }}</span>
+                                </div>
+                            </td>
                             <td>{{ model.appearances }}</td>
                         </tr>
                         {% endfor %}

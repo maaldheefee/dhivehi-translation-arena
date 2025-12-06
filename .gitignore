@@ -16,6 +16,8 @@ __pycache__/
 # Database
 data/*.db
 *.sqlite
+*.db-wal
+*.db-shm
 
 # Distribution / packaging
 dist/

@@ -20,6 +20,7 @@ from app.database import db_session
 from app.llm_clients import get_available_models
 from app.models import User
 from app.predefined_queries import PREDEFINED_QUERIES
+from app.services.stats_service import get_model_usage_stats
 from app.services.translation_service import get_translation_for_model
 from app.services.vote_service import process_votes
 
@@ -32,19 +33,45 @@ def index():
     username = session.get("username", "Guest")
     shuffled_queries = PREDEFINED_QUERIES.copy()
     random.shuffle(shuffled_queries)
+
     available_models = get_available_models()
+    usage_stats = get_model_usage_stats()
+
+    # Sort models by usage count (ascending) to prefer those with fewer data points
+    # If a model is not in usage_stats, count is 0
+    sorted_models = sorted(available_models.keys(), key=lambda m: usage_stats.get(m, 0))
+
+    # Select top 6 models
+    selected_model_keys = sorted_models[:6]
+
+    # Create the dictionary for selected models
+    selected_models_dict = {k: available_models[k] for k in selected_model_keys}
+
+    # Shuffle the display order
+    keys_shuffled = list(selected_models_dict.keys())
+    random.shuffle(keys_shuffled)
+    final_models = {k: selected_models_dict[k] for k in keys_shuffled}
+
     return render_template(
         "index.html",
         predefined_queries=shuffled_queries,
         username=username,
-        available_models=available_models,
+        available_models=final_models,
     )
 
 
 @main_bp.route("/get_available_models")
 def available_models():
-    """Returns a list of available (active) models for selection."""
-    return jsonify({"models": get_available_models()})
+    """Returns a list of available (active) models for selection, limited to 6 for the UI."""
+    available_models = get_available_models()
+    usage_stats = get_model_usage_stats()
+
+    sorted_models = sorted(available_models.keys(), key=lambda m: usage_stats.get(m, 0))
+
+    selected_model_keys = sorted_models[:6]
+    selected_models_dict = {k: available_models[k] for k in selected_model_keys}
+
+    return jsonify({"models": selected_models_dict})
 
 
 def stream_translation_generator(query_text, selected_models):

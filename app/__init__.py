@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import click
 from dotenv import load_dotenv
 from flask import Flask, g
 
@@ -64,7 +65,7 @@ def create_app():
     def init_db_command():
         """Initialize the database with default users."""
         with app.app_context():
-            Path("data").mkdir(parents=True, exist_ok=True)
+            Path(Config.DATA_DIR).mkdir(parents=True, exist_ok=True)
 
             print("Initializing database...")
             Base.metadata.create_all(bind=database.engine, checkfirst=True)
@@ -89,5 +90,47 @@ def create_app():
                 print(
                     f"{user_count} users already exist, skipping default user creation."
                 )
+
+    @app.cli.command("add-user")
+    @click.argument("username")
+    @click.argument("password")
+    @click.option("--admin", is_flag=True, help="Set user as admin")
+    def add_user_command(username, password, admin):
+        """Add a new user."""
+        with app.app_context():
+            try:
+                create_user(username, password, is_admin=admin)
+                click.echo(f"User '{username}' added successfully.")
+            except Exception as e:
+                click.echo(f"Error adding user: {e}")
+
+    @app.cli.command("remove-user")
+    @click.argument("username")
+    def remove_user_command(username):
+        """Remove a user."""
+        from app.services.user_service import delete_user
+        
+        with app.app_context():
+            if delete_user(username):
+                click.echo(f"User '{username}' removed successfully.")
+            else:
+                click.echo(f"User '{username}' not found.")
+
+    @app.cli.command("list-users")
+    def list_users_command():
+        """List all users."""
+        from app.models import User
+        
+        with app.app_context():
+            users = db_session.query(User).all()
+            if not users:
+                click.echo("No users found.")
+                return
+            
+            click.echo(f"{'Username':<20} {'Role':<10}")
+            click.echo("-" * 30)
+            for user in users:
+                role = "Admin" if user.is_admin else "User"
+                click.echo(f"{user.username:<20} {role:<10}")
 
     return app

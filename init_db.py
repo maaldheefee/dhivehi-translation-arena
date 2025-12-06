@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 """Database initialization script for Docker container."""
 
-import os
 from pathlib import Path
 
 # Note: In Docker, environment variables are already loaded
-
 # Import Flask app and database components
-from app import create_app
+from app import create_app, database
 from app.database import db_session
 from app.models import Base, User
 from app.services.user_service import create_user
-from app import database
+
 
 def main():
     """Initialize the database with schema and default users."""
     print("Starting database initialization...")
-    
+
     # Create Flask app instance
     app = create_app()
-    
+
     with app.app_context():
         # Ensure data directory exists
         Path("data").mkdir(parents=True, exist_ok=True)
@@ -50,6 +48,7 @@ def main():
             print(f"{user_count} users already exist, skipping default user creation.")
 
         print("Database initialization completed successfully!")
+
 
 if __name__ == "__main__":
     main()

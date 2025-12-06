@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (submitVotesBtn) submitVotesBtn.addEventListener('click', handleSubmitVotes);
 
     function loadUsers() {
-        fetch('/get_users')
+        fetch('/auth/get_users')
             .then(response => response.json())
             .then(data => {
                 if (!data.users || !usernameSelect) return;
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Please select a user and enter the password.');
             return;
         }
-        fetch('/login', {
+        fetch('/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: usernameSelect.value, password: userPassword.value })

@@ -1,7 +1,7 @@
 """Centralized configuration for Dhivehi Translation Arena."""
 
 import os
-from typing import ClassVar, NotRequired, TypedDict
+from typing import Any, ClassVar, NotRequired, TypedDict
 
 
 class ModelConfig(TypedDict):
@@ -15,18 +15,20 @@ class ModelConfig(TypedDict):
     is_active: bool
     rate_limit: NotRequired[float | None]
     thinking_budget: NotRequired[int | None]
+    temperature: NotRequired[float | None]
+    reasoning: NotRequired[dict[str, Any]]
 
 
 class Config:
     """Base configuration class."""
 
     # Environment variables
-    GEMINI_API_KEY: ClassVar[str | None] = os.environ.get("GEMINI_API_KEY")
     OPENROUTER_API_KEY: ClassVar[str | None] = os.environ.get("OPENROUTER_API_KEY")
 
     # Database
-    DATABASE_URI: ClassVar[str] = os.getenv(
-        "DATABASE_URI", "sqlite:///data/dhivehi_translation_arena.db"
+    DATA_DIR: ClassVar[str] = os.environ.get("DATA_DIR", "data")
+    DATABASE_URI: ClassVar[str] = os.environ.get(
+        "DATABASE_URI", f"sqlite:///{DATA_DIR}/dhivehi_translation_arena.db"
     )
 
     # Application settings
@@ -43,49 +45,91 @@ class Config:
     # Model configurations
     MODELS: ClassVar[dict[str, ModelConfig]] = {
         "gemini-2.0-flash": {
-            "name": "gemini-2.0-flash",
+            "name": "google/gemini-2.0-flash-001",
             "display_name": "Gemini 2.0 Flash",
-            "type": "gemini",
+            "type": "openrouter",
             "input_cost_per_mtok": 0.1,
             "output_cost_per_mtok": 0.4,
             "is_active": True,
             "rate_limit": None,
         },
-        "gemini-2.5-pro": {
-            "name": "gemini-2.5-pro",
-            "display_name": "Gemini 2.5 Pro",
-            "type": "gemini",
-            "input_cost_per_mtok": 1.25,
-            "output_cost_per_mtok": 10.00,
-            # This is the pricing for <=200K tokens. There's a higher price for >200K tokens, but we don't expect to use that much.
+        "gemini-3-pro": {
+            "name": "google/gemini-3-pro-preview",
+            "display_name": "Gemini 3 Pro",
+            "type": "openrouter",
+            "input_cost_per_mtok": 2.0,
+            "output_cost_per_mtok": 12.0,
             "is_active": True,
             "rate_limit": None,
+        },
+        "gemini-3-pro-low": {
+            "name": "google/gemini-3-pro-preview",
+            "display_name": "Gemini 3 Pro (Low Reasoning)",
+            "type": "openrouter",
+            "input_cost_per_mtok": 2.0,
+            "output_cost_per_mtok": 12.0,
+            "is_active": True,
+            "rate_limit": None,
+            "reasoning": {"effort": "low"},
+        },
+        "gemini-3-pro-low-temp-0.35": {
+            "name": "google/gemini-3-pro-preview",
+            "display_name": "Gemini 3 Pro (Low Reasoning, Low Temp)",
+            "type": "openrouter",
+            "input_cost_per_mtok": 2.0,
+            "output_cost_per_mtok": 12.0,
+            "is_active": True,
+            "rate_limit": None,
+            "temperature": 0.35,
+            "reasoning": {"effort": "low"},
+        },
+        "gemini-2.5-pro": {
+            "name": "google/gemini-2.5-pro",  # Verify ID, assumption based on pattern, user asked to add it
+            "display_name": "Gemini 2.5 Pro (Thinking 128)",
+            "type": "openrouter",
+            "input_cost_per_mtok": 1.25,
+            "output_cost_per_mtok": 10.0,
+            "is_active": True,
+            "rate_limit": None,
+            "reasoning": {
+                "max_tokens": 128
+            },  # "thinking budget of 128" - interpreted as max tokens for reasoning
         },
         "gemini-2.5-flash": {
-            "name": "gemini-2.5-flash",
-            "display_name": "Gemini 2.5 Flash",
-            "type": "gemini",
+            "name": "google/gemini-2.5-flash",
+            "display_name": "Gemini 2.5 Flash (No Thinking)",
+            "type": "openrouter",
             "input_cost_per_mtok": 0.3,
             "output_cost_per_mtok": 2.5,
             "is_active": True,
             "rate_limit": None,
-            "thinking_budget": 0,
+            "reasoning": {"max_tokens": 0},  # "reasoning max_tokens set to 0"
         },
         "gemini-2.5-flash-thinking": {
-            "name": "gemini-2.5-flash",
+            "name": "google/gemini-2.5-flash",
             "display_name": "Gemini 2.5 Flash (Thinking Enabled)",
-            "type": "gemini",
+            "type": "openrouter",
             "input_cost_per_mtok": 0.3,
             "output_cost_per_mtok": 2.5,
             "is_active": True,
             "rate_limit": None,
+            "reasoning": {"enabled": True},
         },
         "gemini-2.5-flash-lite": {
-            "name": "gemini-2.5-flash-lite",
+            "name": "google/gemini-2.5-flash-lite",
             "display_name": "Gemini 2.5 Flash Lite",
-            "type": "gemini",
+            "type": "openrouter",
             "input_cost_per_mtok": 0.10,
             "output_cost_per_mtok": 0.40,
+            "is_active": True,
+            "rate_limit": None,
+        },
+        "claude-opus-4.5": {
+            "name": "anthropic/claude-opus-4.5",
+            "display_name": "Claude Opus 4.5",
+            "type": "openrouter",
+            "input_cost_per_mtok": 5.0,
+            "output_cost_per_mtok": 25.0,
             "is_active": True,
             "rate_limit": None,
         },
@@ -110,16 +154,11 @@ class Config:
     }
 
     # API settings
-    GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
     OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-    # Model settings
+    # Functionality settings
     DEFAULT_TEMPERATURE = 0.85
-    MAX_OUTPUT_TOKENS = 4096  # Increased from 2048
-
-    # Rate limiting
-    GEMINI_PRO_RATE_LIMIT = 5  # requests per minute
-    GEMINI_PRO_RATE_WINDOW = 60  # seconds
+    MAX_OUTPUT_TOKENS = 4096
 
 
 class DevelopmentConfig(Config):
