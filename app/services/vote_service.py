@@ -30,11 +30,7 @@ def process_votes(user_id, query_id, votes_data):
     vote_repo = VoteRepository(session)
 
     try:
-        # Remove existing votes for this user and query
-        vote_repo.delete_by_user_and_query(user_id, query_id)
-
-        # Create new votes
-        new_votes = []
+        # Process votes with Upsert logic
         for vote_data in votes_data:
             translation_id = vote_data.get("translation_id")
             rating = vote_data.get("rating")
@@ -47,16 +43,27 @@ def process_votes(user_id, query_id, votes_data):
             if rating not in [3, 2, 1, -1]:
                 continue
 
-            vote = Vote(
-                user_id=user_id,
-                query_id=query_id,
-                translation_id=translation_id,
-                rating=rating,
+            # Check if vote already exists
+            existing_vote = vote_repo.get_by_user_query_and_translation(
+                user_id, query_id, translation_id
             )
-            new_votes.append(vote)
 
-        if new_votes:
-            vote_repo.bulk_add(new_votes)
+            if existing_vote:
+                existing_vote.rating = rating
+                vote_repo.update(existing_vote)
+            else:
+                vote = Vote(
+                    user_id=user_id,
+                    query_id=query_id,
+                    translation_id=translation_id,
+                    rating=rating,
+                )
+                vote_repo.add(vote)  # Add immediately or collect for bulk?
+                # Bulk add is more efficient but mixing updates and adds is tricky with bulk_add checks
+                # So just adding one by one is safer for now given checking requirement.
+                # Actually, can't bulk add if we need to check existence for each.
+
+        # We process one by one, so no bulk_add at end.
 
     except Exception:
         logger.exception("Error processing votes")

@@ -57,6 +57,7 @@ class Translation(Base):
         Integer, nullable=False
     )  # For blind testing, position in the UI (1, 2, or 3)
     cost = Column(Float, default=0.0)  # Cost of the API call
+    response_hash = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=func.now())
 
     query = relationship("Query", back_populates="translations")

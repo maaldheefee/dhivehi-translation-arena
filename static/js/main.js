@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let eventSource = null;
     let currentTotalCost = 0;
+    let seenHashes = new Set();
 
     // --- Initialization ---
     initTheme();
@@ -174,6 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
         elements.resultsSection.classList.remove('hidden');
         elements.translationsContainer.innerHTML = '';
         currentTotalCost = 0;
+        seenHashes.clear();
         elements.totalCost.textContent = '0.000000';
         elements.submitVotesBtn.classList.add('hidden');
         elements.voteStatus.classList.add('hidden');
@@ -241,6 +243,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const modelEl = content.querySelector('.model');
         modelEl.textContent = data.model;
         modelEl.classList.add('blur-text');
+        
+        if (data.response_hash) {
+            if (seenHashes.has(data.response_hash)) {
+                const badge = document.createElement('span');
+                badge.className = 'duplicate-badge';
+                badge.textContent = 'Duplicate Result';
+                badge.style.cssText = 'background: #ff9800; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; vertical-align: middle;';
+                modelEl.appendChild(badge);
+                
+                // Add tooltip or toast?
+                // showToast(`Duplicate result detected for ${data.model}`, 'info');
+            } else {
+                seenHashes.add(data.response_hash);
+            }
+        }
         
         content.querySelector('.translation-text').textContent = data.translation;
         

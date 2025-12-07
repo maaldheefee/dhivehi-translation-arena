@@ -1,3 +1,5 @@
+import hashlib
+
 from sqlalchemy.orm import Session
 
 from app.database import SessionFactory
@@ -49,6 +51,7 @@ def get_translation_for_model(source_text: str, model: str, position: int) -> di
                 "position": position,
                 "translation": existing.translation,
                 "cost": existing.cost,
+                "response_hash": existing.response_hash,
             }
 
         client = get_translation_client(model)
@@ -60,6 +63,9 @@ def get_translation_for_model(source_text: str, model: str, position: int) -> di
             msg = f"API call failed for {model}: {e!s}"
             raise ConnectionError(msg) from e
 
+        # Calculate hash
+        response_hash = hashlib.sha256(result_text.encode("utf-8")).hexdigest()
+
         translation = Translation(
             query_id=query.id,
             model=model,
@@ -67,6 +73,7 @@ def get_translation_for_model(source_text: str, model: str, position: int) -> di
             system_prompt=client.SYSTEM_PROMPT,
             position=position,
             cost=cost,
+            response_hash=response_hash,
         )
         new_translation = translation_repo.add(translation)
 
@@ -82,6 +89,7 @@ def get_translation_for_model(source_text: str, model: str, position: int) -> di
             "position": position,
             "translation": result_text,
             "cost": cost,
+            "response_hash": response_hash,
         }
 
     finally:

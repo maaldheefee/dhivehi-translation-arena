@@ -12,6 +12,10 @@
 
   This kind of user management is okay for now, but we should document it.
 
+- Make the login session persist for 1 week
+
+- [x] If the same quesry is translated multiple times, with different sets of models, show a warning to the user. Since the repeated models would have the same cached response, don't count the vote for the repeated models. We can have some sort of hash of the responses to identify the repeated results when voting.
+
 - [ ] **UI Polish & Translation**: Polish the entire UI. Translate any untranslated bits to Dhivehi/English as appropriate.
 - [ ] **Rating Tips**: Add qualitative tips for rating stars to guide users:
     - **Trash**: Illegible, glitch characters, or wrong meaning.
