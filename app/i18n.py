@@ -78,6 +78,7 @@ TRANSLATIONS = {
         "skip": "Skip",
         "elo_rating": "ELO Rating",
         "total_translations": "Total Translations",
+        "combined_score": "Combined Score",
     },
     "dv": {
         "title": "ދިވެހި ތަރުޖަމާ އެރީނާ",
@@ -113,7 +114,7 @@ TRANSLATIONS = {
         "rank": "ރޭންކް",
         "model_name": "މޮޑެލްގެ ނަން",
         "avg_score": "އެވްރެޖް. ސްކޯ",
-        "rating_distribution": "ރޭޓިންގް ބެހިފައިވާގޮތް (ޖުމްލަ {total_votes} ވޯޓު)",
+        "rating_distribution": "ރޭޓިންގް ބެހިފައިވާގޮތް",
         "total_cost": "ޖުމްލަ ޚަރަދު",
         "score_per_dollar": "ކޮންމެ 1$ އަށް ލިބޭ ސްކޯ",
         "generations": "އުފެއްދި ޢަދަދު",
@@ -158,5 +159,6 @@ TRANSLATIONS = {
         "skip": "ދޫކޮށްލާ",
         "elo_rating": "އީލޯ ރޭޓިންގް",
         "total_translations": "ޖުމްލަ ތަރުޖަމާ",
+        "combined_score": "ކޮމްބައިންޑް ސްކޯ",
     },
 }

@@ -37,13 +37,15 @@
         <table>
             <thead>
                 <tr>
-                    <th>{{ _('rank') }}</th>
-                    <th>{{ _('model_name') }}</th>
-                    <th>{{ _('avg_score') }}</th>
-                    <th>{{ _('elo_rating') }}</th>
+                    <th data-sort="number">{{ _('rank') }}</th>
+                    <th data-sort="string">{{ _('model_name') }}</th>
+                    <th data-sort="number">{{ _('avg_score') }}</th>
+                    <th data-sort="number">{{ _('elo_rating') }}</th>
+                    <th data-sort="number">{{ _('combined_score') }}
+                    <div style="font-size: 0.75em; color: #6b7280; margin-top: 2px;">Avg + ELO</div></th>
                     <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
-                    <th>{{ _('projected_cost_100k') }}</th>
-                    <th>{{ _('bang_for_buck_score') }}</th>
+                    <th data-sort="number">{{ _('projected_cost_100k') }}</th>
+                    <th data-sort="number">{{ _('bang_for_buck_score') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -76,6 +78,9 @@
                             {{ "%.1f"|format(model.elo_win_rate) }}% WR
                             ({{ model.elo_wins }}W/{{ model.elo_losses }}L/{{ model.elo_ties }}T)
                         </div>
+                    </td>
+                    <td>
+                         <span class="score-badge" style="background-color: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db;">{{ "%.2f"|format(model.combined_score) }}</span>
                     </td>
                     <td style="text-align: left;">
                         <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
@@ -138,6 +143,34 @@
 
 {% block scripts %}
 <script>
+    function sortTable(table, colIndex, type) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.rows);
+        const isAscending = table.getAttribute('data-sort-order') === 'asc';
+        const direction = isAscending ? 1 : -1;
+
+        rows.sort((a, b) => {
+            const aCell = a.cells[colIndex].innerText.trim();
+            const bCell = b.cells[colIndex].innerText.trim();
+
+            let aVal, bVal;
+
+            if (type === 'number') {
+                // Remove currency symbols, commas, etc.
+                aVal = parseFloat(aCell.replace(/[^0-9.-]+/g, '')) || 0;
+                bVal = parseFloat(bCell.replace(/[^0-9.-]+/g, '')) || 0;
+            } else {
+                aVal = aCell.toLowerCase();
+                bVal = bCell.toLowerCase();
+            }
+
+            return (aVal > bVal ? 1 : -1) * direction;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+        table.setAttribute('data-sort-order', isAscending ? 'desc' : 'asc');
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('modelPerformanceChart').getContext('2d');
         
@@ -206,6 +239,18 @@
                     }
                 }
             }
+        });
+
+        // Add sorting event listeners
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const table = th.closest('table');
+                const colIndex = th.cellIndex;
+                const type = th.getAttribute('data-sort');
+                sortTable(table, colIndex, type);
+            });
+            th.style.cursor = 'pointer';
+            th.style.userSelect = 'none';
         });
     });
 </script>

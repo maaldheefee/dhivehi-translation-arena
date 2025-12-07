@@ -79,13 +79,12 @@ def calculate_model_scores():
         votes_cast = stats["votes_cast"]
         total_cost = stats["total_cost"]
         total_score = stats["score"]
+        appearances = stats["appearances"]
 
         # Calculate average score (normalized by number of votes)
         average_score = (total_score / votes_cast) if votes_cast > 0 else 0
-        # Calculate performance per dollar (Bang for Buck)
-        score_per_dollar = (total_score / total_cost) if total_cost > 0 else 0
 
-        # Calculate projected cost for 100k words
+        # Projected cost for 100k words
         source_word_count = stats["source_word_count"]
         projected_cost_100k = 0.0
         if source_word_count > 0:
@@ -101,6 +100,35 @@ def calculate_model_scores():
         elo_total = elo_wins + elo_losses + elo_ties
         elo_win_rate = (elo_wins / elo_total * 100) if elo_total > 0 else 0.0
 
+        # --- Advanced Scoring Logic ---
+
+        # 1. Normalize Average Score: Map [-2, 3] -> [0, 1]
+        # Range is 5. -2 maps to 0. 3 maps to 1.
+        # norm = (score - min) / (max - min) = (score + 2) / 5
+        normalized_avg_score = (average_score + 2) / 5
+        normalized_avg_score = max(0.0, min(1.0, normalized_avg_score))  # Clamp
+
+        # 2. Normalize ELO: Map [1000, 2000] -> [0, 1]
+        # Center 1500 -> 0.5
+        normalized_elo = (elo_rating - 1000) / 1000
+        normalized_elo = max(0.0, min(1.0, normalized_elo))  # Clamp
+
+        # 3. Combined Score (Equal Weight)
+        combined_score = (normalized_avg_score * 0.5) + (normalized_elo * 0.5)
+
+        # 4. Bang for Buck: (Combined Score ^ 3) / Cost per Unit
+        # User requested stronger filtering for bad/cheap models.
+        # 1. Threshold: If score is below 0.4 (approx 2.0 star rating equivalent mixed with low ELO),
+        #    it is considered unusable, so Value = 0.
+        # 2. Cubic Power: Cubing the score rewards high quality much more than squaring.
+
+        if projected_cost_100k == 0:
+            # For free models or zero cost, treated as very high value.
+            # Use a small epsilon for cost ~ $0.01 per 100k words
+            projected_cost_100k = 0.01
+
+        raw_bang_for_buck = ((10 * combined_score) ** 4) / projected_cost_100k
+
         # Get model config
         model_config = config.MODELS.get(model_name, {})
 
@@ -112,7 +140,7 @@ def calculate_model_scores():
                 "preset_name": model_config.get("preset_name"),
                 "is_active": model_config.get("is_active", False),
                 "score": total_score,
-                "appearances": stats["appearances"],
+                "appearances": appearances,
                 "votes_cast": votes_cast,
                 "excellent_count": stats["excellent_count"],
                 "good_count": stats["good_count"],
@@ -120,8 +148,8 @@ def calculate_model_scores():
                 "rejected_count": stats["rejected_count"],
                 "average_score": average_score,
                 "total_cost": total_cost,
-                "score_per_dollar": score_per_dollar,
-                "bang_for_buck": score_per_dollar,  # Alias for template if needed
+                "score_per_dollar": raw_bang_for_buck,  # Use the new metric here for sorting/display logic
+                "bang_for_buck": raw_bang_for_buck,  # Will be normalized below
                 "projected_cost_100k": projected_cost_100k,
                 "source_word_count": source_word_count,
                 # ELO data
@@ -130,19 +158,20 @@ def calculate_model_scores():
                 "elo_losses": elo_losses,
                 "elo_ties": elo_ties,
                 "elo_win_rate": elo_win_rate,
+                "combined_score": combined_score,
             }
         )
 
     # Normalize Bang for Buck (0-10 scale)
     if stats_list:
-        max_bb = max(s["score_per_dollar"] for s in stats_list)
+        max_bb = max(s["bang_for_buck"] for s in stats_list)
         for s in stats_list:
             if max_bb > 0:
-                s["bang_for_buck"] = (s["score_per_dollar"] / max_bb) * 10
+                s["bang_for_buck"] = (s["bang_for_buck"] / max_bb) * 10
             else:
                 s["bang_for_buck"] = 0
 
-    stats_list.sort(key=lambda x: x["average_score"], reverse=True)
+    stats_list.sort(key=lambda x: x["combined_score"], reverse=True)
 
     return stats_list
 
