@@ -1,7 +1,5 @@
 """Query repository for database operations related to Query model."""
 
-from typing import Optional
-
 from sqlalchemy.orm import Session
 
 from app.models import Query
@@ -20,11 +18,11 @@ class QueryRepository:
         self.db_session.commit()
         return query
 
-    def get_by_id(self, query_id: int) -> Optional[Query]:
+    def get_by_id(self, query_id: int) -> Query | None:
         """Get query by ID."""
         return self.db_session.query(Query).filter(Query.id == query_id).first()
 
-    def get_by_source_text(self, source_text: str) -> Optional[Query]:
+    def get_by_source_text(self, source_text: str) -> Query | None:
         """Get query by source text."""
         return (
             self.db_session.query(Query)

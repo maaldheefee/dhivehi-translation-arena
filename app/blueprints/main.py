@@ -47,12 +47,18 @@ def index():
 
     # Sort models by usage count (ascending) to prefer those with fewer data points
     # If a model is not in usage_stats, count is 0
-    sorted_model_keys = sorted(available_models.keys(), key=lambda m: usage_stats.get(m, 0))
+    sorted_model_keys = sorted(
+        available_models.keys(), key=lambda m: usage_stats.get(m, 0)
+    )
 
-    # Create the dictionary for all models in sorted order
-    final_models = {k: available_models[k] for k in sorted_model_keys}
+    # Limit to MAX_MODELS_SELECTION (prioritizing those with fewest data points)
+    max_models = get_config().MAX_MODELS_SELECTION
+    selected_model_keys = sorted_model_keys[:max_models]
 
-    # Shuffle the display order of all models
+    # Create the dictionary for only the selected models
+    final_models = {k: available_models[k] for k in selected_model_keys}
+
+    # Shuffle the display order of the selected models
     keys_shuffled = list(final_models.keys())
     random.shuffle(keys_shuffled)
     final_models_shuffled = {k: final_models[k] for k in keys_shuffled}
@@ -73,7 +79,9 @@ def available_models():
     available_models = get_available_models()
     usage_stats = get_model_usage_stats()
 
-    sorted_model_keys = sorted(available_models.keys(), key=lambda m: usage_stats.get(m, 0))
+    sorted_model_keys = sorted(
+        available_models.keys(), key=lambda m: usage_stats.get(m, 0)
+    )
 
     # Return all models, sorted by usage
     sorted_models_dict = {k: available_models[k] for k in sorted_model_keys}
@@ -145,7 +153,7 @@ def stream_translate():
     if not is_allowed:
         error_data = {
             "message": f"Monthly budget exceeded (${current_spend:.2f}/$1.00). Please wait until next month.",
-            "type": "budget_error"
+            "type": "budget_error",
         }
         error_event = f"event: error\ndata: {json.dumps(error_data)}\n\n"
         return Response(error_event, mimetype="text/event-stream")
@@ -155,7 +163,9 @@ def stream_translate():
     user_id = user.id if user else None
 
     return Response(
-        stream_with_context(stream_translation_generator(query_text, selected_models, user_id)),
+        stream_with_context(
+            stream_translation_generator(query_text, selected_models, user_id)
+        ),
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -199,7 +209,9 @@ def retry_single():
     # Check budget
     is_allowed, current_spend = check_user_budget(username)
     if not is_allowed:
-        return jsonify({"error": f"Monthly budget exceeded (${current_spend:.2f}/$1.00)"}), 403
+        return jsonify(
+            {"error": f"Monthly budget exceeded (${current_spend:.2f}/$1.00)"}
+        ), 403
 
     data = request.json
     if data is None:
@@ -216,7 +228,9 @@ def retry_single():
     user_id = user.id if user else None
 
     try:
-        result = get_translation_for_model(query_text, model_key, position=0, user_id=user_id)
+        result = get_translation_for_model(
+            query_text, model_key, position=0, user_id=user_id
+        )
         if result:
             return jsonify(result)
         return jsonify({"error": "No result returned"}), 500
@@ -268,6 +282,12 @@ def get_random_comparison():
     query_ids = [q.id for q in queries_with_translations]
     random.shuffle(query_ids)
 
+    # Optimize: Fetch all model ELOs once
+    elo_service = get_elo_service()
+    all_elos = {r["model"]: r["elo_rating"] for r in elo_service.get_all_rankings()}
+
+    # Optimize: Get user's existing comparisons for checking (could be large, so maybe filter by query later if needed)
+    # Actually, better to fetch per query to avoid massive memory usage if user has done 1000s.
     for query_id in query_ids:
         translations = (
             db_session.query(Translation).filter(Translation.query_id == query_id).all()
@@ -276,50 +296,128 @@ def get_random_comparison():
         if len(translations) < 2:
             continue
 
-        # Find a pair that hasn't been compared by this user
-        for t1, t2 in combinations(translations, 2):
-            existing = (
-                db_session.query(PairwiseComparison)
-                .filter(
-                    PairwiseComparison.user_id == user.id,
-                    PairwiseComparison.translation_a_id == t1.id,
-                    PairwiseComparison.translation_b_id == t2.id,
-                    PairwiseComparison.source == "explicit",
-                )
-                .first()
+        # --- Filter Candidates ---
+        # 1. Reject explicit trash (optional, if we track rejection status on Translation)
+        # 2. Reject if average vote < 1.5 (requires joining votes, maybe expensive here)
+        # For now, we trust the "model sorting" to naturally deprioritize bad models if we selected good ones upstream.
+
+        # Optimize: Fetch ALL existing comparisons for this query by this user in ONE query
+        # This replaces the N*N loop of DB calls
+        existing_pairs = (
+            db_session.query(
+                PairwiseComparison.translation_a_id, PairwiseComparison.translation_b_id
             )
-            if not existing:
-                # Found a pair to compare
-                query = db_session.query(Query).get(query_id)
+            .filter(
+                PairwiseComparison.user_id == user.id,
+                PairwiseComparison.query_id == query_id,
+                PairwiseComparison.source == "explicit",
+            )
+            .all()
+        )
+        # Create a set of frozen sets for order-independent lookup: {(id1, id2), ...}
+        compared_pairs = {frozenset([p[0], p[1]]) for p in existing_pairs}
 
-                # Get model config info
-                conf = get_config()
+        candidate_pairs = []
 
-                t1_config = conf.MODELS.get(t1.model, {})
-                t2_config = conf.MODELS.get(t2.model, {})
+        # Shuffle translations first to ensure random tie-breaking
+        random.shuffle(translations)
 
-                return jsonify(
-                    {
-                        "query_id": query_id,
-                        "source_text": query.source_text if query else "",
-                        "translations": [
-                            {
-                                "id": t1.id,
-                                "text": t1.translation,
-                                "model": t1.model,
-                                "base_model": t1_config.get("base_model", t1.model),
-                                "preset_name": t1_config.get("preset_name"),
-                            },
-                            {
-                                "id": t2.id,
-                                "text": t2.translation,
-                                "model": t2.model,
-                                "base_model": t2_config.get("base_model", t2.model),
-                                "preset_name": t2_config.get("preset_name"),
-                            },
-                        ],
-                    }
-                )
+        for t1, t2 in combinations(translations, 2):
+            pair_key = frozenset([t1.id, t2.id])
+            if pair_key in compared_pairs:
+                continue
+
+            # Calculate ELO difference
+            elo1 = all_elos.get(t1.model, 1500.0)
+            elo2 = all_elos.get(t2.model, 1500.0)
+            diff = abs(elo1 - elo2)
+
+            candidate_pairs.append(((t1, t2), diff))
+
+        if candidate_pairs:
+            # Sort by ELO difference (ascending) -> compare closest models first
+            # Add noise to the sort key? No, easier to just pick random from top N.
+            candidate_pairs.sort(key=lambda x: x[1])
+
+            # Take top 5 closest pairs and pick one randomly
+            top_candidates = candidate_pairs[:5]
+            selected_pair, _ = random.choice(top_candidates)
+            t1, t2 = selected_pair
+
+            # Found a pair!
+            query = db_session.query(Query).get(query_id)
+            conf = get_config()
+
+            # Stats Calculation
+            stats = _get_user_comparison_stats(user.id)
+
+            return jsonify(
+                {
+                    "query_id": query_id,
+                    "source_text": query.source_text if query else "",
+                    "translations": [
+                        {
+                            "id": t1.id,
+                            "text": t1.translation,
+                            "model": t1.model,
+                            "base_model": conf.MODELS.get(t1.model, {}).get(
+                                "base_model", t1.model
+                            ),
+                            "preset_name": conf.MODELS.get(t1.model, {}).get(
+                                "preset_name"
+                            ),
+                        },
+                        {
+                            "id": t2.id,
+                            "text": t2.translation,
+                            "model": t2.model,
+                            "base_model": conf.MODELS.get(t2.model, {}).get(
+                                "base_model", t2.model
+                            ),
+                            "preset_name": conf.MODELS.get(t2.model, {}).get(
+                                "preset_name"
+                            ),
+                        },
+                    ],
+                    "stats": stats,
+                }
+            )
+
+    return jsonify({"error": "All pairs have been compared"}), 404
+
+
+def _get_user_comparison_stats(user_id):
+    """Helper to calculate user comparison stats efficiently."""
+    # 1. Count user's explicit comparisons
+    comparisons_count = (
+        db_session.query(func.count(PairwiseComparison.id))
+        .filter(
+            PairwiseComparison.user_id == user_id,
+            PairwiseComparison.source == "explicit",
+        )
+        .scalar()
+    ) or 0
+
+    # 2. Estimate total pairs
+    # OPTIMIZATION: This aggregation is heavy.
+    # In a real app, we might cache this value or update it incrementally.
+    # For now, we'll keep it but ensure we use indices.
+    # Note: query(Translation.query_id, count(*)) is still a full table scan usually unless indexed on query_id
+    translation_counts = (
+        db_session.query(func.count(Translation.id))
+        .group_by(Translation.query_id)
+        .having(func.count(Translation.id) >= 2)
+        .all()
+    )
+
+    total_pairs = sum((c[0] * (c[0] - 1)) // 2 for c in translation_counts)
+    pairs_remaining = max(0, total_pairs - comparisons_count)
+
+    return {
+        "comparisons_done": comparisons_count,
+        "pairs_remaining": pairs_remaining,
+        "total_pairs": total_pairs,
+    }
 
     return jsonify({"error": "All pairs have been compared"}), 404
 

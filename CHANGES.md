@@ -25,3 +25,7 @@
 - **Rating Tips**: Added descriptive tooltips for rating stars (1-3 stars) to guide better quality assessment.
 - **UI Polish**: Unified UI components and fixed untranslated strings.
 - **Compare UI Localization**: Added missing Dhivehi translations for the new comparison feature.
+- **Model Selection Fix**: Restored logic to select top 6 models with least data points, then randomizing display order.
+- **Header Budget**: Moved user cost tracking to global header for better visibility.
+- **Compare Progress**: Added stats indicator showing comparisons submitted and pairs remaining.
+- **ELO Optimization**: Refactored pair selection to maximize information gain (similar ELOs) and optimized DB queries (N+1 fix).

@@ -9,7 +9,7 @@ Base.query = db_session.query_property()
 
 
 def init_db(app):
-    global engine
+    global engine  # noqa: PLW0603
     engine = create_engine(app.config["DATABASE_URI"])
 
     if app.config["DATABASE_URI"].startswith("sqlite"):

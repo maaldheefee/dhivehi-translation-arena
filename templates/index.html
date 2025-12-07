@@ -10,8 +10,12 @@
     </div>
 
     <div class="info-section">
-        <details class="info-details" open>
-            <summary class="info-summary">📋 {{ _('instructions_header') }}</summary>
+        <details class="info-details clean-details">
+            <summary class="info-summary clean-summary">
+                <span class="summary-icon">ℹ️</span>
+                <span>{{ _('instructions_header') }}</span>
+                <span class="chevron">▼</span>
+            </summary>
             <div class="info-content">
                 <div class="scoring-rubric">
                     <h4>{{ _('scoring_rubric_header') }}</h4>
@@ -27,14 +31,6 @@
                 </div>
             </div>
         </details>
-        {% if username != 'Guest' %}
-        <div class="user-budget-badge" title="{{ _('monthly_cost_label') }}">
-            💰 ${{ "%.2f"|format(user_monthly_cost) }} / $1.00
-            {% if not budget_allowed %}
-            <span class="budget-exceeded">{{ _('budget_exceeded') }}</span>
-            {% endif %}
-        </div>
-        {% endif %}
     </div>
 
     <div class="input-area card">

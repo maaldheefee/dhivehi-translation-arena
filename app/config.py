@@ -54,6 +54,9 @@ class Config:
             )
 
     MAX_CACHE_SIZE: ClassVar[int] = int(os.environ.get("MAX_CACHE_SIZE", "100"))
+    MAX_MODELS_SELECTION: ClassVar[int] = int(
+        os.environ.get("MAX_MODELS_SELECTION", "6")
+    )
 
     # Translation settings
     SYSTEM_PROMPT: ClassVar[str] = (

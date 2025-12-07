@@ -83,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.optionB.querySelector('.translation-text').textContent = t2.text;
         renderModelInfo(elements.optionB.querySelector('.model-name'), t2);
         
+        if (data.stats) {
+            renderStats(data.stats);
+        }
+
         showInterface();
     }
     
@@ -199,5 +203,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         element.appendChild(container);
+    }
+
+    function renderStats(stats) {
+        const container = document.getElementById('stats-container');
+        if (!container || !stats) return;
+
+        console.log("Comparison Stats:", stats);
+        // "Comparisons submitted: 5 (20 remaining)"
+        const remainingText = stats.pairs_remaining !== undefined ? ` (${stats.pairs_remaining} remaining)` : '';
+        container.textContent = `Comparisons submitted: ${stats.comparisons_done}${remainingText}`;
     }
 });

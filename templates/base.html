@@ -56,6 +56,15 @@
                          <span class="theme-icon dark-icon">🌙</span>
                     </button>
 
+                    {% if user_monthly_cost is defined and username != 'Guest' %}
+                    <div class="header-budget" title="{{ _('monthly_cost_label') }}">
+                        <span class="budget-value">${{ "%.2f"|format(user_monthly_cost) }}</span>
+                        {% if not budget_allowed %}
+                        <span class="budget-exceeded">!</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
                     <div class="user-menu-wrapper">
                         <button id="user-menu-btn" class="btn text-btn user-btn">
                             <span id="current-username">{{ username }}</span>
