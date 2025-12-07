@@ -19,6 +19,7 @@
 - **Stream Stability**: Fixed translation stream buffering/hanging issues by adding `no-cache` and `X-Accel-Buffering: no` headers.
 - **UI Hang**: Fixed issue where UI hangs on stream error. Pending translations are now marked as failed, allowing voting on successful results.
 - **Duplicate Handling**: Added warning badge for duplicate translation results from the same model to prevent redundant voting.
+- **Stats Sorting**: Fixed sorting behavior for "Bang for Buck" and "ELO" columns by using numeric data attributes.
 
 ### Localization & Polish
 - **Full Localization**: Implemented full English/Dhivehi support for all UI elements including badges, toasts, and tooltips.

@@ -90,7 +90,7 @@
                         {% endif %}
                         <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
                     </td>
-                    <td>
+                    <td data-sort-value="{{ model.elo_rating }}">
                         <div class="elo-badge" style="font-weight: bold; color: var(--primary);">
                             {{ "%.0f"|format(model.elo_rating) }}
                         </div>
@@ -102,7 +102,7 @@
                          <span class="score-badge" style="background-color: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db;">{{ "%.2f"|format(model.combined_score) }}</span>
                     </td>
                     <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
-                    <td>
+                    <td data-sort-value="{{ model.bang_for_buck }}">
                         <div class="bang-for-buck-bar-container" title="{{ '%.1f'|format(model.bang_for_buck) }}">
                             <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%;"></div>
                         </div>
@@ -148,20 +148,38 @@
         const direction = isAscending ? 1 : -1;
 
         rows.sort((a, b) => {
-            const aCell = a.cells[colIndex].innerText.trim();
-            const bCell = b.cells[colIndex].innerText.trim();
-
+            const aCellEl = a.cells[colIndex];
+            const bCellEl = b.cells[colIndex];
+            
             let aVal, bVal;
 
-            if (type === 'number') {
-                // Remove currency symbols, commas, etc.
-                aVal = parseFloat(aCell.replace(/[^0-9.-]+/g, '')) || 0;
-                bVal = parseFloat(bCell.replace(/[^0-9.-]+/g, '')) || 0;
+            // Check for explicit sort value first
+            if (aCellEl.hasAttribute('data-sort-value')) {
+                const aSortVal = aCellEl.getAttribute('data-sort-value');
+                const bSortVal = bCellEl.getAttribute('data-sort-value');
+                
+                if (type === 'number') {
+                    aVal = parseFloat(aSortVal) || 0;
+                    bVal = parseFloat(bSortVal) || 0;
+                } else {
+                    aVal = aSortVal.toLowerCase();
+                    bVal = bSortVal.toLowerCase();
+                }
             } else {
-                aVal = aCell.toLowerCase();
-                bVal = bCell.toLowerCase();
+                const aText = aCellEl.innerText.trim();
+                const bText = bCellEl.innerText.trim();
+
+                if (type === 'number') {
+                    // Remove currency symbols, commas, etc.
+                    aVal = parseFloat(aText.replace(/[^0-9.-]+/g, '')) || 0;
+                    bVal = parseFloat(bText.replace(/[^0-9.-]+/g, '')) || 0;
+                } else {
+                    aVal = aText.toLowerCase();
+                    bVal = bText.toLowerCase();
+                }
             }
 
+            if (aVal === bVal) return 0;
             return (aVal > bVal ? 1 : -1) * direction;
         });
 
