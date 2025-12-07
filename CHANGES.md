@@ -24,3 +24,4 @@
 - **Full Localization**: Implemented full English/Dhivehi support for all UI elements including badges, toasts, and tooltips.
 - **Rating Tips**: Added descriptive tooltips for rating stars (1-3 stars) to guide better quality assessment.
 - **UI Polish**: Unified UI components and fixed untranslated strings.
+- **Compare UI Localization**: Added missing Dhivehi translations for the new comparison feature.
