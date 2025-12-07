@@ -181,6 +181,16 @@ class Config:
             "rate_limit": None,
             "base_model": "Claude 3.7 Sonnet",
         },
+        "claude-sonnet-3.5": {
+            "name": "anthropic/claude-3.5-sonnet",
+            "display_name": "Claude 3.5 Sonnet",
+            "type": "openrouter",
+            "input_cost_per_mtok": 3.0,
+            "output_cost_per_mtok": 15.0,
+            "is_active": True,
+            "rate_limit": None,
+            "base_model": "Claude 3.5 Sonnet",
+        },
         "claude-sonnet-4": {
             "name": "anthropic/claude-sonnet-4",
             "display_name": "Claude Sonnet 4",
