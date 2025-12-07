@@ -15,6 +15,8 @@
 - **Cleanup**: Removed native Gemini Client in favor of unified OpenRouter client.
 
 ### Fixes
+- **Login Fix**: Resolved 400 Bad Request error when running behind Cloudflare Tunnel by adding `ProxyFix` middleware.
+- **Stream Stability**: Fixed translation stream buffering/hanging issues by adding `no-cache` and `X-Accel-Buffering: no` headers.
 - **UI Hang**: Fixed issue where UI hangs on stream error. Pending translations are now marked as failed, allowing voting on successful results.
 - **Duplicate Handling**: Added warning badge for duplicate translation results from the same model to prevent redundant voting.
 

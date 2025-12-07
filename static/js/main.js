@@ -444,4 +444,3 @@ document.addEventListener('DOMContentLoaded', function() {
         // showToast('Retry not implemented', 'info');
     }
 });
-});

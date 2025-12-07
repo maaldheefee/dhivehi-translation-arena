@@ -122,6 +122,11 @@ def stream_translate():
     return Response(
         stream_with_context(stream_translation_generator(query_text, selected_models)),
         mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )
 
 

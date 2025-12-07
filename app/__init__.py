@@ -2,9 +2,10 @@ import logging
 import os
 from datetime import timedelta
 
-from dotenv import load_dotenv  # ty:ignore[unresolved-import]
+from dotenv import load_dotenv
 from flask import Flask, g
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.blueprints.auth import auth_bp
 from app.blueprints.main import main_bp
@@ -40,6 +41,9 @@ def create_app():
 
     # Initialize CSRF Protection
     CSRFProtect(app)
+
+    # Fix for running behind a proxy (Cloudflare, Nginx, etc.)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     @app.before_request
     def before_request():
