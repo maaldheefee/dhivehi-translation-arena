@@ -60,12 +60,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateThemeIcon(theme) {
+        // Clear inline styles first to let classes control visibility
+        if (elements.themeIconLight) elements.themeIconLight.style.display = '';
+        if (elements.themeIconDark) elements.themeIconDark.style.display = '';
+
         if (theme === 'dark') {
-            elements.themeIconLight.style.display = 'block';
-            elements.themeIconDark.style.display = 'none';
+            if (elements.themeIconLight) elements.themeIconLight.classList.remove('hidden');
+            if (elements.themeIconDark) elements.themeIconDark.classList.add('hidden');
         } else {
-            elements.themeIconLight.style.display = 'none';
-            elements.themeIconDark.style.display = 'block';
+            if (elements.themeIconLight) elements.themeIconLight.classList.add('hidden');
+            if (elements.themeIconDark) elements.themeIconDark.classList.remove('hidden');
         }
     }
 
@@ -115,27 +119,68 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 elements.modelParams.innerHTML = '';
                 if (data.models) {
-                    Object.entries(data.models).forEach(([key, name]) => {
-                        const div = document.createElement('div');
-                        div.className = 'checkbox-wrapper';
+                    Object.entries(data.models).forEach(([key, modelData]) => {
+                        // Container Card
+                        const isSelected = modelData.selected !== undefined ? modelData.selected : true;
+                        const card = document.createElement('div');
+                        card.className = `model-select-card ${isSelected ? 'selected' : ''}`;
                         
+                        // Hidden Checkbox (for form submission logic)
                         const input = document.createElement('input');
                         input.type = 'checkbox';
                         input.id = `model-${key}`;
                         input.value = key;
-                        input.checked = true;
+                        input.checked = isSelected;
+                        input.style.display = 'none';
+
+                        // Header (Name + Check Indicator)
+                        const header = document.createElement('div');
+                        header.className = 'model-select-header';
                         
-                        const label = document.createElement('label');
-                        label.htmlFor = `model-${key}`;
-                        label.textContent = name;
+                        const name = typeof modelData === 'string' ? modelData : modelData.name;
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'model-select-name';
+                        nameSpan.textContent = name;
                         
-                        div.appendChild(input);
-                        div.appendChild(label);
-                        elements.modelParams.appendChild(div);
+                        const indicator = document.createElement('div');
+                        indicator.className = 'selection-indicator';
+                        
+                        header.appendChild(nameSpan);
+                        header.appendChild(indicator);
+
+                        // Footer (Cost)
+                        const footer = document.createElement('div');
+                        footer.className = 'model-select-footer';
+                        
+                        if (typeof modelData !== 'string') {
+                            const costPill = document.createElement('span');
+                            costPill.className = 'model-cost-pill';
+                            costPill.textContent = `$${modelData.output_cost}/m`;
+                            costPill.title = `Input: $${modelData.input_cost}/m, Output: $${modelData.output_cost}/m`;
+                            footer.appendChild(costPill);
+                        }
+
+                        // Assemble
+                        card.appendChild(input);
+                        card.appendChild(header);
+                        card.appendChild(footer);
+                        
+                        // Click Handler
+                        card.addEventListener('click', () => {
+                            input.checked = !input.checked;
+                            if (input.checked) {
+                                card.classList.add('selected');
+                            } else {
+                                card.classList.remove('selected');
+                            }
+                        });
+
+                        elements.modelParams.appendChild(card);
                     });
                 }
             })
             .catch(err => {
+                console.error(err);
                 elements.modelParams.innerHTML = '<div class="error-msg">Failed to load models.</div>';
             });
     }

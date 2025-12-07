@@ -29,3 +29,10 @@
 - **Header Budget**: Moved user cost tracking to global header for better visibility.
 - **Compare Progress**: Added stats indicator showing comparisons submitted and pairs remaining.
 - **ELO Optimization**: Refactored pair selection to maximize information gain (similar ELOs) and optimized DB queries (N+1 fix).
+
+### UX & Design Updates
+- **Main Page Restructure**: Repositioned query snippets for better accessibility. Collapsible sections for instructions and configuration.
+- **Visual Enhancements**: Major improvements to model selector readability, dark mode consistency, and stats grid layout.
+- **Compare Flow**: Centered action buttons and improved navigation in comparison mode.
+- **Typography & Accessibility**: Enforced Latin fonts for model names and technical data for better legibility.
+

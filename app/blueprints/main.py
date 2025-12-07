@@ -76,17 +76,30 @@ def index():
 @main_bp.route("/get_available_models")
 def available_models():
     """Returns a list of available (active) models for selection."""
-    available_models = get_available_models()
+    available_models_map = get_available_models()
     usage_stats = get_model_usage_stats()
+    conf = get_config()
 
     sorted_model_keys = sorted(
-        available_models.keys(), key=lambda m: usage_stats.get(m, 0)
+        available_models_map.keys(), key=lambda m: usage_stats.get(m, 0)
     )
 
-    # Return all models, sorted by usage
-    sorted_models_dict = {k: available_models[k] for k in sorted_model_keys}
+    # Return models object with details
+    models_data = {}
 
-    return jsonify({"models": sorted_models_dict})
+    # Determined selected models based on Config limit
+    max_selected = conf.MAX_MODELS_SELECTION
+
+    for i, k in enumerate(sorted_model_keys):
+        model_conf = conf.MODELS.get(k, {})
+        models_data[k] = {
+            "name": available_models_map[k],
+            "input_cost": model_conf.get("input_cost_per_mtok", 0),
+            "output_cost": model_conf.get("output_cost_per_mtok", 0),
+            "selected": i < max_selected  # Select top N models
+        }
+
+    return jsonify({"models": models_data})
 
 
 def stream_translation_generator(query_text, selected_models, user_id=None):

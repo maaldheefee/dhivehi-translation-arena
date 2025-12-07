@@ -39,11 +39,11 @@
                 <tr>
                     <th data-sort="number">{{ _('rank') }}</th>
                     <th data-sort="string">{{ _('model_name') }}</th>
+                    <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
                     <th data-sort="number">{{ _('avg_score') }}</th>
                     <th data-sort="number">{{ _('elo_rating') }}</th>
                     <th data-sort="number">{{ _('combined_score') }}
                     <div style="font-size: 0.75em; color: #6b7280; margin-top: 2px;">Avg + ELO</div></th>
-                    <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
                     <th data-sort="number">{{ _('projected_cost_100k') }}</th>
                     <th data-sort="number">{{ _('bang_for_buck_score') }}</th>
                 </tr>
@@ -52,35 +52,12 @@
                 {% for model in model_scores %}
                 <tr class="{% if not model.is_active %}deprecated-model{% endif %}">
                     <td><span class="rank-badge">{{ loop.index }}</span></td>
-                    <td>
+                    <td class="latin-content">
                         <strong>{{ model.base_model }}</strong>
                         {% if model.preset_name %}
                         <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">{{ model.preset_name }}</div>
                         {% endif %}
-                        {% if not model.is_active %}<span class="deprecated-tag">({{ _('deprecated') }})</span>{% endif %}
-                    </td>
-                    <td>
-                        {% set score = model.average_score %}
-                        {% if score > 1.5 %}
-                            {% set score_class = 'high-score' %}
-                        {% elif score > 0 %}
-                            {% set score_class = 'medium-score' %}
-                        {% else %}
-                            {% set score_class = 'low-score' %}
-                        {% endif %}
-                        <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
-                    </td>
-                    <td>
-                        <div class="elo-badge" style="font-weight: bold; color: var(--primary);">
-                            {{ "%.0f"|format(model.elo_rating) }}
-                        </div>
-                        <div class="win-rate" style="font-size: 0.8em; color: var(--text-secondary);">
-                            {{ "%.1f"|format(model.elo_win_rate) }}% WR
-                            ({{ model.elo_wins }}W/{{ model.elo_losses }}L/{{ model.elo_ties }}T)
-                        </div>
-                    </td>
-                    <td>
-                         <span class="score-badge" style="background-color: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db;">{{ "%.2f"|format(model.combined_score) }}</span>
+                        {% if not model.is_active %}<span class="deprecated-tag">({{ _('inactive', default='Inactive') }})</span>{% endif %}
                     </td>
                     <td style="text-align: left;">
                         <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
@@ -102,11 +79,32 @@
                             {% endif %}
                         </div>
                     </td>
+                    <td>
+                        {% set score = model.average_score %}
+                        {% if score > 1.5 %}
+                            {% set score_class = 'high-score' %}
+                        {% elif score > 0 %}
+                            {% set score_class = 'medium-score' %}
+                        {% else %}
+                            {% set score_class = 'low-score' %}
+                        {% endif %}
+                        <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
+                    </td>
+                    <td>
+                        <div class="elo-badge" style="font-weight: bold; color: var(--primary);">
+                            {{ "%.0f"|format(model.elo_rating) }}
+                        </div>
+                        <div class="win-rate" style="font-size: 0.8em; color: var(--text-secondary);">
+                            {{ "%.1f"|format(model.elo_win_rate) }}% WR
+                        </div>
+                    </td>
+                    <td>
+                         <span class="score-badge" style="background-color: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db;">{{ "%.2f"|format(model.combined_score) }}</span>
+                    </td>
                     <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
                     <td>
-                        <div class="bang-for-buck-bar-container">
-                            <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%; background-color: #10b981; height: 10px; border-radius: 5px;"></div>
-                            <span>{{ "%.1f"|format(model.bang_for_buck) }}</span>
+                        <div class="bang-for-buck-bar-container" title="{{ '%.1f'|format(model.bang_for_buck) }}">
+                            <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%;"></div>
                         </div>
                     </td>
                 </tr>

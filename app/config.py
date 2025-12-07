@@ -81,7 +81,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 2.0,
             "output_cost_per_mtok": 12.0,
-            "is_active": True,
+            "is_active": False,  # Disabled due to high cost
             "rate_limit": None,
             "timeout": 180.0,  # Thinking model needs longer timeout
             "base_model": "Gemini 3 Pro Preview",
