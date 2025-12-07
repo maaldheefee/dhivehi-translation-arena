@@ -5,6 +5,7 @@ description = "A blind testing platform for comparing Arabic to Dhivehi translat
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "flask-wtf>=1.2.2",
     "flask[async]>=3.1.0",
     "google-genai>=1.5.0",
     "gunicorn>=23.0.0",

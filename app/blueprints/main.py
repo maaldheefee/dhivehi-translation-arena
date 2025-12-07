@@ -33,6 +33,7 @@ def index():
     username = session.get("username", "Guest")
     shuffled_queries = PREDEFINED_QUERIES.copy()
     random.shuffle(shuffled_queries)
+    shuffled_queries = shuffled_queries[:10]
 
     available_models = get_available_models()
     usage_stats = get_model_usage_stats()

@@ -1,328 +1,394 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // DOM Elements
-    const translateBtn = document.getElementById('translate-btn');
-    const queryInput = document.getElementById('query-input');
-    const resultsSection = document.getElementById('results-section');
-    const translationsContainer = document.querySelector('.translations-container');
-    const totalCostElement = document.getElementById('total-cost');
-    const predefinedQueryButtons = document.querySelectorAll('.predefined-query');
-    const usernameSelect = document.getElementById('username-select');
-    const userPassword = document.getElementById('user-password');
-    const loginBtn = document.getElementById('login-btn');
-    const submitVotesBtn = document.getElementById('submit-votes-btn');
-    const queryIdField = document.getElementById('query-id');
-    const voteStatusDiv = document.getElementById('vote-status');
-    const modelSelectionCheckboxes = document.getElementById('model-selection-checkboxes');
-
+    // --- Configuration & Elements ---
+    const elements = {
+        themeToggle: document.getElementById('theme-toggle'),
+        themeIconLight: document.querySelector('.light-icon'),
+        themeIconDark: document.querySelector('.dark-icon'),
+        userMenuBtn: document.getElementById('user-menu-btn'),
+        userMenuDropdown: document.getElementById('user-menu-dropdown'),
+        usernameSelect: document.getElementById('username-select'),
+        userPassword: document.getElementById('user-password'),
+        loginBtn: document.getElementById('login-btn'),
+        currentUsername: document.getElementById('current-username'),
+        
+        translateBtn: document.getElementById('translate-btn'),
+        queryInput: document.getElementById('query-input'),
+        resultsSection: document.getElementById('results-section'),
+        translationsContainer: document.querySelector('.translations-grid'),
+        totalCost: document.getElementById('total-cost'),
+        modelParams: document.getElementById('model-selection-checkboxes'),
+        
+        submitVotesBtn: document.getElementById('submit-votes-btn'),
+        voteStatus: document.getElementById('vote-status'),
+        queryId: document.getElementById('query-id'),
+        
+        chips: document.querySelectorAll('.chip')
+    };
+    
     let eventSource = null;
-    let totalCost = 0;
+    let currentTotalCost = 0;
 
-    // Event Listeners
-    if (translateBtn) translateBtn.addEventListener('click', handleTranslate);
-    
-    predefinedQueryButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            queryInput.value = button.textContent.trim();
-            handleTranslate();
-        });
-    });
-    
+    // --- Initialization ---
+    initTheme();
     loadUsers();
-    loadModelsForSelection();
-    
-    if (loginBtn) loginBtn.addEventListener('click', handleLogin);
-    if (submitVotesBtn) submitVotesBtn.addEventListener('click', handleSubmitVotes);
+    loadModels();
+    setupEventListeners();
 
+    // --- Theme Logic ---
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+    }
+
+    function updateThemeIcon(theme) {
+        if (theme === 'dark') {
+            elements.themeIconLight.style.display = 'block';
+            elements.themeIconDark.style.display = 'none';
+        } else {
+            elements.themeIconLight.style.display = 'none';
+            elements.themeIconDark.style.display = 'block';
+        }
+    }
+
+    // --- Toast Notifications ---
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    // --- CSRF Helper ---
+    function getCSRFToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // --- API Interactions ---
     function loadUsers() {
         fetch('/auth/get_users')
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => {
-                if (!data.users || !usernameSelect) return;
-                while (usernameSelect.options.length > 1) usernameSelect.remove(1);
-                data.users.forEach(user => {
-                    const option = document.createElement('option');
-                    option.value = user.username;
-                    option.textContent = user.username;
-                    usernameSelect.appendChild(option);
-                });
-            }).catch(error => console.error('Error loading users:', error));
+                 if (data.users && elements.usernameSelect) {
+                    elements.usernameSelect.innerHTML = '<option value="">Select User</option>';
+                    data.users.forEach(user => {
+                        const opt = document.createElement('option');
+                        opt.value = user.username;
+                        opt.textContent = user.username;
+                        elements.usernameSelect.appendChild(opt);
+                    });
+                 }
+            })
+            .catch(err => console.error('Failed to load users', err));
     }
 
-    function loadModelsForSelection() {
+    function loadModels() {
+        if (!elements.modelParams) return;
+        
         fetch('/get_available_models')
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => {
-                if (!data.models || !modelSelectionCheckboxes) return;
-                modelSelectionCheckboxes.innerHTML = '';
-                Object.entries(data.models).forEach(([key, displayName]) => {
-                    const div = document.createElement('div');
-                    div.className = 'checkbox-wrapper';
-                    const input = document.createElement('input');
-                    input.type = 'checkbox';
-                    input.id = `model-${key}`;
-                    input.name = 'models';
-                    input.value = key;
-                    input.checked = true;
-                    const label = document.createElement('label');
-                    label.htmlFor = `model-${key}`;
-                    label.textContent = displayName;
-                    div.append(input, label);
-                    modelSelectionCheckboxes.appendChild(div);
-                });
-            }).catch(error => {
-                console.error('Error loading models:', error);
-                if (modelSelectionCheckboxes) modelSelectionCheckboxes.innerHTML = '<div class="error">Could not load models.</div>';
+                elements.modelParams.innerHTML = '';
+                if (data.models) {
+                    Object.entries(data.models).forEach(([key, name]) => {
+                        const div = document.createElement('div');
+                        div.className = 'checkbox-wrapper';
+                        
+                        const input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.id = `model-${key}`;
+                        input.value = key;
+                        input.checked = true;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = `model-${key}`;
+                        label.textContent = name;
+                        
+                        div.appendChild(input);
+                        div.appendChild(label);
+                        elements.modelParams.appendChild(div);
+                    });
+                }
+            })
+            .catch(err => {
+                elements.modelParams.innerHTML = '<div class="error-msg">Failed to load models.</div>';
             });
     }
 
-    function handleLogin() {
-        if (!usernameSelect.value || !userPassword.value) {
-            alert('Please select a user and enter the password.');
+    async function handleLogin() {
+        const username = elements.usernameSelect.value;
+        const password = elements.userPassword.value;
+        
+        if (!username || !password) {
+            showToast('Please enter both username and password', 'error');
             return;
         }
-        fetch('/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: usernameSelect.value, password: userPassword.value })
-        }).then(response => response.json()).then(data => {
-            if (data.error) return alert(data.error);
-            if (data.success) window.location.reload();
-        }).catch(error => console.error('Error logging in:', error));
-    }
-    
-    function handleTranslate() {
-        const query = queryInput.value.trim();
-        const selectedModels = Array.from(document.querySelectorAll('#model-selection-checkboxes input:checked')).map(cb => cb.value);
-
-        if (!query) return alert('Please enter text to translate');
-        if (selectedModels.length < 2) return alert('Please select at least two models to compare.');
-
-        if (eventSource) eventSource.close();
         
-        resultsSection.classList.remove('hidden');
-        translationsContainer.innerHTML = '';
-        if (submitVotesBtn) submitVotesBtn.style.display = 'none';
-        if (voteStatusDiv) voteStatusDiv.classList.add('hidden');
-        totalCost = 0;
-        totalCostElement.textContent = '$0.000000';
-
-        selectedModels.forEach((modelKey, index) => {
-            const placeholder = createPlaceholderCard(modelKey, index + 1);
-            translationsContainer.appendChild(placeholder);
-        });
-
-        const params = new URLSearchParams({ query: query });
-        selectedModels.forEach(model => params.append('models', model));
-        
-        eventSource = new EventSource(`/stream-translate?${params.toString()}`);
-        
-        eventSource.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data.error) {
-                console.error(`Error for model ${data.model}: ${data.error}`);
-                updateCardWithError(data.model, data.error);
-                return;
-            }
-            updateCardWithTranslation(data);
-        };
-
-        eventSource.addEventListener('end', function(event) {
-            eventSource.close();
-            eventSource = null;
-            if (submitVotesBtn) submitVotesBtn.style.display = 'inline-block';
-            console.log('Stream finished.');
-        });
-
-        eventSource.onerror = function(err) {
-            console.error('EventSource failed:', err);
-            translationsContainer.innerHTML = `<div class="error">A network error occurred. Please try again.</div>`;
-            if(eventSource) eventSource.close();
-        };
-    }
-
-    function createPlaceholderCard(modelKey, position) {
-        const template = document.getElementById('translation-placeholder-template');
-        const card = template.content.cloneNode(true).querySelector('.translation-card');
-        card.dataset.modelKey = modelKey;
-        card.querySelector('.position').textContent = position;
-        return card;
-    }
-
-    function updateCardWithTranslation(data) {
-        const card = document.querySelector(`.translation-card[data-model-key="${data.model}"]`);
-        if (!card) return;
-
-        card.classList.remove('placeholder');
-        card.dataset.id = data.id;
-        if (queryIdField && !queryIdField.value) queryIdField.value = data.query_id;
-
-        const contentTemplate = document.getElementById('translation-card-content-template');
-        const content = contentTemplate.content.cloneNode(true);
-
-        const modelNameDiv = content.querySelector('.model-name');
-        modelNameDiv.querySelector('.model').textContent = data.model;
-        card.querySelector('.card-header').appendChild(modelNameDiv);
-        
-        content.querySelector('.translation-text').textContent = data.translation;
-        card.querySelector('.card-body').innerHTML = '';
-        card.querySelector('.card-body').appendChild(content.querySelector('.card-body-content'));
-        
-        card.querySelector('.card-footer').innerHTML = '';
-        card.querySelector('.card-footer').appendChild(content.querySelector('.card-footer-content'));
-        
-        setupStarRatingListeners(card);
-
-        totalCost += data.cost;
-        totalCostElement.textContent = '$' + totalCost.toFixed(6);
-    }
-    
-    function updateCardWithError(modelKey, errorMsg) {
-        const card = document.querySelector(`.translation-card[data-model-key="${modelKey}"]`);
-        if (!card) return;
-        card.classList.add('error-card');
-        card.querySelector('.card-body').innerHTML = `<div class="error-message"><strong>Error:</strong> ${errorMsg}</div>`;
-        
-        const retryTemplate = document.getElementById('retry-button-template');
-        if (retryTemplate) {
-            const retryButton = retryTemplate.content.cloneNode(true).querySelector('button');
-            retryButton.addEventListener('click', () => {
-                const query = queryInput.value.trim();
-                retrySingleTranslation(query, modelKey);
+        try {
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ username, password })
             });
-            const footer = card.querySelector('.card-footer');
-            footer.innerHTML = '';
-            footer.appendChild(retryButton);
+            
+            const data = await res.json();
+            if (data.success) {
+                showToast('Logged in successfully', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showToast(data.error || 'Login failed', 'error');
+            }
+        } catch (err) {
+            showToast('Network error during login', 'error');
         }
     }
-    
-    function retrySingleTranslation(query, modelKey) {
-        if (!query || !modelKey) return;
 
-        const card = document.querySelector(`.translation-card[data-model-key="${modelKey}"]`);
-        if (!card) return;
+    function handleTranslate() {
+        const query = elements.queryInput.value.trim();
+        const selectedModels = Array.from(elements.modelParams.querySelectorAll('input:checked')).map(cb => cb.value);
 
-        card.classList.remove('error-card');
-        card.querySelector('.card-body').innerHTML = '<div class="spinner"></div>';
-        card.querySelector('.card-footer').innerHTML = '';
+        if (!query) return showToast('Please enter text to translate', 'error');
+        if (selectedModels.length < 2) return showToast('Please select at least two models', 'error');
 
-        const params = new URLSearchParams({ query: query, models: modelKey });
-        const singleEventSource = new EventSource(`/stream-translate?${params.toString()}`);
+        // Reset UI
+        if(eventSource) eventSource.close();
+        
+        elements.resultsSection.classList.remove('hidden');
+        elements.translationsContainer.innerHTML = '';
+        currentTotalCost = 0;
+        elements.totalCost.textContent = '0.000000';
+        elements.submitVotesBtn.classList.add('hidden');
+        elements.voteStatus.classList.add('hidden');
+        elements.queryId.value = '';
 
-        singleEventSource.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data.error) {
-                console.error(`Retry error for model ${data.model}: ${data.error}`);
-                updateCardWithError(data.model, data.error);
-            } else {
-                updateCardWithTranslation(data);
-            }
-        };
+        setTimeout(() => {
+           elements.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
 
-        singleEventSource.addEventListener('end', function(event) {
-            singleEventSource.close();
-            console.log(`Retry stream for ${modelKey} finished.`);
+        // Create placeholders
+        selectedModels.forEach(modelKey => {
+            const tmpl = document.getElementById('translation-placeholder-template');
+            const clone = tmpl.content.cloneNode(true);
+            const card = clone.querySelector('.translation-card');
+            card.dataset.modelKey = modelKey;
+            elements.translationsContainer.appendChild(card);
         });
 
-        singleEventSource.onerror = function(err) {
-            console.error('Single EventSource failed:', err);
-            updateCardWithError(modelKey, 'A network error occurred during retry.');
-            singleEventSource.close();
+        // Start Stream
+        const params = new URLSearchParams({ query });
+        selectedModels.forEach(m => params.append('models', m));
+
+        eventSource = new EventSource(`/stream-translate?${params.toString()}`);
+        
+        eventSource.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if (data.error) {
+                renderError(data.model, data.error);
+            } else {
+                renderTranslation(data);
+            }
         };
+        
+        eventSource.addEventListener('end', () => {
+             eventSource.close();
+             elements.submitVotesBtn.classList.remove('hidden');
+             showToast('Translation completed', 'success');
+        });
+        
+        eventSource.onerror = (e) => {
+            console.error('Stream error', e);
+            eventSource.close();
+            showToast('Translation stream interrupted', 'error');
+        };
+    }
+    
+    function renderTranslation(data) {
+        const card = document.querySelector(`.translation-card[data-model-key="${data.model}"]`);
+        if (!card) return;
+        
+        card.classList.remove('placeholder');
+        card.dataset.id = data.id;
+        card.innerHTML = ''; // Clear placeholder content
+        
+        if (!elements.queryId.value) elements.queryId.value = data.query_id;
+        
+        // Update cost
+        currentTotalCost += data.cost;
+        elements.totalCost.textContent = currentTotalCost.toFixed(6);
+
+        // Build content
+        const tmpl = document.getElementById('translation-card-content-template');
+        const content = tmpl.content.cloneNode(true);
+        
+        const modelEl = content.querySelector('.model');
+        modelEl.textContent = data.model;
+        modelEl.classList.add('blur-text');
+        
+        content.querySelector('.translation-text').textContent = data.translation;
+        
+        // Setup ratings
+        setupStarRatingListeners(content);
+        
+        card.appendChild(content);
+    }
+    
+    function renderError(modelKey, errorMsg) {
+        const card = document.querySelector(`.translation-card[data-model-key="${modelKey}"]`);
+        if (!card) return;
+        
+        card.classList.remove('placeholder');
+        card.innerHTML = `<div class="card-body"><div class="error-message">Error: ${errorMsg}</div></div>`;
+        
+        const retryTmpl = document.getElementById('retry-button-template');
+        const retryBtn = retryTmpl.content.cloneNode(true);
+        retryBtn.querySelector('.retry-btn').addEventListener('click', () => {
+             retrySingle(elements.queryInput.value, modelKey);
+        });
+        
+        const footer = document.createElement('div');
+        footer.className = 'card-footer';
+        footer.appendChild(retryBtn);
+        card.appendChild(footer);
     }
 
     function setupStarRatingListeners(card) {
-        const stars = card.querySelectorAll('.star');
-        const rejectBtn = card.querySelector('.reject-btn-new');
+        const stars = card.querySelectorAll('.star-btn');
+        const rejectBtn = card.querySelector('.reject-btn');
         const ratingInput = card.querySelector('.rating-value');
         if (!ratingInput) return;
 
-        stars.forEach(star => {
+        stars.forEach((star, index) => {
+            // Click
             star.addEventListener('click', () => {
                 const value = star.dataset.value;
                 ratingInput.value = value;
                 stars.forEach(s => s.classList.toggle('selected', s.dataset.value <= value));
                 if (rejectBtn) rejectBtn.classList.remove('selected');
             });
-            star.addEventListener('mouseover', () => {
-                const value = star.dataset.value;
-                stars.forEach(s => s.classList.toggle('hovered', s.dataset.value <= value));
+            
+            // Hover
+            star.addEventListener('mouseenter', () => {
+                const hoverValue = parseInt(star.dataset.value);
+                stars.forEach(s => {
+                    if (parseInt(s.dataset.value) <= hoverValue) {
+                        s.classList.add('hover-active');
+                    } else {
+                        s.classList.remove('hover-active');
+                    }
+                });
             });
-            star.addEventListener('mouseout', () => stars.forEach(s => s.classList.remove('hovered')));
+            
+            star.addEventListener('mouseleave', () => {
+                stars.forEach(s => s.classList.remove('hover-active'));
+            });
         });
 
         if (rejectBtn) {
             rejectBtn.addEventListener('click', () => {
-                const wasSelected = rejectBtn.classList.contains('selected');
-                rejectBtn.classList.toggle('selected', !wasSelected);
-                ratingInput.value = wasSelected ? 0 : -1;
-                if (!wasSelected) stars.forEach(s => s.classList.remove('selected'));
+                const isSelected = rejectBtn.classList.contains('selected');
+                
+                if (!isSelected) {
+                    rejectBtn.classList.add('selected');
+                    ratingInput.value = -1;
+                    stars.forEach(s => s.classList.remove('selected'));
+                } else {
+                    rejectBtn.classList.remove('selected');
+                    ratingInput.value = 0;
+                }
             });
         }
     }
 
-    function handleSubmitVotes() {
-        const queryId = queryIdField ? queryIdField.value : null;
-        if (!queryId) return showVoteStatus('No query ID found', 'error');
-
+    async function submitVotes() {
+        const queryId = elements.queryId.value;
+        if (!queryId) return;
+        
         const votes = [];
-        document.querySelectorAll('.translation-card:not(.placeholder):not(.error-card)').forEach(card => {
-            const ratingInput = card.querySelector('.rating-value');
-            if (ratingInput && ratingInput.value != 0) {
+        document.querySelectorAll('.translation-card').forEach(card => {
+            const input = card.querySelector('.rating-value');
+            if (input && input.value != 0) {
                 votes.push({
-                    translation_id: parseInt(card.dataset.id, 10),
-                    rating: parseInt(ratingInput.value, 10)
+                    translation_id: parseInt(card.dataset.id),
+                    rating: parseInt(input.value)
                 });
             }
         });
-
-        if (votes.length === 0) return showVoteStatus('Please rate or reject at least one translation', 'error');
-
-        if (submitVotesBtn) {
-            submitVotesBtn.disabled = true;
-            submitVotesBtn.textContent = 'Submitting...';
-        }
-
-        fetch('/vote', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query_id: parseInt(queryId, 10), votes: votes })
-        }).then(response => response.json()).then(data => {
+        
+        if (votes.length === 0) return showToast('Please rate at least one translation', 'info');
+        
+        elements.submitVotesBtn.disabled = true;
+        
+        try {
+            const res = await fetch('/vote', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ query_id: queryId, votes })
+            });
+            
+            const data = await res.json();
             if (data.status === 'success') {
-                showVoteStatus('Thank you for voting!', 'success');
-                disableVotingControls();
-                if (submitVotesBtn) submitVotesBtn.style.display = 'none';
-                document.querySelectorAll('.model-name').forEach(el => el.classList.remove('hidden'));
+                showToast('Votes submitted successfully!', 'success');
+                elements.submitVotesBtn.classList.add('hidden');
+                document.querySelectorAll('.model-name-badge').forEach(el => {
+                    el.classList.remove('blur-text');
+                    el.style.backgroundColor = 'transparent';
+                    el.style.color = 'var(--text-secondary)';
+                });
             } else {
-                showVoteStatus(data.error || 'Error submitting votes', 'error');
-                if (submitVotesBtn) {
-                    submitVotesBtn.disabled = false;
-                    submitVotesBtn.textContent = 'Submit Votes';
-                }
+                showToast(data.error || 'Failed to submit votes', 'error');
+                elements.submitVotesBtn.disabled = false;
             }
-        }).catch(error => {
-            console.error('Error submitting votes:', error);
-            showVoteStatus('Error submitting votes. Please try again.', 'error');
-             if (submitVotesBtn) {
-                submitVotesBtn.disabled = false;
-                submitVotesBtn.textContent = 'Submit Votes';
-            }
-        });
-    }
-
-    function showVoteStatus(message, type) {
-        if (voteStatusDiv) {
-            voteStatusDiv.textContent = message;
-            voteStatusDiv.className = `vote-status ${type}`;
-            voteStatusDiv.classList.remove('hidden');
-            if (type === 'success') setTimeout(() => voteStatusDiv.classList.add('hidden'), 5000);
+        } catch (err) {
+            showToast('Network error submitting votes', 'error');
+            elements.submitVotesBtn.disabled = false;
         }
     }
 
-    function disableVotingControls() {
-        document.querySelectorAll('.translation-card').forEach(card => {
-            card.querySelectorAll('.star, .reject-btn-new').forEach(el => {
-                el.style.pointerEvents = 'none';
-                el.style.cursor = 'default';
+    function setupEventListeners() {
+        if (elements.themeToggle) elements.themeToggle.addEventListener('click', toggleTheme);
+        if (elements.userMenuBtn) {
+            elements.userMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                elements.userMenuDropdown.classList.toggle('hidden');
+            });
+        }
+        
+        document.addEventListener('click', (e) => {
+           if (elements.userMenuDropdown && !elements.userMenuDropdown.contains(e.target) && e.target !== elements.userMenuBtn) {
+               elements.userMenuDropdown.classList.add('hidden');
+           } 
+        });
+
+        if (elements.loginBtn) elements.loginBtn.addEventListener('click', handleLogin);
+        if (elements.translateBtn) elements.translateBtn.addEventListener('click', handleTranslate);
+        if (elements.submitVotesBtn) elements.submitVotesBtn.addEventListener('click', submitVotes);
+        
+        // Chip clicks
+        elements.chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                elements.queryInput.value = chip.dataset.query;
+                handleTranslate();
             });
         });
     }

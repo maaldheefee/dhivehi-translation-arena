@@ -1,3 +1,4 @@
+import datetime
 from typing import cast
 
 from sqlalchemy.orm import Session
@@ -105,6 +106,15 @@ def calculate_model_scores():
             }
         )
 
+    # Normalize Bang for Buck (0-10 scale)
+    if stats_list:
+        max_bb = max(s["score_per_dollar"] for s in stats_list)
+        for s in stats_list:
+             if max_bb > 0:
+                 s["bang_for_buck"] = (s["score_per_dollar"] / max_bb) * 10
+             else:
+                 s["bang_for_buck"] = 0
+
     stats_list.sort(key=lambda x: x["average_score"], reverse=True)
 
     return stats_list
@@ -116,3 +126,142 @@ def get_model_usage_stats() -> dict[str, int]:
     """
     stats = calculate_model_scores()
     return {item["model_name"]: item["appearances"] for item in stats}
+
+
+def calculate_global_stats():
+    """
+    Calculates global statistics for the dashboard.
+    """
+    session = cast(Session, db_session)
+    vote_repo = VoteRepository(session)
+    translation_repo = TranslationRepository(session)
+
+    translations = translation_repo.get_all()
+    votes = vote_repo.get_all()
+
+    total_cost = 0.0
+    total_generations = len(translations)
+    voted_generations = len({v.translation_id for v in votes})
+
+    # Cost over time (Current Month and Current Day)
+    now = datetime.datetime.now()
+    current_month_cost = 0.0
+    current_day_cost = 0.0
+
+    for t in translations:
+        cost = t.cost if t.cost else 0.0
+        total_cost += cost
+
+        if t.created_at and t.created_at.year == now.year and t.created_at.month == now.month:
+            current_month_cost += cost
+            if t.created_at.day == now.day:
+                current_day_cost += cost
+
+    return {
+        "total_cost": total_cost,
+        "total_generations": total_generations,
+        "voted_generations": voted_generations,
+        "vote_percentage": (voted_generations / total_generations * 100) if total_generations > 0 else 0,
+        "current_month_cost": current_month_cost,
+        "current_day_cost": current_day_cost,
+    }
+
+
+def get_monthly_spending_stats():
+    """
+    Returns monthly spending data for the last 12 months.
+    """
+    session = cast(Session, db_session)
+    translation_repo = TranslationRepository(session)
+    translations = translation_repo.get_all()
+
+    import datetime
+    from collections import defaultdict
+
+    monthly_data = defaultdict(float)
+    now = datetime.datetime.now()
+
+    # Initialize last 12 months with 0
+    for i in range(12):
+        d = now - datetime.timedelta(days=i*30)
+        key = d.strftime("%Y-%m")
+        monthly_data[key] = 0.0
+
+    for t in translations:
+        if t.created_at and t.cost:
+            key = t.created_at.strftime("%Y-%m")
+            monthly_data[key] += t.cost
+
+    # Sort by date
+    sorted_months = sorted(monthly_data.keys())
+    
+    # Filter to only keep relevant range (last 12 months roughly) or just all available
+    # For chart.js we return two lists: labels and data
+    return {
+        "labels": sorted_months,
+        "data": [monthly_data[m] for m in sorted_months]
+    }
+
+
+def get_cost_breakdown():
+    """
+    Returns cost statistics grouped by upstream model ID (combining configurations).
+    """
+    session = cast(Session, db_session)
+    translation_repo = TranslationRepository(session)
+    vote_repo = VoteRepository(session)
+
+    translations = translation_repo.get_all()
+    votes = vote_repo.get_all()
+
+    voted_translation_ids = {v.translation_id for v in votes}
+    
+    grouped_stats = {}
+
+    # Pre-calculate a display name mapping: upstream_name -> shortest_display_name
+    upstream_display_names = {}
+    for conf in config.MODELS.values():
+        u_name = conf["name"]
+        d_name = conf["display_name"]
+        if u_name not in upstream_display_names or len(d_name) < len(upstream_display_names[u_name]):
+            upstream_display_names[u_name] = d_name
+
+    for t in translations:
+        model_key = t.model
+        # Fallback if model missing from config
+        upstream_name = model_key
+        display_name = model_key
+
+        if model_key in config.MODELS:
+            upstream_name = config.MODELS[model_key]["name"]
+            display_name = upstream_display_names.get(upstream_name, upstream_name)
+
+        if upstream_name not in grouped_stats:
+            grouped_stats[upstream_name] = {
+                "model_name": display_name,
+                "total_cost": 0.0,
+                "total_generations": 0,
+                "voted_generations": 0,
+                "source_word_count": 0,
+            }
+
+        stats = grouped_stats[upstream_name]
+        stats["total_cost"] += t.cost if t.cost else 0.0
+        stats["total_generations"] += 1
+        if t.id in voted_translation_ids:
+            stats["voted_generations"] += 1
+
+        if t.query and t.query.source_text:
+            stats["source_word_count"] += len(t.query.source_text.split())
+
+    result = []
+    for s in grouped_stats.values():
+        projected = 0.0
+        if s["source_word_count"] > 0:
+            projected = (s["total_cost"] / s["source_word_count"]) * 100000
+
+        s["projected_cost_100k"] = projected
+        result.append(s)
+
+    result.sort(key=lambda x: x["total_cost"], reverse=True)
+    return result

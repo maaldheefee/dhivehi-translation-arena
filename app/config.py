@@ -1,6 +1,7 @@
 """Centralized configuration for Dhivehi Translation Arena."""
 
 import os
+import warnings
 from typing import Any, ClassVar, NotRequired, TypedDict
 
 
@@ -35,6 +36,20 @@ class Config:
     SECRET_KEY: ClassVar[str] = os.environ.get(
         "SECRET_KEY", "dev-secret-key-change-in-production"
     )
+
+    @classmethod
+    def check_configuration(cls):
+        """Check for critical configuration issues."""
+        if (
+            os.environ.get("FLASK_ENV") == "production"
+            and cls.SECRET_KEY == "dev-secret-key-change-in-production"
+        ):
+            warnings.warn(
+                "SECRET_KEY is set to default value in production! This is a security risk.",
+                UserWarning,
+                stacklevel=2,
+            )
+
     MAX_CACHE_SIZE: ClassVar[int] = int(os.environ.get("MAX_CACHE_SIZE", "100"))
 
     # Translation settings

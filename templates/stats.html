@@ -25,28 +25,43 @@
     </style>
 </head>
 <body>
-    <header>
-        <div class="container header-container">
-            <h1>{{ _('title') }}</h1>
-            <nav>
-                <ul>
-                    <li><a href="{{ url_for('main.index') }}">{{ _('nav_home') }}</a></li>
-                    <li><a href="{{ url_for('stats.stats') }}" class="active">{{ _('nav_stats') }}</a></li>
-                </ul>
-            </nav>
-            <div class="header-controls">
-                <details class="user-login-details">
-                    <summary>
-                        <span>{{ _('current_user') }}: <strong id="current-username">{{ username }}</strong></span>
-                    </summary>
-                    <div class="user-login-form-popup">
-                        <select id="username-select" class="user-dropdown">
-                            <option value="">{{ _('select_user') }}</option>
-                        </select>
-                        <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="user-password">
-                        <button id="login-btn" class="btn secondary small-btn">{{ _('login') }}</button>
+    <div id="toast-container" class="toast-container"></div>
+    
+    <header class="app-header">
+        <div class="container header-content">
+            <h1 class="app-title">{{ _('title') }}</h1>
+            
+            <div class="header-actions">
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="{{ url_for('main.index') }}" class="nav-link">{{ _('nav_home') }}</a></li>
+                        <li><a href="{{ url_for('stats.stats') }}" class="nav-link active">{{ _('nav_stats') }}</a></li>
+                    </ul>
+                </nav>
+
+                <div class="controls-group">
+                    <button id="theme-toggle" class="btn icon-btn" aria-label="Toggle Dark Mode" title="Toggle Dark Mode">
+                         <span class="theme-icon light-icon" style="display: none;">☀️</span>
+                         <span class="theme-icon dark-icon">🌙</span>
+                    </button>
+
+                    <div class="user-menu-wrapper">
+                        <button id="user-menu-btn" class="btn text-btn user-btn">
+                            <span id="current-username">{{ username }}</span>
+                             <span class="icon">▼</span>
+                        </button>
+                        <div id="user-menu-dropdown" class="dropdown-menu hidden">
+                             <div class="dropdown-content">
+                                <label for="username-select" class="dropdown-label">{{ _('select_user') }}</label>
+                                <select id="username-select" class="form-select full-width">
+                                    <option value="">{{ _('select_user') }}</option>
+                                </select>
+                                <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="form-input full-width mt-2">
+                                <button id="login-btn" class="btn primary full-width mt-2">{{ _('login') }}</button>
+                             </div>
+                        </div>
                     </div>
-                </details>
+                </div>
             </div>
         </div>
     </header>
@@ -55,8 +70,31 @@
         <section class="stats-section">
             <h2>{{ _('stats_header') }}</h2>
             
+            <div class="global-stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${{ "%.4f"|format(global_stats.total_cost) }}</div>
+                    <div class="stat-label">{{ _('total_spent') }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ global_stats.total_generations }}</div>
+                    <div class="stat-label">{{ _('total_generations') }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ global_stats.voted_generations }} ({{ "%.1f"|format(global_stats.vote_percentage) }}%)</div>
+                    <div class="stat-label">{{ _('voted_generations') }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${{ "%.4f"|format(global_stats.current_month_cost) }}</div>
+                    <div class="stat-label">{{ _('cost_this_month') }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${{ "%.4f"|format(global_stats.current_day_cost) }}</div>
+                    <div class="stat-label">{{ _('cost_today') }}</div>
+                </div>
+            </div>
+
             <div class="chart-container">
-                <canvas id="modelPerformanceChart"></canvas>
+                <canvas id="monthlyCostChart"></canvas>
             </div>
 
             <div class="stats-details">
@@ -67,11 +105,9 @@
                             <th>{{ _('rank') }}</th>
                             <th>{{ _('model_name') }}</th>
                             <th>{{ _('avg_score') }}</th>
-                            <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
-                            <th>{{ _('total_cost') }}</th>
+                            <th style="text-align: left;">{{ _('rating_distribution', total_votes=total_votes) }}</th>
                             <th>{{ _('projected_cost_100k') }}</th>
-                            <th>{{ _('bang_for_buck') }}</th>
-                            <th>{{ _('generations') }}</th>
+                            <th>{{ _('bang_for_buck_score') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,84 +129,106 @@
                                 {% endif %}
                                 <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
                             </td>
-                            <td>
+                            <td style="text-align: left;">
                                 <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
                                     {% if model.votes_cast > 0 %}
-                                    <div class="bar excellent" style="width: {{ (model.excellent_count / model.votes_cast) * 100 }}%"><span>{{ model.excellent_count }}</span></div>
-                                    <div class="bar good" style="width: {{ (model.good_count / model.votes_cast) * 100 }}%"><span>{{ model.good_count }}</span></div>
-                                    <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
-                                    <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
+                                        {% if model.excellent_count > 0 %}
+                                        <div class="bar excellent" style="width: {{ (model.excellent_count / model.votes_cast) * 100 }}%"><span>{{ model.excellent_count }}</span></div>
+                                        {% endif %}
+                                        {% if model.good_count > 0 %}
+                                        <div class="bar good" style="width: {{ (model.good_count / model.votes_cast) * 100 }}%"><span>{{ model.good_count }}</span></div>
+                                        {% endif %}
+                                        {% if model.okay_count > 0 %}
+                                        <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
+                                        {% endif %}
+                                        {% if model.rejected_count > 0 %}
+                                        <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
+                                        {% endif %}
                                     {% else %}
                                     <div class="bar no-votes" style="width: 100%">{{ _('no_votes_yet') }}</div>
                                     {% endif %}
                                 </div>
                             </td>
-                            <td>${{ "%.4f"|format(model.total_cost) }}</td>
                             <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
                             <td>
                                 <div class="bang-for-buck-bar-container">
-                                    <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck / 10) * 100 }}%; max-width: 100%; background-color: #4CAF50; height: 10px; border-radius: 5px;"></div>
-                                    <span>{{ "%.2f"|format(model.bang_for_buck) }}</span>
+                                    <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%; background-color: #10b981; height: 10px; border-radius: 5px;"></div>
+                                    <span>{{ "%.1f"|format(model.bang_for_buck) }}</span>
                                 </div>
                             </td>
-                            <td>{{ model.appearances }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+            <!-- Per Model Cost Breakdown Table (New) -->
+            <div class="stats-details" style="margin-top: 2rem;">
+                 <h3>{{ _('cost_breakdown_header') }}</h3>
+                 <table>
+                    <thead>
+                        <tr>
+                            <th>{{ _('model_name') }}</th>
+                            <th>{{ _('total_spent') }}</th>
+                            <th>{{ _('total_generations') }}</th>
+                            <th>{{ _('voted_generations') }}</th>
+                            <th>{{ _('projected_cost_100k') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for model in cost_breakdown %}
+                         <tr>
+                            <td><strong>{{ model.model_name }}</strong></td>
+                            <td>${{ "%.4f"|format(model.total_cost) }}</td>
+                            <td>{{ model.total_generations }}</td>
+                            <td>{{ model.voted_generations }}</td>
+                            <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
+                         </tr>
+                        {% endfor %}
+                    </tbody>
+                 </table>
+            </div>
+
         </section>
     </main>
 
-    <footer>
+    <footer class="app-footer">
         <div class="container">
             <p>© 2025 {{ _('title') }}</p>
         </div>
     </footer>
 
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const ctx = document.getElementById('modelPerformanceChart');
+            const ctx = document.getElementById('monthlyCostChart');
             if (ctx) {
-                const chartLabels = {{ chart_labels | tojson }};
-                const chartData = {{ chart_data | tojson }};
+                const labels = {{ spending_stats.labels | tojson }};
+                const data = {{ spending_stats.data | tojson }};
 
                 new Chart(ctx, {
-                    type: 'bar',
+                    type: 'line',
                     data: {
-                        labels: chartLabels,
+                        labels: labels,
                         datasets: [{
-                            label: 'Average Score per Vote',
-                            data: chartData,
-                            backgroundColor: [
-                                'rgba(54, 162, 235, 0.6)',
-                                'rgba(75, 192, 192, 0.6)',
-                                'rgba(255, 206, 86, 0.6)',
-                                'rgba(153, 102, 255, 0.6)',
-                                'rgba(255, 159, 64, 0.6)',
-                                'rgba(255, 99, 132, 0.6)'
-                            ],
-                            borderColor: [
-                                'rgba(54, 162, 235, 1)',
-                                'rgba(75, 192, 192, 1)',
-                                'rgba(255, 206, 86, 1)',
-                                'rgba(153, 102, 255, 1)',
-                                'rgba(255, 159, 64, 1)',
-                                'rgba(255, 99, 132, 1)'
-                            ],
-                            borderWidth: 1
+                            label: 'Monthly Spending (USD)',
+                            data: data,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        indexAxis: 'y', // For horizontal bar chart
                         scales: {
-                            x: {
+                            y: {
                                 beginAtZero: true,
                                 title: {
                                     display: true,
-                                    text: 'Average Score (Higher is Better)'
+                                    text: 'Cost ($)'
                                 }
                             }
                         },
@@ -180,9 +238,9 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Model Comparison by Average Score',
+                                text: 'Monthly Spending Trend',
                                 font: {
-                                    size: 18
+                                    size: 16
                                 }
                             }
                         }
