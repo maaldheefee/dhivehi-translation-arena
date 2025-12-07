@@ -36,3 +36,4 @@ logs/
 llm.txt
 compose.yml
 compose.dev.yml
+TODO.md
