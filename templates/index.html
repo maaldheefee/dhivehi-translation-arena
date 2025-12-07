@@ -9,6 +9,34 @@
         <p>{{ _('main_subheader') }}</p>
     </div>
 
+    <div class="info-section">
+        <details class="info-details" open>
+            <summary class="info-summary">📋 {{ _('instructions_header') }}</summary>
+            <div class="info-content">
+                <div class="scoring-rubric">
+                    <h4>{{ _('scoring_rubric_header') }}</h4>
+                    <ul>
+                        <li><span class="star-icon">★★★</span> {{ _('rating_excellent_title') }}</li>
+                        <li><span class="star-icon">★★</span> {{ _('rating_good_title') }}</li>
+                        <li><span class="star-icon">★</span> {{ _('rating_okay_title') }}</li>
+                        <li><span class="reject-icon">✕</span> {{ _('reject_translation_title') }}</li>
+                    </ul>
+                </div>
+                <div class="public-warning">
+                    <strong>⚠️ {{ _('public_warning') }}</strong>
+                </div>
+            </div>
+        </details>
+        {% if username != 'Guest' %}
+        <div class="user-budget-badge" title="{{ _('monthly_cost_label') }}">
+            💰 ${{ "%.2f"|format(user_monthly_cost) }} / $1.00
+            {% if not budget_allowed %}
+            <span class="budget-exceeded">{{ _('budget_exceeded') }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
     <div class="input-area card">
         <div class="textarea-wrapper">
             <textarea id="query-input" class="form-textarea" placeholder="{{ _('arabic_text_placeholder') }}"></textarea>

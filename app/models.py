@@ -50,6 +50,7 @@ class Translation(Base):
 
     id = Column(Integer, primary_key=True)
     query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Who generated this
     model = Column(String(50), nullable=False)
     translation = Column(Text, nullable=False)
     system_prompt = Column(Text, nullable=False)
@@ -61,6 +62,7 @@ class Translation(Base):
     created_at = Column(DateTime, default=func.now())
 
     query = relationship("Query", back_populates="translations")
+    user = relationship("User")
     votes = relationship(
         "Vote", back_populates="translation", cascade="all, delete-orphan"
     )

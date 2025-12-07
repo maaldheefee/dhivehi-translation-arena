@@ -9,7 +9,9 @@ from app.repositories.query_repository import QueryRepository
 from app.repositories.translation_repository import TranslationRepository
 
 
-def get_translation_for_model(source_text: str, model: str, position: int) -> dict:
+def get_translation_for_model(
+    source_text: str, model: str, position: int, user_id: int | None = None
+) -> dict:
     """
     Retrieves or creates a translation for a given source text and model.
 
@@ -25,6 +27,7 @@ def get_translation_for_model(source_text: str, model: str, position: int) -> di
         source_text: The text to be translated.
         model: The identifier for the translation model to use.
         position: The display order for the translation in the UI.
+        user_id: The ID of the user requesting the translation (for cost tracking).
 
     Returns:
         A dictionary containing the translation details.
@@ -68,6 +71,7 @@ def get_translation_for_model(source_text: str, model: str, position: int) -> di
 
         translation = Translation(
             query_id=query.id,
+            user_id=user_id,
             model=model,
             translation=result_text,
             system_prompt=client.SYSTEM_PROMPT,

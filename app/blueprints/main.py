@@ -22,6 +22,7 @@ from app.database import db_session
 from app.llm_clients import get_available_models
 from app.models import PairwiseComparison, Query, Translation, User
 from app.predefined_queries import PREDEFINED_QUERIES
+from app.services.cost_service import check_user_budget
 from app.services.elo_service import get_elo_service
 from app.services.stats_service import get_model_usage_stats
 from app.services.translation_service import get_translation_for_model
@@ -41,6 +42,8 @@ def index():
     available_models = get_available_models()
     usage_stats = get_model_usage_stats()
 
+    # Get user budget info
+    is_allowed, user_monthly_cost = check_user_budget(username)
 
     # Sort models by usage count (ascending) to prefer those with fewer data points
     # If a model is not in usage_stats, count is 0
@@ -59,6 +62,8 @@ def index():
         predefined_queries=shuffled_queries,
         username=username,
         available_models=final_models_shuffled,
+        user_monthly_cost=user_monthly_cost,
+        budget_allowed=is_allowed,
     )
 
 
@@ -76,7 +81,7 @@ def available_models():
     return jsonify({"models": sorted_models_dict})
 
 
-def stream_translation_generator(query_text, selected_models):
+def stream_translation_generator(query_text, selected_models, user_id=None):
     """
     A generator function that yields translation results as they are completed.
     This function will be used with stream_with_context.
@@ -87,7 +92,7 @@ def stream_translation_generator(query_text, selected_models):
     with ThreadPoolExecutor(max_workers=len(shuffled_models)) as executor:
         for i, model_key in enumerate(shuffled_models):
             future = executor.submit(
-                get_translation_for_model, query_text, model_key, i + 1
+                get_translation_for_model, query_text, model_key, i + 1, user_id
             )
             futures[future] = model_key
 
@@ -135,8 +140,22 @@ def stream_translate():
         error_event = f"event: error\ndata: {json.dumps(error_data)}\n\n"
         return Response(error_event, mimetype="text/event-stream")
 
+    # Check budget
+    is_allowed, current_spend = check_user_budget(username)
+    if not is_allowed:
+        error_data = {
+            "message": f"Monthly budget exceeded (${current_spend:.2f}/$1.00). Please wait until next month.",
+            "type": "budget_error"
+        }
+        error_event = f"event: error\ndata: {json.dumps(error_data)}\n\n"
+        return Response(error_event, mimetype="text/event-stream")
+
+    # Get user ID for cost tracking
+    user = db_session.query(User).filter(User.username == username).first()
+    user_id = user.id if user else None
+
     return Response(
-        stream_with_context(stream_translation_generator(query_text, selected_models)),
+        stream_with_context(stream_translation_generator(query_text, selected_models, user_id)),
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -177,6 +196,11 @@ def retry_single():
     if username == "Guest":
         return jsonify({"error": "Authentication required"}), 401
 
+    # Check budget
+    is_allowed, current_spend = check_user_budget(username)
+    if not is_allowed:
+        return jsonify({"error": f"Monthly budget exceeded (${current_spend:.2f}/$1.00)"}), 403
+
     data = request.json
     if data is None:
         return jsonify({"error": "Invalid JSON data"}), 400
@@ -187,8 +211,12 @@ def retry_single():
     if not query_text or not model_key:
         return jsonify({"error": "Query and model are required"}), 400
 
+    # Get user ID for cost tracking
+    user = db_session.query(User).filter(User.username == username).first()
+    user_id = user.id if user else None
+
     try:
-        result = get_translation_for_model(query_text, model_key, position=0)
+        result = get_translation_for_model(query_text, model_key, position=0, user_id=user_id)
         if result:
             return jsonify(result)
         return jsonify({"error": "No result returned"}), 500

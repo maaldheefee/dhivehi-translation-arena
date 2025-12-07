@@ -79,6 +79,12 @@ TRANSLATIONS = {
         "elo_rating": "ELO Rating",
         "total_translations": "Total Translations",
         "combined_score": "Combined Score",
+        # Instructions & Budget
+        "instructions_header": "Instructions",
+        "scoring_rubric_header": "Scoring Rubric",
+        "public_warning": "All translations are public and can be voted on by anyone.",
+        "monthly_cost_label": "Monthly Translation Cost",
+        "budget_exceeded": "Budget Exceeded",
     },
     "dv": {
         "title": "ދިވެހި ތަރުޖަމާ އެރީނާ",
@@ -160,5 +166,11 @@ TRANSLATIONS = {
         "elo_rating": "އީލޯ ރޭޓިންގް",
         "total_translations": "ޖުމްލަ ތަރުޖަމާ",
         "combined_score": "ކޮމްބައިންޑް ސްކޯ",
+        # Instructions & Budget
+        "instructions_header": "އިރުޝާދުތައް",
+        "scoring_rubric_header": "މާކްސް ދޭގޮތް",
+        "public_warning": "ހުރިހާ ތަރުޖަމާތަކަކީ އެންމެންނަށް ފެންނަ އެއްޗެއް. ކޮންމެ މީހަކަށްވެސް ވޯޓު ދެވިދާނެ.",
+        "monthly_cost_label": "މަހުގެ ތަރުޖަމާ ޚަރަދު",
+        "budget_exceeded": "ބަޖެޓް ހުސްވެއްޖެ",
     },
 }
