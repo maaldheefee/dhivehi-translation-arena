@@ -16,7 +16,7 @@ jobs:
 
     env:
       REGISTRY: ghcr.io
-      IMAGE_NAME: maaldheefee/dhivehi-translation-arenas
+      IMAGE_NAME: maaldheefee/dhivehi-translation-arena
 
     steps:
       - name: Checkout repository
