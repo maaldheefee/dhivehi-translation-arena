@@ -58,4 +58,4 @@ EXPOSE 8101
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Default command
-CMD ["gunicorn", "--bind", "0.0.0.0:8101", "--workers", "1", "wsgi:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8101", "--workers", "1", "--threads", "8", "--timeout", "300", "wsgi:app"]

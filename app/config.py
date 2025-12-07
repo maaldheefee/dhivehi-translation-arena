@@ -18,6 +18,7 @@ class ModelConfig(TypedDict):
     thinking_budget: NotRequired[int | None]
     temperature: NotRequired[float | None]
     reasoning: NotRequired[dict[str, Any]]
+    timeout: NotRequired[float]  # API timeout in seconds, default 90
 
 
 class Config:
@@ -76,6 +77,7 @@ class Config:
             "output_cost_per_mtok": 12.0,
             "is_active": True,
             "rate_limit": None,
+            "timeout": 180.0,  # Thinking model needs longer timeout
         },
         "gemini-3-pro-low": {
             "name": "google/gemini-3-pro-preview",
@@ -86,6 +88,7 @@ class Config:
             "is_active": True,
             "rate_limit": None,
             "reasoning": {"effort": "low"},
+            "timeout": 180.0,
         },
         "gemini-3-pro-low-temp-0.35": {
             "name": "google/gemini-3-pro-preview",
@@ -97,6 +100,7 @@ class Config:
             "rate_limit": None,
             "temperature": 0.35,
             "reasoning": {"effort": "low"},
+            "timeout": 180.0,
         },
         "gemini-2.5-pro": {
             "name": "google/gemini-2.5-pro",  # Verify ID, assumption based on pattern, user asked to add it
@@ -109,6 +113,7 @@ class Config:
             "reasoning": {
                 "max_tokens": 128
             },  # "thinking budget of 128" - interpreted as max tokens for reasoning
+            "timeout": 180.0,
         },
         "gemini-2.5-flash": {
             "name": "google/gemini-2.5-flash",
@@ -129,6 +134,7 @@ class Config:
             "is_active": True,
             "rate_limit": None,
             "reasoning": {"enabled": True},
+            "timeout": 180.0,
         },
         "gemini-2.5-flash-lite": {
             "name": "google/gemini-2.5-flash-lite",

@@ -1,11 +1,10 @@
 # M-2: app/llm_clients.py
 import logging
 import time
-from typing import Any
 
 from openai import APITimeoutError, OpenAI
 
-from app.config import get_config
+from app.config import ModelConfig, get_config
 
 config = get_config()
 
@@ -17,7 +16,7 @@ class TranslationClient:
 
     SYSTEM_PROMPT = config.SYSTEM_PROMPT
 
-    def __init__(self, model_config: dict[str, Any]):
+    def __init__(self, model_config: ModelConfig):
         """Initialize the translation client."""
         self.model_name = model_config["name"]
         self.input_cost_per_mtok = model_config["input_cost_per_mtok"]
@@ -72,11 +71,14 @@ class TranslationClient:
 class OpenRouterClient(TranslationClient):
     """Client for OpenRouter models."""
 
-    def __init__(self, model_config: dict[str, Any]):
+    def __init__(self, model_config: ModelConfig):
         """Initialize the OpenRouter client."""
         super().__init__(model_config)
         self.reasoning = model_config.get("reasoning")
         self.custom_temperature = model_config.get("temperature")
+        self.timeout = model_config.get(
+            "timeout", 90.0
+        )  # Default 90s, thinking models use 180s
 
     def translate(self, text: str) -> tuple[str, float]:
         """Translate text using the OpenRouter API."""
@@ -104,7 +106,7 @@ class OpenRouterClient(TranslationClient):
                 if self.custom_temperature is not None
                 else config.DEFAULT_TEMPERATURE,
                 extra_body=extra_body if extra_body else None,
-                timeout=90.0,
+                timeout=self.timeout,
             )
 
             logger.info(

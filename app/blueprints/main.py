@@ -1,7 +1,6 @@
 import json
 import random
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 from flask import (
     Blueprint,
@@ -90,19 +89,28 @@ def stream_translation_generator(query_text, selected_models):
             )
             futures[future] = model_key
 
-        for future in as_completed(futures):
-            model_key = futures[future]
-            try:
-                result = future.result()
-                if result:
-                    sse_data = f"data: {json.dumps(result)}\n\n"
-                    yield sse_data
-            except Exception as e:
-                current_app.logger.exception(f"Stream error for {model_key}")
-                error_data = {"error": str(e), "model": model_key}
-                yield f"data: {json.dumps(error_data)}\n\n"
-            finally:
-                time.sleep(0.1)
+        pending_futures = set(futures.keys())
+        while pending_futures:
+            # Wait for any future to complete, or timeout after 2 seconds
+            done, _ = wait(pending_futures, return_when=FIRST_COMPLETED, timeout=2.0)
+
+            if not done:
+                # No model finished in the last 2 seconds, send keep-alive comment
+                yield ": keep-alive\n\n"
+                continue
+
+            for future in done:
+                pending_futures.remove(future)
+                model_key = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        sse_data = f"data: {json.dumps(result)}\n\n"
+                        yield sse_data
+                except Exception as e:
+                    current_app.logger.exception(f"Stream error for {model_key}")
+                    error_data = {"error": str(e), "model": model_key}
+                    yield f"data: {json.dumps(error_data)}\n\n"
 
     yield "event: end\ndata: Stream finished\n\n"
 
@@ -152,6 +160,29 @@ def vote():
     if result["success"]:
         return jsonify({"status": "success"})
     return jsonify({"error": result["error"]}), 500
+
+
+@main_bp.route("/retry-single", methods=["POST"])
+def retry_single():
+    """Retry a single model translation. Returns JSON instead of SSE."""
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid JSON data"}), 400
+
+    query_text = data.get("query", "").strip()
+    model_key = data.get("model", "").strip()
+
+    if not query_text or not model_key:
+        return jsonify({"error": "Query and model are required"}), 400
+
+    try:
+        result = get_translation_for_model(query_text, model_key, position=0)
+        if result:
+            return jsonify(result)
+        return jsonify({"error": "No result returned"}), 500
+    except Exception as e:
+        current_app.logger.exception(f"Retry failed for {model_key}")
+        return jsonify({"error": str(e), "model": model_key}), 500
 
 
 @main_bp.route("/set_language/<lang>")

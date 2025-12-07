@@ -368,9 +368,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const votes = [];
         document.querySelectorAll('.translation-card').forEach(card => {
             const input = card.querySelector('.rating-value');
-            if (input && input.value != 0) {
+            const translationId = parseInt(card.dataset.id);
+            // Only include cards with valid translation IDs (skip error cards)
+            if (input && input.value != 0 && !isNaN(translationId)) {
                 votes.push({
-                    translation_id: parseInt(card.dataset.id),
+                    translation_id: translationId,
                     rating: parseInt(input.value)
                 });
             }
@@ -437,10 +439,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Helper to retry a single model (not implemented in this simplified view but referenced)
-    function retrySingle(query, modelKey) {
-        // Implementation depend on how exactly retry works, for now just log or show toast
-        console.log('Retry not fully implemented in this view for', modelKey);
-        // showToast('Retry not implemented', 'info');
+    // Retry a single failed model translation
+    async function retrySingle(query, modelKey) {
+        const card = document.querySelector(`.translation-card[data-model-key="${modelKey}"]`);
+        if (!card) return;
+        
+        // Show loading state
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="model-badge skeleton-text"></div>
+            </div>
+            <div class="card-body">
+                <div class="skeleton-line full"></div>
+                <div class="skeleton-line three-quarter"></div>
+                <div class="skeleton-line half"></div>
+            </div>`;
+        card.classList.add('placeholder');
+        
+        try {
+            const res = await fetch('/retry-single', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ query, model: modelKey })
+            });
+            
+            const data = await res.json();
+            
+            if (data.error) {
+                renderError(modelKey, data.error);
+            } else {
+                renderTranslation(data);
+                showToast(t('toast_retry_success') || 'Retry successful!', 'success');
+            }
+        } catch (err) {
+            console.error('Retry error:', err);
+            renderError(modelKey, 'Network error during retry');
+        }
     }
 });
