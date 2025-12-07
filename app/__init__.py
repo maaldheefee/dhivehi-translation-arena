@@ -50,10 +50,14 @@ def create_app():
 
     @app.context_processor
     def inject_vars():
-        def _(key, **kwargs):
-            return TRANSLATIONS.get(g.lang, {}).get(key, key).format(**kwargs)
+        # Get translations for current language
+        lang = g.get("lang", "en")
+        translations = TRANSLATIONS.get(lang, {})
 
-        return {"_": _}
+        def _(key, **kwargs):
+            return translations.get(key, key).format(**kwargs)
+
+        return {"_": _, "translations": translations}
 
     # Register blueprints
     app.register_blueprint(main_bp)

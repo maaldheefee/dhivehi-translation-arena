@@ -16,3 +16,9 @@
 
 ### Fixes
 - **UI Hang**: Fixed issue where UI hangs on stream error. Pending translations are now marked as failed, allowing voting on successful results.
+- **Duplicate Handling**: Added warning badge for duplicate translation results from the same model to prevent redundant voting.
+
+### Localization & Polish
+- **Full Localization**: Implemented full English/Dhivehi support for all UI elements including badges, toasts, and tooltips.
+- **Rating Tips**: Added descriptive tooltips for rating stars (1-3 stars) to guide better quality assessment.
+- **UI Polish**: Unified UI components and fixed untranslated strings.

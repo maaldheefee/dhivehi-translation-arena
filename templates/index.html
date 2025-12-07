@@ -49,7 +49,7 @@
                 </nav>
 
                 <div class="controls-group">
-                    <button id="theme-toggle" class="btn icon-btn" aria-label="Toggle Dark Mode" title="Toggle Dark Mode">
+                    <button id="theme-toggle" class="btn icon-btn" aria-label="{{ _('toggle_dark_mode') }}" title="{{ _('toggle_dark_mode') }}">
                          <span class="theme-icon light-icon" style="display: none;">☀️</span>
                          <span class="theme-icon dark-icon">🌙</span>
                     </button>
@@ -184,6 +184,10 @@
         </button>
     </template>
 
+
+    <script>
+        window.translations = {{ translations | tojson }};
+    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

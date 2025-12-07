@@ -29,6 +29,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentTotalCost = 0;
     let seenHashes = new Set();
 
+    // --- Localization Helper ---
+    function t(key, params = {}) {
+        let text = window.translations && window.translations[key] ? window.translations[key] : key;
+        for (const [k, v] of Object.entries(params)) {
+             text = text.replace(`{${k}}`, v);
+        }
+        return text;
+    }
+
     // --- Initialization ---
     initTheme();
     loadUsers();
@@ -86,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                  if (data.users && elements.usernameSelect) {
-                    elements.usernameSelect.innerHTML = '<option value="">Select User</option>';
+                    elements.usernameSelect.innerHTML = `<option value="">${t('select_user')}</option>`;
                     data.users.forEach(user => {
                         const opt = document.createElement('option');
                         opt.value = user.username;
@@ -136,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = elements.userPassword.value;
         
         if (!username || !password) {
-            showToast('Please enter both username and password', 'error');
+            showToast(t('toast_enter_creds'), 'error');
             return;
         }
         
@@ -152,13 +161,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await res.json();
             if (data.success) {
-                showToast('Logged in successfully', 'success');
+                showToast(t('toast_login_success'), 'success');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                showToast(data.error || 'Login failed', 'error');
+                showToast(data.error || t('toast_login_fail'), 'error');
             }
         } catch (err) {
-            showToast('Network error during login', 'error');
+            showToast(t('toast_network_error_login'), 'error');
         }
     }
 
@@ -166,8 +175,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const query = elements.queryInput.value.trim();
         const selectedModels = Array.from(elements.modelParams.querySelectorAll('input:checked')).map(cb => cb.value);
 
-        if (!query) return showToast('Please enter text to translate', 'error');
-        if (selectedModels.length < 2) return showToast('Please select at least two models', 'error');
+        if (!query) return showToast(t('toast_enter_text'), 'error');
+        if (selectedModels.length < 2) return showToast(t('toast_select_models'), 'error');
 
         // Reset UI
         if(eventSource) eventSource.close();
@@ -212,13 +221,13 @@ document.addEventListener('DOMContentLoaded', function() {
         eventSource.addEventListener('end', () => {
              eventSource.close();
              elements.submitVotesBtn.classList.remove('hidden');
-             showToast('Translation completed', 'success');
+             showToast(t('toast_translation_complete'), 'success');
         });
         
         eventSource.onerror = (e) => {
             console.error('Stream error', e);
             eventSource.close();
-            showToast('Translation stream interrupted', 'error');
+            showToast(t('toast_stream_interrupted'), 'error');
 
             // Mark pending models as failed
             const pendingCards = document.querySelectorAll('.translation-card.placeholder');
@@ -260,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (seenHashes.has(data.response_hash)) {
                 const badge = document.createElement('span');
                 badge.className = 'duplicate-badge';
-                badge.textContent = 'Duplicate Result';
+                badge.textContent = t('duplicate_result');
                 badge.style.cssText = 'background: #ff9800; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-left: 8px; vertical-align: middle;';
                 modelEl.appendChild(badge);
                 
@@ -305,6 +314,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!ratingInput) return;
 
         stars.forEach((star, index) => {
+            // Update titles based on localization
+            if (index === 0) star.title = t('rating_okay_title');
+            if (index === 1) star.title = t('rating_good_title');
+            if (index === 2) star.title = t('rating_excellent_title');
+
             // Click
             star.addEventListener('click', () => {
                 const value = star.dataset.value;
@@ -331,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (rejectBtn) {
+            rejectBtn.title = t('reject_translation_title');
             rejectBtn.addEventListener('click', () => {
                 const isSelected = rejectBtn.classList.contains('selected');
                 
@@ -361,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        if (votes.length === 0) return showToast('Please rate at least one translation', 'info');
+        if (votes.length === 0) return showToast(t('toast_rate_one'), 'info');
         
         elements.submitVotesBtn.disabled = true;
         
@@ -377,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await res.json();
             if (data.status === 'success') {
-                showToast('Votes submitted successfully!', 'success');
+                showToast(t('toast_votes_submitted'), 'success');
                 elements.submitVotesBtn.classList.add('hidden');
                 document.querySelectorAll('.model-name-badge').forEach(el => {
                     el.classList.remove('blur-text');
@@ -385,11 +400,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     el.style.color = 'var(--text-secondary)';
                 });
             } else {
-                showToast(data.error || 'Failed to submit votes', 'error');
+                showToast(data.error || t('toast_vote_fail'), 'error');
                 elements.submitVotesBtn.disabled = false;
             }
         } catch (err) {
-            showToast('Network error submitting votes', 'error');
+            showToast(t('toast_vote_network_error'), 'error');
             elements.submitVotesBtn.disabled = false;
         }
     }
@@ -421,4 +436,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    
+    // Helper to retry a single model (not implemented in this simplified view but referenced)
+    function retrySingle(query, modelKey) {
+        // Implementation depend on how exactly retry works, for now just log or show toast
+        console.log('Retry not fully implemented in this view for', modelKey);
+        // showToast('Retry not implemented', 'info');
+    }
+});
 });
