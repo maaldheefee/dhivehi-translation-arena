@@ -34,3 +34,5 @@ build/
 logs/
 *.log
 llm.txt
+compose.yml
+compose.dev.yml

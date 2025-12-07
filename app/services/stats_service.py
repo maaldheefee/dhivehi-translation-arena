@@ -110,10 +110,10 @@ def calculate_model_scores():
     if stats_list:
         max_bb = max(s["score_per_dollar"] for s in stats_list)
         for s in stats_list:
-             if max_bb > 0:
-                 s["bang_for_buck"] = (s["score_per_dollar"] / max_bb) * 10
-             else:
-                 s["bang_for_buck"] = 0
+            if max_bb > 0:
+                s["bang_for_buck"] = (s["score_per_dollar"] / max_bb) * 10
+            else:
+                s["bang_for_buck"] = 0
 
     stats_list.sort(key=lambda x: x["average_score"], reverse=True)
 
@@ -152,7 +152,11 @@ def calculate_global_stats():
         cost = t.cost if t.cost else 0.0
         total_cost += cost
 
-        if t.created_at and t.created_at.year == now.year and t.created_at.month == now.month:
+        if (
+            t.created_at
+            and t.created_at.year == now.year
+            and t.created_at.month == now.month
+        ):
             current_month_cost += cost
             if t.created_at.day == now.day:
                 current_day_cost += cost
@@ -161,7 +165,9 @@ def calculate_global_stats():
         "total_cost": total_cost,
         "total_generations": total_generations,
         "voted_generations": voted_generations,
-        "vote_percentage": (voted_generations / total_generations * 100) if total_generations > 0 else 0,
+        "vote_percentage": (voted_generations / total_generations * 100)
+        if total_generations > 0
+        else 0,
         "current_month_cost": current_month_cost,
         "current_day_cost": current_day_cost,
     }
@@ -183,7 +189,7 @@ def get_monthly_spending_stats():
 
     # Initialize last 12 months with 0
     for i in range(12):
-        d = now - datetime.timedelta(days=i*30)
+        d = now - datetime.timedelta(days=i * 30)
         key = d.strftime("%Y-%m")
         monthly_data[key] = 0.0
 
@@ -194,13 +200,10 @@ def get_monthly_spending_stats():
 
     # Sort by date
     sorted_months = sorted(monthly_data.keys())
-    
+
     # Filter to only keep relevant range (last 12 months roughly) or just all available
     # For chart.js we return two lists: labels and data
-    return {
-        "labels": sorted_months,
-        "data": [monthly_data[m] for m in sorted_months]
-    }
+    return {"labels": sorted_months, "data": [monthly_data[m] for m in sorted_months]}
 
 
 def get_cost_breakdown():
@@ -215,7 +218,7 @@ def get_cost_breakdown():
     votes = vote_repo.get_all()
 
     voted_translation_ids = {v.translation_id for v in votes}
-    
+
     grouped_stats = {}
 
     # Pre-calculate a display name mapping: upstream_name -> shortest_display_name
@@ -223,7 +226,9 @@ def get_cost_breakdown():
     for conf in config.MODELS.values():
         u_name = conf["name"]
         d_name = conf["display_name"]
-        if u_name not in upstream_display_names or len(d_name) < len(upstream_display_names[u_name]):
+        if u_name not in upstream_display_names or len(d_name) < len(
+            upstream_display_names[u_name]
+        ):
             upstream_display_names[u_name] = d_name
 
     for t in translations:

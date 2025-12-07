@@ -1,6 +1,17 @@
 # TODO
 
 ## High Priority
+- [ ] **User Management**: Add user management features to the app.
+  Currently, runing the manage_users.py script inside the container results in the following error:
+
+    --- Remove User ---
+    Enter username to remove: John
+    Are you sure you want to remove user 'John'? (y/n): y
+    /bin/sh: 1: uv: not found
+    Error running command: Command 'uv run --python 3.13 flask remove-user John' returned non-zero exit status 127.
+
+  This kind of user management is okay for now, but we should document it.
+
 - [ ] **UI Polish & Translation**: Polish the entire UI. Translate any untranslated bits to Dhivehi/English as appropriate.
 - [ ] **Rating Tips**: Add qualitative tips for rating stars to guide users:
     - **Trash**: Illegible, glitch characters, or wrong meaning.

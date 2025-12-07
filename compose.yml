@@ -1,24 +1,51 @@
+name: dv-trans
 services:
-  app:
-    image: ghcr.io/maaldheefee/dhivehi-translation-arena:main
-    container_name: dhivehi-translation-arena-prod
-    restart: always
-    volumes:
-      - dhivehi-translation-data:/app/data
-    expose:
-      - 8101
-    env_file:
-      - .env
-    environment:
-      - FLASK_ENV=production
-      - DATA_DIR=/app/data
-    networks:
-      - translation-net-prod
-
+    dhivehi-translation-arena:
+        container_name: dhivehi-translation-arena-prod
+        environment:
+            - DATA_DIR=/app/data
+            - FLASK_ENV=production
+        env_file:
+            - .env
+        image: ghcr.io/maaldheefee/dhivehi-translation-arena:main
+        restart: always
+        volumes:
+            - appdata:/app/data
+        ports:
+            - mode: ingress
+              target: 8101
+              published: "4002"
+              protocol: tcp
+        devices: []
+        cap_add: []
+        command: []
+        networks:
+            - translation-net-prod
+        privileged: false
+        hostname: dhivehi-translation-arena-prod
+        cpu_shares: 90
+        deploy:
+            resources:
+                limits:
+                    memory: 15771M
 networks:
-  translation-net-prod:
-    driver: bridge
-
+    translation-net-prod:
+        name: dv-trans_translation-net-prod
+        driver: bridge
 volumes:
-  dhivehi-translation-data:
-    driver: local
+    appdata:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: /DATA/AppData/dhivehi-translation-arena
+x-casaos:
+    hostname: dv-trans.hardev.win
+    scheme: https
+    index: /
+    port_map: ""
+    author: self
+    category: self
+    icon: "https://dv-trans.hardev.win/static/img/icon.svg"
+    title:
+        custom: Dhivehi Translation Arena

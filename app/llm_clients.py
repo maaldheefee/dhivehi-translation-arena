@@ -81,7 +81,7 @@ class OpenRouterClient(TranslationClient):
     def translate(self, text: str) -> tuple[str, float]:
         """Translate text using the OpenRouter API."""
         if not config.OPENROUTER_API_KEY:
-            return "API key not configured for OpenRouter", 0.0
+            return "Error: API key not configured for OpenRouter", 0.0
 
         try:
             client = OpenAI(
