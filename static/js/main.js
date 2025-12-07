@@ -219,6 +219,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Stream error', e);
             eventSource.close();
             showToast('Translation stream interrupted', 'error');
+
+            // Mark pending models as failed
+            const pendingCards = document.querySelectorAll('.translation-card.placeholder');
+            pendingCards.forEach(card => {
+                const modelKey = card.dataset.modelKey;
+                if (modelKey) {
+                    renderError(modelKey, 'Stream connection lost / Model failed');
+                }
+            });
+
+            // Allow voting on successful results
+            elements.submitVotesBtn.classList.remove('hidden');
         };
     }
     

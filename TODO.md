@@ -35,4 +35,5 @@
 - [x] **Frontend Model Selection**: Limit display to 6 models max, prioritizing those with fewer usage data points.
 - [x] **Stats Improvements**: Added "Projected Cost (100k words)" and "Bang for Buck" metrics to stats page.
 - [x] **Error Handling**: Improved LLM error handling (timeouts, max tokens). Allowed voting on successful responses even if some models fail.
+- [x] **UI Fix**: Fixed issue where UI hangs on stream error. Pending translations are now marked as failed, allowing voting on successful results.
 - [x] **Cleanup**: Removed native Gemini Client in favor of unified OpenRouter client.
