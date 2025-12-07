@@ -92,3 +92,62 @@ class Vote(Base):
 
     def __repr__(self):
         return f"<Vote id={self.id} user_id={self.user_id} query_id={self.query_id} translation_id={self.translation_id} rating={self.rating}>"
+
+
+class PairwiseComparison(Base):
+    """Records pairwise comparison results between two translations.
+
+    Comparisons can come from:
+    - 'derived': Inferred from star ratings (if A=3★, B=1★ → A wins)
+    - 'explicit': Direct user choice in Quick Compare mode
+    """
+
+    __tablename__ = "pairwise_comparisons"
+
+    id = Column(Integer, primary_key=True)
+    query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    winner_model = Column(String(50), nullable=True)  # NULL = tie
+    loser_model = Column(String(50), nullable=True)  # NULL = tie
+    translation_a_id = Column(Integer, ForeignKey("translations.id"), nullable=True)
+    translation_b_id = Column(Integer, ForeignKey("translations.id"), nullable=True)
+    source = Column(String(20), nullable=False)  # 'derived' or 'explicit'
+    created_at = Column(DateTime, default=func.now())
+
+    query = relationship("Query")
+    user = relationship("User")
+    translation_a = relationship("Translation", foreign_keys=[translation_a_id])
+    translation_b = relationship("Translation", foreign_keys=[translation_b_id])
+
+    def __repr__(self):
+        return f"<PairwiseComparison id={self.id} winner={self.winner_model} loser={self.loser_model}>"
+
+
+class ModelELO(Base):
+    """Stores ELO ratings and win/loss statistics for each model."""
+
+    __tablename__ = "model_elo"
+
+    id = Column(Integer, primary_key=True)
+    model = Column(String(50), nullable=False, unique=True)
+    elo_rating = Column(Float, default=1500.0)
+    wins = Column(Integer, default=0)
+    losses = Column(Integer, default=0)
+    ties = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<ModelELO model={self.model} elo={self.elo_rating}>"
+
+    @property
+    def total_matches(self):
+        """Total number of matches this model has participated in."""
+        return (self.wins or 0) + (self.losses or 0) + (self.ties or 0)
+
+    @property
+    def win_rate(self):
+        """Win rate as a fraction (0.0 to 1.0)."""
+        total = self.total_matches
+        if total == 0:
+            return 0.0
+        return (self.wins or 0) / total

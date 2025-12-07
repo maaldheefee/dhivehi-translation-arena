@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('compare_header') }} - {{ _('title') }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Compare Page Specific Styles */
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 1.5rem;
+        align-items: stretch;
+        position: relative;
+    }
+
+    .compare-card {
+        background-color: var(--bg-card);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    
+    .compare-card:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .compare-card.selected {
+        border-color: var(--success-color);
+        background-color: rgba(22, 163, 74, 0.05);
+    }
+
+    .vs-badge-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .vs-badge {
+        background-color: var(--bg-body);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-weight: 900;
+        font-size: 1.2rem;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        box-shadow: var(--shadow-sm);
+    }
+
+    @media (max-width: 768px) {
+        .comparison-grid {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        
+        .vs-badge-container {
+            height: 0;
+            overflow: visible;
+            display: flex; /* Ensure it's still displayed for positioning */
+        }
+        
+        .vs-badge {
+            transform: translateY(-50%);
+        }
+    }
+    
+    .dir-rtl {
+        direction: rtl;
+        text-align: right;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="translation-shell">
+    <div class="hero-text">
+        <h2>{{ _('compare_header') }}</h2>
+        <p>{{ _('compare_subheader') }}</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="text-center py-8">
+        <div class="loader-lg"></div>
+        <p class="mt-4 text-secondary">{{ _('loading_comparison') }}</p>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-8 card">
+        <h3>{{ _('no_more_comparisons') }}</h3>
+        <p class="text-secondary mt-2">{{ _('check_back_later') }}</p>
+        <a href="{{ url_for('main.index') }}" class="btn primary mt-4">{{ _('back_to_home') }}</a>
+    </div>
+
+    <!-- Comparison Interface -->
+    <div id="compare-interface" class="hidden">
+        <!-- Source Text -->
+        <div class="card mb-6" style="margin-bottom: 2rem;">
+            <h4 class="text-secondary" style="font-size: 0.875rem; text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem; letter-spacing: 0.05em;">
+                {{ _('source_text') }}
+            </h4>
+            <div id="source-text" class="text-lg leading-relaxed dir-rtl" style="font-family: 'Tharujamaanu', sans-serif; font-size: 1.25rem;">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+
+        <!-- Comparison Area -->
+        <div class="comparison-grid">
+            <!-- Option A -->
+            <div class="compare-card cursor-pointer hover:border-primary transition-all duration-200" data-id="" id="option-a">
+                <div class="card-header flex justify-between items-center" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="font-bold text-secondary" style="font-weight: bold; color: var(--text-secondary);">Option A</span>
+                    <!-- Hidden model name for debug/admin -->
+                    <span class="model-name hidden" style="font-size: 0.75rem; color: #9ca3af;"></span>
+                </div>
+                <div class="card-body">
+                    <p class="translation-text dir-rtl" style="font-size: 1.125rem; white-space: pre-wrap;"></p>
+                </div>
+                <div class="card-footer justify-center bg-gray-50 dark:bg-gray-800" style="justify-content: center;">
+                    <button class="btn secondary select-btn" style="width: 100%;">{{ _('choose_this') }}</button>
+                </div>
+            </div>
+
+            <!-- VS Badge -->
+            <div class="vs-badge-container">
+                <div class="vs-badge">VS</div>
+            </div>
+
+            <!-- Option B -->
+            <div class="compare-card cursor-pointer hover:border-primary transition-all duration-200" data-id="" id="option-b">
+                <div class="card-header flex justify-between items-center" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="font-bold text-secondary" style="font-weight: bold; color: var(--text-secondary);">Option B</span>
+                    <span class="model-name hidden" style="font-size: 0.75rem; color: #9ca3af;"></span>
+                </div>
+                <div class="card-body">
+                    <p class="translation-text dir-rtl" style="font-size: 1.125rem; white-space: pre-wrap;"></p>
+                </div>
+                <div class="card-footer justify-center bg-gray-50 dark:bg-gray-800" style="justify-content: center;">
+                    <button class="btn secondary select-btn" style="width: 100%;">{{ _('choose_this') }}</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tie Button -->
+        <div class="text-center mt-6" style="text-align: center; margin-top: 1.5rem;">
+             <button id="tie-btn" class="btn secondary px-8" style="padding: 0.5rem 2rem;">{{ _('mark_as_tie') }}</button>
+             <button id="skip-btn" class="btn text-btn ml-4 text-secondary" style="margin-left: 1rem; color: var(--text-secondary);">{{ _('skip') }}</button>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/compare.js') }}"></script>
+{% endblock %}

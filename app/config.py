@@ -18,6 +18,8 @@ class ModelConfig(TypedDict):
     thinking_budget: NotRequired[int | None]
     temperature: NotRequired[float | None]
     reasoning: NotRequired[dict[str, Any]]
+    preset_name: NotRequired[str | None]
+    base_model: NotRequired[str | None]
     timeout: NotRequired[float]  # API timeout in seconds, default 90
 
 
@@ -68,16 +70,19 @@ class Config:
             "output_cost_per_mtok": 0.4,
             "is_active": True,
             "rate_limit": None,
+            "base_model": "Gemini 2.0 Flash",
         },
         "gemini-3-pro": {
             "name": "google/gemini-3-pro-preview",
-            "display_name": "Gemini 3 Pro",
+            "display_name": "Gemini 3 Pro Preview",
             "type": "openrouter",
             "input_cost_per_mtok": 2.0,
             "output_cost_per_mtok": 12.0,
             "is_active": True,
             "rate_limit": None,
             "timeout": 180.0,  # Thinking model needs longer timeout
+            "base_model": "Gemini 3 Pro Preview",
+            "preset_name": "Default",
         },
         "gemini-3-pro-low": {
             "name": "google/gemini-3-pro-preview",
@@ -89,10 +94,12 @@ class Config:
             "rate_limit": None,
             "reasoning": {"effort": "low"},
             "timeout": 180.0,
+            "base_model": "Gemini 3 Pro Preview",
+            "preset_name": "Low Reasoning",
         },
         "gemini-3-pro-low-temp-0.35": {
             "name": "google/gemini-3-pro-preview",
-            "display_name": "Gemini 3 Pro (Low Reasoning, Low Temp)",
+            "display_name": "Gemini 3 Pro Preview (Low Reasoning, Temp: 0.35)",
             "type": "openrouter",
             "input_cost_per_mtok": 2.0,
             "output_cost_per_mtok": 12.0,
@@ -101,6 +108,8 @@ class Config:
             "temperature": 0.35,
             "reasoning": {"effort": "low"},
             "timeout": 180.0,
+            "base_model": "Gemini 3 Pro Preview",
+            "preset_name": "Low Reasoning, Temp: 0.35",
         },
         "gemini-2.5-pro": {
             "name": "google/gemini-2.5-pro",  # Verify ID, assumption based on pattern, user asked to add it
@@ -114,6 +123,8 @@ class Config:
                 "max_tokens": 128
             },  # "thinking budget of 128" - interpreted as max tokens for reasoning
             "timeout": 180.0,
+            "base_model": "Gemini 2.5 Pro",
+            "preset_name": "Thinking Budget:128",
         },
         "gemini-2.5-flash": {
             "name": "google/gemini-2.5-flash",
@@ -124,6 +135,8 @@ class Config:
             "is_active": True,
             "rate_limit": None,
             "reasoning": {"max_tokens": 0},  # "reasoning max_tokens set to 0"
+            "base_model": "Gemini 2.5 Flash",
+            "preset_name": "No Thinking",
         },
         "gemini-2.5-flash-thinking": {
             "name": "google/gemini-2.5-flash",
@@ -135,6 +148,8 @@ class Config:
             "rate_limit": None,
             "reasoning": {"enabled": True},
             "timeout": 180.0,
+            "base_model": "Gemini 2.5 Flash",
+            "preset_name": "Thinking Enabled",
         },
         "gemini-2.5-flash-lite": {
             "name": "google/gemini-2.5-flash-lite",
@@ -144,6 +159,7 @@ class Config:
             "output_cost_per_mtok": 0.40,
             "is_active": True,
             "rate_limit": None,
+            "base_model": "Gemini 2.5 Flash Lite",
         },
         "claude-opus-4.5": {
             "name": "anthropic/claude-opus-4.5",
@@ -153,6 +169,7 @@ class Config:
             "output_cost_per_mtok": 25.0,
             "is_active": True,
             "rate_limit": None,
+            "base_model": "Claude Opus 4.5",
         },
         "claude-sonnet-3.7": {
             "name": "anthropic/claude-3.7-sonnet",
@@ -162,6 +179,7 @@ class Config:
             "output_cost_per_mtok": 15.0,
             "is_active": True,
             "rate_limit": None,
+            "base_model": "Claude 3.7 Sonnet",
         },
         "claude-sonnet-4": {
             "name": "anthropic/claude-sonnet-4",
@@ -171,6 +189,7 @@ class Config:
             "output_cost_per_mtok": 15.0,
             "is_active": False,
             "rate_limit": None,
+            "base_model": "Claude Sonnet 4",
         },
     }
 

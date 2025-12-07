@@ -212,6 +212,12 @@ document.addEventListener('DOMContentLoaded', function() {
         eventSource.onmessage = (e) => {
             const data = JSON.parse(e.data);
             if (data.error) {
+                if (data.type === 'auth_error') {
+                    showToast(t('Authentication required. Please login.'), 'error');
+                    eventSource.close();
+                    elements.submitVotesBtn.classList.add('hidden');
+                    return;
+                }
                 renderError(data.model, data.error);
             } else {
                 renderTranslation(data);
@@ -226,6 +232,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         eventSource.onerror = (e) => {
             console.error('Stream error', e);
+
+            // Check for auth error
+            if (e.data) {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'auth_error') {
+                        showToast(t('Authentication required. Please login.'), 'error');
+                        elements.userMenuDropdown.classList.remove('hidden'); // Open login menu
+                        eventSource.close();
+                        elements.submitVotesBtn.classList.add('hidden');
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Error parsing stream error data', err);
+                }
+            }
+
             eventSource.close();
             showToast(t('toast_stream_interrupted'), 'error');
 
@@ -466,6 +489,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ query, model: modelKey })
             });
             
+            if (res.status === 401) {
+                showToast(t('Authentication required. Please login.'), 'error');
+                renderError(modelKey, 'Authentication required');
+                return;
+            }
+
             const data = await res.json();
             
             if (data.error) {

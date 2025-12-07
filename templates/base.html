@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="{{ lang if lang else 'dv' }}" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}{{ _('title') }}{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/icon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Tharujamaanu';
+            src: url('https://fonts.hassaanmv.com/fonts/merged-light.woff2') format('woff2'),
+                 url('https://fonts.hassaanmv.com/fonts/merged-light.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Tharujamaanu';
+            src: url('https://fonts.hassaanmv.com/fonts/merged-bold.woff2') format('woff2'),
+                 url('https://fonts.hassaanmv.com/fonts/merged-bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+
+<body>
+    <div id="toast-container" class="toast-container"></div>
+
+    <header class="app-header">
+        <div class="container header-content">
+            <h1 class="app-title">
+                <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="Logo" class="app-logo" width="32" height="32">
+                {{ _('title') }}
+            </h1>
+            
+            <div class="header-actions">
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">{{ _('nav_home') }}</a></li>
+                        <li><a href="{{ url_for('main.compare_ui') }}" class="nav-link {% if request.endpoint == 'main.compare_ui' %}active{% endif %}">{{ _('nav_compare') }}</a></li>
+                        <li><a href="{{ url_for('stats.stats') }}" class="nav-link {% if request.endpoint == 'stats.stats' %}active{% endif %}">{{ _('nav_stats') }}</a></li>
+                    </ul>
+                </nav>
+
+                <div class="controls-group">
+                    <button id="theme-toggle" class="btn icon-btn" aria-label="{{ _('toggle_dark_mode') }}" title="{{ _('toggle_dark_mode') }}">
+                         <span class="theme-icon light-icon" style="display: none;">☀️</span>
+                         <span class="theme-icon dark-icon">🌙</span>
+                    </button>
+
+                    <div class="user-menu-wrapper">
+                        <button id="user-menu-btn" class="btn text-btn user-btn">
+                            <span id="current-username">{{ username }}</span>
+                             <span class="icon">▼</span>
+                        </button>
+                        <div id="user-menu-dropdown" class="dropdown-menu hidden">
+                             <div class="dropdown-content">
+                                <label for="username-select" class="dropdown-label">{{ _('select_user') }}</label>
+                                <select id="username-select" class="form-select full-width">
+                                    <option value="">{{ _('select_user') }}</option>
+                                </select>
+                                <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="form-input full-width mt-2">
+                                <button id="login-btn" class="btn primary full-width mt-2">{{ _('login') }}</button>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            <p>&copy; 2025 {{ _('title') }}</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

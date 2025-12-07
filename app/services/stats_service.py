@@ -1,10 +1,12 @@
 import datetime
+from collections import defaultdict
 from typing import cast
 
 from sqlalchemy.orm import Session
 
 from app.config import get_config
 from app.database import db_session
+from app.models import ModelELO
 from app.repositories.translation_repository import TranslationRepository
 from app.repositories.vote_repository import VoteRepository
 
@@ -14,6 +16,7 @@ config = get_config()
 def calculate_model_scores():
     """
     Calculates comprehensive scores and stats for each model, including cost-effectiveness.
+    Now includes ELO ratings from pairwise comparisons.
     """
     session = cast(Session, db_session)
     vote_repo = VoteRepository(session)
@@ -21,6 +24,9 @@ def calculate_model_scores():
 
     votes = vote_repo.get_all()
     translations = translation_repo.get_all()
+
+    # Get ELO ratings for all models
+    elo_records = {r.model: r for r in session.query(ModelELO).all()}
 
     model_stats = {}
 
@@ -86,10 +92,25 @@ def calculate_model_scores():
             cost_per_word = total_cost / source_word_count
             projected_cost_100k = cost_per_word * 100_000
 
+        # Get ELO data if available
+        elo_record = elo_records.get(model_name)
+        elo_rating = elo_record.elo_rating if elo_record else 1500.0
+        elo_wins = (elo_record.wins or 0) if elo_record else 0
+        elo_losses = (elo_record.losses or 0) if elo_record else 0
+        elo_ties = (elo_record.ties or 0) if elo_record else 0
+        elo_total = elo_wins + elo_losses + elo_ties
+        elo_win_rate = (elo_wins / elo_total * 100) if elo_total > 0 else 0.0
+
+        # Get model config
+        model_config = config.MODELS.get(model_name, {})
+
         stats_list.append(
             {
                 "model_name": model_name,
-                "is_active": config.MODELS.get(model_name, {}).get("is_active", False),
+                "display_name": model_config.get("display_name", model_name),
+                "base_model": model_config.get("base_model", model_name),
+                "preset_name": model_config.get("preset_name"),
+                "is_active": model_config.get("is_active", False),
                 "score": total_score,
                 "appearances": stats["appearances"],
                 "votes_cast": votes_cast,
@@ -103,6 +124,12 @@ def calculate_model_scores():
                 "bang_for_buck": score_per_dollar,  # Alias for template if needed
                 "projected_cost_100k": projected_cost_100k,
                 "source_word_count": source_word_count,
+                # ELO data
+                "elo_rating": elo_rating,
+                "elo_wins": elo_wins,
+                "elo_losses": elo_losses,
+                "elo_ties": elo_ties,
+                "elo_win_rate": elo_win_rate,
             }
         )
 
@@ -181,9 +208,6 @@ def get_monthly_spending_stats():
     translation_repo = TranslationRepository(session)
     translations = translation_repo.get_all()
 
-    import datetime
-    from collections import defaultdict
-
     monthly_data = defaultdict(float)
     now = datetime.datetime.now()
 
@@ -223,13 +247,21 @@ def get_cost_breakdown():
 
     # Pre-calculate a display name mapping: upstream_name -> shortest_display_name
     upstream_display_names = {}
+    upstream_base_models = {}
     for conf in config.MODELS.values():
         u_name = conf["name"]
         d_name = conf["display_name"]
+        b_name = conf.get("base_model")
+
         if u_name not in upstream_display_names or len(d_name) < len(
             upstream_display_names[u_name]
         ):
             upstream_display_names[u_name] = d_name
+        # If we have a base_model defined, map it to the upstream name
+        # We can just take the first one we find, or any, since they should be consistent
+        # for the same upstream model usually.
+        if b_name and u_name not in upstream_base_models:
+            upstream_base_models[u_name] = b_name
 
     for t in translations:
         model_key = t.model
@@ -242,8 +274,13 @@ def get_cost_breakdown():
             display_name = upstream_display_names.get(upstream_name, upstream_name)
 
         if upstream_name not in grouped_stats:
+            # Determine base_model to show
+            # Use the pre-calculated base_model if available, else fallback to display_name
+            base_model_name = upstream_base_models.get(upstream_name, display_name)
+
             grouped_stats[upstream_name] = {
                 "model_name": display_name,
+                "base_model": base_model_name,
                 "total_cost": 0.0,
                 "total_generations": 0,
                 "voted_generations": 0,

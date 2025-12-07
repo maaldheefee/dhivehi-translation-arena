@@ -1,261 +1,212 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('stats_title') }}</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/icon.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @font-face { font-family: 'Tharujamaanu';
-            src: url("https://fonts.hassaanmv.com/fonts/merged-light.woff2") format("woff2"), url("https://fonts.hassaanmv.com/fonts/merged-light.woff") format("woff");
-            font-weight: 400;
-            font-style: normal;
-            font-stretch: normal;
-            font-display: swap;
-        }
-        
-        @font-face { font-family: 'Tharujamaanu';
-            src: url("https://fonts.hassaanmv.com/fonts/merged-bold.woff2") format("woff2"), url("https://fonts.hassaanmv.com/fonts/merged-bold.woff") format("woff");
-            font-weight: 700;
-            font-style: normal;
-            font-stretch: normal;
-            font-display: swap;
-        }
-    </style>
-</head>
-<body>
-    <div id="toast-container" class="toast-container"></div>
-    
-    <header class="app-header">
-        <div class="container header-content">
-            <h1 class="app-title">
-                <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="Logo" class="app-logo" width="32" height="32">
-                {{ _('title') }}
-            </h1>
-            
-            <div class="header-actions">
-                <nav class="main-nav">
-                    <ul>
-                        <li><a href="{{ url_for('main.index') }}" class="nav-link">{{ _('nav_home') }}</a></li>
-                        <li><a href="{{ url_for('stats.stats') }}" class="nav-link active">{{ _('nav_stats') }}</a></li>
-                    </ul>
-                </nav>
+{% extends "base.html" %}
 
-                <div class="controls-group">
-                    <button id="theme-toggle" class="btn icon-btn" aria-label="{{ _('toggle_dark_mode') }}" title="{{ _('toggle_dark_mode') }}">
-                         <span class="theme-icon light-icon" style="display: none;">☀️</span>
-                         <span class="theme-icon dark-icon">🌙</span>
-                    </button>
+{% block title %}{{ _('stats_title') }}{% endblock %}
 
-                    <div class="user-menu-wrapper">
-                        <button id="user-menu-btn" class="btn text-btn user-btn">
-                            <span id="current-username">{{ username }}</span>
-                             <span class="icon">▼</span>
-                        </button>
-                        <div id="user-menu-dropdown" class="dropdown-menu hidden">
-                             <div class="dropdown-content">
-                                <label for="username-select" class="dropdown-label">{{ _('select_user') }}</label>
-                                <select id="username-select" class="form-select full-width">
-                                    <option value="">{{ _('select_user') }}</option>
-                                </select>
-                                <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="form-input full-width mt-2">
-                                <button id="login-btn" class="btn primary full-width mt-2">{{ _('login') }}</button>
-                             </div>
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="translation-shell stats-section">
+    <div class="hero-text">
+        <h2>{{ _('stats_header') }}</h2>
+        <p>{{ _('stats_subheader') }}</p>
+    </div>
+
+    <div class="global-stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_votes }}</div>
+            <div class="stat-label">{{ _('total_votes') }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ global_stats.total_generations }}</div>
+            <div class="stat-label">{{ _('total_translations') }}</div>
+        </div>
+        <div class="stat-card">
+             <div class="stat-value">${{ "%.2f"|format(global_stats.total_cost) }}</div>
+            <div class="stat-label">{{ _('total_cost') }}</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="modelPerformanceChart"></canvas>
+    </div>
+
+    <div class="stats-details">
+        <h3>{{ _('stats_table_header') }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ _('rank') }}</th>
+                    <th>{{ _('model_name') }}</th>
+                    <th>{{ _('avg_score') }}</th>
+                    <th>{{ _('elo_rating') }}</th>
+                    <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
+                    <th>{{ _('projected_cost_100k') }}</th>
+                    <th>{{ _('bang_for_buck_score') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in model_scores %}
+                <tr class="{% if not model.is_active %}deprecated-model{% endif %}">
+                    <td><span class="rank-badge">{{ loop.index }}</span></td>
+                    <td>
+                        <strong>{{ model.base_model }}</strong>
+                        {% if model.preset_name %}
+                        <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">{{ model.preset_name }}</div>
+                        {% endif %}
+                        {% if not model.is_active %}<span class="deprecated-tag">({{ _('deprecated') }})</span>{% endif %}
+                    </td>
+                    <td>
+                        {% set score = model.average_score %}
+                        {% if score > 1.5 %}
+                            {% set score_class = 'high-score' %}
+                        {% elif score > 0 %}
+                            {% set score_class = 'medium-score' %}
+                        {% else %}
+                            {% set score_class = 'low-score' %}
+                        {% endif %}
+                        <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
+                    </td>
+                    <td>
+                        <div class="elo-badge" style="font-weight: bold; color: var(--primary);">
+                            {{ "%.0f"|format(model.elo_rating) }}
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="container">
-        <section class="stats-section">
-            <h2>{{ _('stats_header') }}</h2>
-            
-            <div class="global-stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">${{ "%.4f"|format(global_stats.total_cost) }}</div>
-                    <div class="stat-label">{{ _('total_spent') }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ global_stats.total_generations }}</div>
-                    <div class="stat-label">{{ _('total_generations') }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ global_stats.voted_generations }} ({{ "%.1f"|format(global_stats.vote_percentage) }}%)</div>
-                    <div class="stat-label">{{ _('voted_generations') }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${{ "%.4f"|format(global_stats.current_month_cost) }}</div>
-                    <div class="stat-label">{{ _('cost_this_month') }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${{ "%.4f"|format(global_stats.current_day_cost) }}</div>
-                    <div class="stat-label">{{ _('cost_today') }}</div>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <canvas id="monthlyCostChart"></canvas>
-            </div>
-
-            <div class="stats-details">
-                <h3>{{ _('stats_table_header') }}</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{{ _('rank') }}</th>
-                            <th>{{ _('model_name') }}</th>
-                            <th>{{ _('avg_score') }}</th>
-                            <th style="text-align: left;">{{ _('rating_distribution', total_votes=total_votes) }}</th>
-                            <th>{{ _('projected_cost_100k') }}</th>
-                            <th>{{ _('bang_for_buck_score') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for model in model_scores %}
-                        <tr class="{% if not model.is_active %}deprecated-model{% endif %}">
-                            <td><span class="rank-badge">{{ loop.index }}</span></td>
-                            <td>
-                                <strong>{{ model.model_name }}</strong>
-                                {% if not model.is_active %}<span class="deprecated-tag">({{ _('deprecated') }})</span>{% endif %}
-                            </td>
-                            <td>
-                                {% set score = model.average_score %}
-                                {% if score > 1.5 %}
-                                    {% set score_class = 'high-score' %}
-                                {% elif score > 0 %}
-                                    {% set score_class = 'medium-score' %}
-                                {% else %}
-                                    {% set score_class = 'low-score' %}
+                        <div class="win-rate" style="font-size: 0.8em; color: var(--text-secondary);">
+                            {{ "%.1f"|format(model.elo_win_rate) }}% WR
+                            ({{ model.elo_wins }}W/{{ model.elo_losses }}L/{{ model.elo_ties }}T)
+                        </div>
+                    </td>
+                    <td style="text-align: left;">
+                        <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
+                            {% if model.votes_cast > 0 %}
+                                {% if model.excellent_count > 0 %}
+                                <div class="bar excellent" style="width: {{ (model.excellent_count / model.votes_cast) * 100 }}%"><span>{{ model.excellent_count }}</span></div>
                                 {% endif %}
-                                <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
-                            </td>
-                            <td style="text-align: left;">
-                                <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
-                                    {% if model.votes_cast > 0 %}
-                                        {% if model.excellent_count > 0 %}
-                                        <div class="bar excellent" style="width: {{ (model.excellent_count / model.votes_cast) * 100 }}%"><span>{{ model.excellent_count }}</span></div>
-                                        {% endif %}
-                                        {% if model.good_count > 0 %}
-                                        <div class="bar good" style="width: {{ (model.good_count / model.votes_cast) * 100 }}%"><span>{{ model.good_count }}</span></div>
-                                        {% endif %}
-                                        {% if model.okay_count > 0 %}
-                                        <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
-                                        {% endif %}
-                                        {% if model.rejected_count > 0 %}
-                                        <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
-                                        {% endif %}
-                                    {% else %}
-                                    <div class="bar no-votes" style="width: 100%">{{ _('no_votes_yet') }}</div>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
-                            <td>
-                                <div class="bang-for-buck-bar-container">
-                                    <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%; background-color: #10b981; height: 10px; border-radius: 5px;"></div>
-                                    <span>{{ "%.1f"|format(model.bang_for_buck) }}</span>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                {% if model.good_count > 0 %}
+                                <div class="bar good" style="width: {{ (model.good_count / model.votes_cast) * 100 }}%"><span>{{ model.good_count }}</span></div>
+                                {% endif %}
+                                {% if model.okay_count > 0 %}
+                                <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
+                                {% endif %}
+                                {% if model.rejected_count > 0 %}
+                                <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
+                                {% endif %}
+                            {% else %}
+                            <div class="bar no-votes" style="width: 100%">{{ _('no_votes_yet') }}</div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
+                    <td>
+                        <div class="bang-for-buck-bar-container">
+                            <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%; background-color: #10b981; height: 10px; border-radius: 5px;"></div>
+                            <span>{{ "%.1f"|format(model.bang_for_buck) }}</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-            <!-- Per Model Cost Breakdown Table (New) -->
-            <div class="stats-details" style="margin-top: 2rem;">
-                 <h3>{{ _('cost_breakdown_header') }}</h3>
-                 <table>
-                    <thead>
-                        <tr>
-                            <th>{{ _('model_name') }}</th>
-                            <th>{{ _('total_spent') }}</th>
-                            <th>{{ _('total_generations') }}</th>
-                            <th>{{ _('voted_generations') }}</th>
-                            <th>{{ _('projected_cost_100k') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for model in cost_breakdown %}
-                         <tr>
-                            <td><strong>{{ model.model_name }}</strong></td>
-                            <td>${{ "%.4f"|format(model.total_cost) }}</td>
-                            <td>{{ model.total_generations }}</td>
-                            <td>{{ model.voted_generations }}</td>
-                            <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
-                         </tr>
-                        {% endfor %}
-                    </tbody>
-                 </table>
-            </div>
+    <div class="stats-details" style="margin-top: 2rem;">
+        <h3>{{ _('cost_breakdown_header') }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ _('model_name') }}</th>
+                    <th>{{ _('total_cost') }}</th>
+                    <th>{{ _('total_translations') }}</th>
+                    <th>{{ _('projected_cost_100k') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cost_breakdown %}
+                <tr>
+                    <td><strong>{{ item.base_model }}</strong></td>
+                    <td>${{ "%.2f"|format(item.total_cost) }}</td>
+                    <td>{{ item.total_generations }}</td>
+                    <td>${{ "%.2f"|format(item.projected_cost_100k) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
 
-        </section>
-    </main>
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('modelPerformanceChart').getContext('2d');
+        
+        const labels = {{ model_scores|map(attribute='display_name')|list|tojson }};
+        const scores = {{ model_scores|map(attribute='average_score')|list|tojson }};
+        const elos = {{ model_scores|map(attribute='elo_rating')|list|tojson }};
+        
+        // Normalize ELO to be comparable to 3-point scale for visualization (rough mapping)
+        // 1300 -> 0, 1700 -> 3
+        const normalizedElos = elos.map(e => Math.max(0, (e - 1300) / (1700 - 1300) * 3));
 
-    <footer class="app-footer">
-        <div class="container">
-            <p>© 2025 {{ _('title') }}</p>
-        </div>
-    </footer>
-
-
-    <script>
-        window.translations = {{ translations | tojson }};
-    </script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const ctx = document.getElementById('monthlyCostChart');
-            if (ctx) {
-                const labels = {{ spending_stats.labels | tojson }};
-                const data = {{ spending_stats.data | tojson }};
-
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Monthly Spending (USD)',
-                            data: data,
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            borderWidth: 2,
-                            tension: 0.1,
-                            fill: true
-                        }]
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '{{ _("average_score") }}',
+                        data: scores,
+                        backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                        borderColor: 'rgba(37, 99, 235, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Cost ($)'
+                    {
+                        label: '{{ _("elo_rating") }} (Scaled)',
+                        data: normalizedElos,
+                        type: 'line',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 3.5,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
                                 }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            title: {
-                                display: true,
-                                text: 'Monthly Spending Trend',
-                                font: {
-                                    size: 16
+                                if (context.dataset.type === 'line') {
+                                    // Show actual ELO in tooltip, not scaled
+                                    return 'ELO Rating: ' + elos[context.dataIndex].toFixed(0);
                                 }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2);
+                                }
+                                return label;
                             }
                         }
                     }
-                });
+                }
             }
         });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}

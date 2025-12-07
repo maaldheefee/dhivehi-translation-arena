@@ -1,13 +1,15 @@
 """Vote service for processing hybrid voting system votes."""
 
 import logging
+from itertools import combinations
 from typing import cast
 
 from sqlalchemy.orm import Session
 
 from app.database import db_session
-from app.models import Vote
+from app.models import Translation, Vote
 from app.repositories.vote_repository import VoteRepository
+from app.services.elo_service import get_elo_service
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,7 @@ def process_votes(user_id, query_id, votes_data):
 
     try:
         # Process votes with Upsert logic
+        processed_votes = []
         for vote_data in votes_data:
             translation_id = vote_data.get("translation_id")
             rating = vote_data.get("rating")
@@ -51,6 +54,9 @@ def process_votes(user_id, query_id, votes_data):
             if existing_vote:
                 existing_vote.rating = rating
                 vote_repo.update(existing_vote)
+                processed_votes.append(
+                    {"translation_id": translation_id, "rating": rating}
+                )
             else:
                 vote = Vote(
                     user_id=user_id,
@@ -58,12 +64,14 @@ def process_votes(user_id, query_id, votes_data):
                     translation_id=translation_id,
                     rating=rating,
                 )
-                vote_repo.add(vote)  # Add immediately or collect for bulk?
-                # Bulk add is more efficient but mixing updates and adds is tricky with bulk_add checks
-                # So just adding one by one is safer for now given checking requirement.
-                # Actually, can't bulk add if we need to check existence for each.
+                vote_repo.add(vote)
+                processed_votes.append(
+                    {"translation_id": translation_id, "rating": rating}
+                )
 
-        # We process one by one, so no bulk_add at end.
+        # Derive pairwise comparisons from the votes just submitted
+        if len(processed_votes) >= 2:
+            _derive_pairwise_from_votes(session, user_id, query_id, processed_votes)
 
     except Exception:
         logger.exception("Error processing votes")
@@ -71,3 +79,47 @@ def process_votes(user_id, query_id, votes_data):
 
     else:
         return {"success": True, "message": "Votes processed successfully"}
+
+
+def _derive_pairwise_from_votes(session, user_id, query_id, votes_data):
+    """
+    Derive pairwise comparisons from star rating votes.
+
+    For each pair of votes on the same query, if one rating is higher,
+    record it as a win for that model.
+    """
+    elo_service = get_elo_service(session)
+
+    for v1, v2 in combinations(votes_data, 2):
+        t1 = session.query(Translation).get(v1["translation_id"])
+        t2 = session.query(Translation).get(v2["translation_id"])
+
+        if not t1 or not t2:
+            continue
+
+        r1, r2 = v1["rating"], v2["rating"]
+        winner_model = None
+        loser_model = None
+
+        if r1 > r2:
+            winner_model = t1.model
+            loser_model = t2.model
+        elif r2 > r1:
+            winner_model = t2.model
+            loser_model = t1.model
+        # Equal ratings = tie (winner and loser stay None)
+
+        try:
+            elo_service.record_comparison(
+                query_id=query_id,
+                user_id=user_id,
+                winner_model=winner_model,
+                loser_model=loser_model,
+                translation_a_id=v1["translation_id"],
+                translation_b_id=v2["translation_id"],
+                source="derived",
+            )
+        except Exception:
+            logger.exception(
+                f"Error recording pairwise comparison for {t1.model} vs {t2.model}"
+            )

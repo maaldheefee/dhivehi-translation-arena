@@ -15,8 +15,7 @@ setup:
 
 # Run the application in development mode
 dev:
-    export DATA_DIR='data'
-    uv run --no-cache flask run --host 0.0.0.0 --port 8101
+    export DATA_DIR='/DATA/AppData/dhivehi-translation-arena/' && uv run --no-cache flask run --host 0.0.0.0 --port 8101 --debug
 
 # Initialize the database (⚠️  WARNING: This will create/reset the database)
 init-db:
@@ -117,4 +116,6 @@ format:
 
 # Lint code with ruff
 lint:
-    ruff check --fix --unsafe-fixes && ruff check --select I --fix && ruff format
+    ruff check --fix --unsafe-fixes
+    ruff check --select I --fix
+    ruff format
