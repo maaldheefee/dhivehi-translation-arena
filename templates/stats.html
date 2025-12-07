@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ _('stats_title') }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/icon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -29,7 +30,10 @@
     
     <header class="app-header">
         <div class="container header-content">
-            <h1 class="app-title">{{ _('title') }}</h1>
+            <h1 class="app-title">
+                <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="Logo" class="app-logo" width="32" height="32">
+                {{ _('title') }}
+            </h1>
             
             <div class="header-actions">
                 <nav class="main-nav">

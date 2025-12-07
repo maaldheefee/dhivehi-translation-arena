@@ -12,7 +12,6 @@ services:
     environment:
       - FLASK_ENV=production
       - DATA_DIR=/app/data
-    command: ["gunicorn", "-w", "1", "-b", "0.0.0.0:8101", "wsgi:app"]
     networks:
       - translation-net-prod
 

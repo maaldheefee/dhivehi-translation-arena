@@ -14,7 +14,7 @@ services:
       - .env
     environment:
       - FLASK_ENV=development
-    command: ["uv", "run", "--no-cache", "flask", "run", "--host", "0.0.0.0", "--port", "8101"]
+    command: ["flask", "run", "--host", "0.0.0.0", "--port", "8101"]
     networks:
       - translation-net-dev
 

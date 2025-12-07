@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="100" fill="#2563EB"/>
+  
+  <!-- "A" -->
+  <text x="130" y="240" font-family="Arial, sans-serif" font-weight="bold" font-size="180" fill="white" text-anchor="middle">A</text>
+  
+  <!-- Arrows -->
+  <path d="M210 200 L300 200 M270 170 L300 200 L270 230" stroke="white" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M300 300 L210 300 M240 270 L210 300 L240 330" stroke="white" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- "dv" -->
+  <text x="382" y="380" font-family="Arial, sans-serif" font-weight="bold" font-size="160" fill="white" text-anchor="middle">dv</text>
+</svg>
