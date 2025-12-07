@@ -157,7 +157,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 0.10,
             "output_cost_per_mtok": 0.40,
-            "is_active": True,
+            "is_active": False,
             "rate_limit": None,
             "base_model": "Gemini 2.5 Flash Lite",
         },
