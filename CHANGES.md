@@ -13,6 +13,8 @@
 - **Frontend Model Selection**: Limit display to 6 models max, prioritizing those with fewer usage data points.
 - **Error Handling**: Improved LLM error handling (timeouts, max tokens). Allowed voting on successful responses even if some models fail.
 - **Cleanup**: Removed native Gemini Client in favor of unified OpenRouter client.
+- **Model Presets**: Added Low Temperature (0.1) variants for Gemini 2.0, 2.5, and Claude models.
+- **Smart Model Selection**: Updated main page selection logic to group model presets together (e.g. Base and Low Temp), facilitating better pairwise comparisons.
 
 ### Fixes
 - **Login Fix**: Resolved 400 Bad Request error when running behind Cloudflare Tunnel by adding `ProxyFix` middleware.

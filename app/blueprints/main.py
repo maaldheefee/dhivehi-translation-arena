@@ -31,6 +31,49 @@ from app.services.vote_service import process_votes
 main_bp = Blueprint("main", __name__)
 
 
+def _select_models(available_models_map, usage_stats, config):
+    """
+    Selects models prioritizing low usage, but groups variants of the same base model together.
+    """
+    # Sort models by usage count (ascending) to prefer those with fewer data points
+    sorted_keys = sorted(
+        available_models_map.keys(), key=lambda m: usage_stats.get(m, 0)
+    )
+
+    selected_keys = []
+    max_models = config.MAX_MODELS_SELECTION
+
+    # Determine base models for all keys
+    key_to_base = {
+        k: config.MODELS.get(k, {}).get("base_model") for k in available_models_map
+    }
+
+    # We work on a copy to allow modification
+    working_keys = list(sorted_keys)
+
+    while len(selected_keys) < max_models and working_keys:
+        # Pick the next best model that hasn't been processed
+        candidate = working_keys.pop(0)
+        selected_keys.append(candidate)
+
+        if len(selected_keys) >= max_models:
+            break
+
+        base = key_to_base.get(candidate)
+        if base:
+            # Find all other models with this base that are still in working_keys
+            siblings = [k for k in working_keys if key_to_base.get(k) == base]
+
+            for sib in siblings:
+                if len(selected_keys) < max_models:
+                    selected_keys.append(sib)
+                    working_keys.remove(sib)
+                else:
+                    break
+
+    return selected_keys
+
+
 @main_bp.route("/")
 def index():
     """Renders the main page with a shuffled list of predefined queries."""
@@ -45,15 +88,8 @@ def index():
     # Get user budget info
     is_allowed, user_monthly_cost = check_user_budget(username)
 
-    # Sort models by usage count (ascending) to prefer those with fewer data points
-    # If a model is not in usage_stats, count is 0
-    sorted_model_keys = sorted(
-        available_models.keys(), key=lambda m: usage_stats.get(m, 0)
-    )
-
-    # Limit to MAX_MODELS_SELECTION (prioritizing those with fewest data points)
-    max_models = get_config().MAX_MODELS_SELECTION
-    selected_model_keys = sorted_model_keys[:max_models]
+    # Select models with smart grouping
+    selected_model_keys = _select_models(available_models, usage_stats, get_config())
 
     # Create the dictionary for only the selected models
     final_models = {k: available_models[k] for k in selected_model_keys}
@@ -80,6 +116,10 @@ def available_models():
     usage_stats = get_model_usage_stats()
     conf = get_config()
 
+    # Use smart selection logic
+    selected_keys = set(_select_models(available_models_map, usage_stats, conf))
+
+    # Still sort the returned list by usage to show least used first
     sorted_model_keys = sorted(
         available_models_map.keys(), key=lambda m: usage_stats.get(m, 0)
     )
@@ -87,16 +127,13 @@ def available_models():
     # Return models object with details
     models_data = {}
 
-    # Determined selected models based on Config limit
-    max_selected = conf.MAX_MODELS_SELECTION
-
-    for i, k in enumerate(sorted_model_keys):
+    for k in sorted_model_keys:
         model_conf = conf.MODELS.get(k, {})
         models_data[k] = {
             "name": available_models_map[k],
             "input_cost": model_conf.get("input_cost_per_mtok", 0),
             "output_cost": model_conf.get("output_cost_per_mtok", 0),
-            "selected": i < max_selected  # Select top N models
+            "selected": k in selected_keys,
         }
 
     return jsonify({"models": models_data})

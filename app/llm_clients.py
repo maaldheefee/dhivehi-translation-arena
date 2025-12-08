@@ -1,4 +1,3 @@
-# M-2: app/llm_clients.py
 import logging
 import time
 
@@ -76,9 +75,7 @@ class OpenRouterClient(TranslationClient):
         super().__init__(model_config)
         self.reasoning = model_config.get("reasoning")
         self.custom_temperature = model_config.get("temperature")
-        self.timeout = model_config.get(
-            "timeout", 90.0
-        )  # Default 90s, thinking models use 180s
+        self.timeout = model_config.get("timeout", 90.0)  # Thinking models use 180s
 
     def translate(self, text: str) -> tuple[str, float]:
         """Translate text using the OpenRouter API."""
