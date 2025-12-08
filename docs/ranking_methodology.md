@@ -12,9 +12,9 @@ Users rate individual translations on a fixed scale. These ratings provide an ab
 | Rating | Label | Description | Score Contribution |
 | :--- | :--- | :--- | :--- |
 | **3 Stars** | Excellent | The translation is perfect or near-perfect. | **+3** |
-| **2 Stars** | Good | The translation is accurate but may have minor stylistic issues. | **+1** |
-| **1 Star** | Okay | The translation conveys the meaning but has grammatical errors or unnatural phrasing. | **0** |
-| **-1** | Rejected | The translation is incorrect, hallucinates, or is otherwise unusable. | **-2** |
+| **2 Stars** | Good | The meaning is correct, but the wording or grammar might not be. | **+1** |
+| **1 Star** | Understandable | The meaning is not fully correct, but it's understandable. | **0** |
+| **-1** | Trash | It hallucinates, has glitch tokens, or the translation is inaccurate, or fails to follow instructions, or it doesn't make sense. | **-2** |
 
 ### B. Quick Compare (Relative)
 In "Quick Compare" mode, users are presented with two blind translations side-by-side and asked to select the better one. This generates explicit pairwise comparison data (Winner vs. Loser).

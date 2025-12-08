@@ -23,7 +23,7 @@ def process_votes(user_id, query_id, votes_data):
         query_id (int): The ID of the query being voted on
         votes_data (list): List of vote dictionaries with keys:
             - translation_id (int): ID of the translation being voted on
-            - rating (int): Rating value (3=Excellent, 2=Good, 1=Okay, -1=Rejected)
+            - rating (int): Rating value (3=Excellent, 2=Meaning Correct, 1=Understandable, -1=Trash)
 
     Returns:
         dict: Result of the voting process

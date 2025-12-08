@@ -88,7 +88,7 @@ class Vote(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     translation_id = Column(Integer, ForeignKey("translations.id"), nullable=False)
     query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
-    rating = Column(Integer, nullable=True)  # 3=Excellent, 2=Good, 1=Okay, -1=Rejected
+    rating = Column(Integer, nullable=True)  # 3=Excellent, 2=Good/Meaning Correct, 1=Okay/Understandable, -1=Trash
 
     user = relationship("User")
     translation = relationship("Translation", back_populates="votes")
