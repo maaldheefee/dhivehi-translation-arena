@@ -1048,14 +1048,16 @@ button {
     /* Navigation Menu - Mobile */
     .main-nav {
         display: none;
-        width: 100%;
-        order: 3; /* Move to the next line */
-        margin-top: 1rem;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 0; /* Remove top margin as top:100% handles it */
         background-color: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
+        border-bottom: 1px solid var(--border-color);
         box-shadow: var(--shadow-md);
-        overflow: hidden;
+        z-index: 1000;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
     }
 
     .main-nav.active {
