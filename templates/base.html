@@ -42,7 +42,7 @@
             </h1>
             
             <div class="header-actions">
-                <nav class="main-nav">
+                <nav class="main-nav" id="main-nav">
                     <ul>
                         <li><a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">{{ _('nav_home') }}</a></li>
                         <li><a href="{{ url_for('main.compare_ui') }}" class="nav-link {% if request.endpoint == 'main.compare_ui' %}active{% endif %}">{{ _('nav_compare') }}</a></li>
@@ -51,6 +51,12 @@
                 </nav>
 
                 <div class="controls-group">
+                    <button class="btn icon-btn mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+
                     <button id="theme-toggle" class="btn icon-btn" aria-label="{{ _('toggle_dark_mode') }}" title="{{ _('toggle_dark_mode') }}">
                         <svg class="theme-icon light-icon" style="display: none;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
