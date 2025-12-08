@@ -10,6 +10,8 @@ A blind testing platform for comparing Arabic to Dhivehi translations across a s
 - Cost tracking for API calls
 - Storage of translations and votes for later analysis
 
+See [Ranking Methodology](docs/ranking_methodology.md) for details on how models are evaluated and ranked.
+
 ## Quick Start (Recommended)
 
 ### Prerequisites
