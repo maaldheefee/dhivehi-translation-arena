@@ -77,7 +77,7 @@ class Config:
         },
         "gemini-2.0-flash-low-temp-0.1": {
             "name": "google/gemini-2.0-flash-001",
-            "display_name": "Gemini 2.0 Flash (Temp: 0.1)",
+            "display_name": "Gemini 2.0 Flash (T0.1)",
             "type": "openrouter",
             "input_cost_per_mtok": 0.1,
             "output_cost_per_mtok": 0.4,

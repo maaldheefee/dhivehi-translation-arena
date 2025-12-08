@@ -83,7 +83,7 @@
                         {% set score = model.average_score %}
                         {% if score > 1.5 %}
                             {% set score_class = 'high-score' %}
-                        {% elif score > 0 %}
+                        {% elif score >= 0.5 %}
                             {% set score_class = 'medium-score' %}
                         {% else %}
                             {% set score_class = 'low-score' %}
@@ -99,7 +99,15 @@
                         </div>
                     </td>
                     <td>
-                         <span class="score-badge" style="background-color: #f3f4f6; color: #1f2937; border: 1px solid #d1d5db;">{{ "%.2f"|format(model.combined_score) }}</span>
+                        {% set combined_val = (model.combined_score * 100) | round | int %}
+                        {% if combined_val > 70 %}
+                            {% set combined_class = 'high-score' %}
+                        {% elif combined_val < 40 %}
+                            {% set combined_class = 'low-score' %}
+                        {% else %}
+                            {% set combined_class = 'medium-score' %}
+                        {% endif %}
+                         <span class="score-badge {{ combined_class }}">{{ combined_val }}</span>
                     </td>
                     <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
                     <td data-sort-value="{{ model.bang_for_buck }}">

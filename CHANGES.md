@@ -38,4 +38,5 @@
 - **Visual Enhancements**: Major improvements to model selector readability, dark mode consistency, and stats grid layout.
 - **Compare Flow**: Centered action buttons and improved navigation in comparison mode.
 - **Typography & Accessibility**: Enforced Latin fonts for model names and technical data for better legibility.
+- **Stats Formatting**: Updated conditional formatting for voting scores (<0.5 as low quality) and converted combined scores to a 0-100 percentage scale with color coding (>70 great, <40 bad).
 
