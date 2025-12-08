@@ -505,6 +505,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 handleTranslate();
             });
         });
+
+        // Mobile Menu Toggle
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const mainNav = document.getElementById('main-nav');
+        if (mobileMenuToggle && mainNav) {
+            mobileMenuToggle.addEventListener('click', () => {
+                mainNav.classList.toggle('active');
+            });
+        }
     }
     
     // Retry a single failed model translation

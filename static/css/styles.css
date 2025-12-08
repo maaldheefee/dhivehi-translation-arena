@@ -983,3 +983,167 @@ button {
     font-weight: 500;
     color: var(--text-secondary);
 }
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+    display: none;
+    padding: 0.5rem;
+}
+
+.mobile-menu-toggle svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+
+    /* Header adjustments */
+    .app-header {
+        padding: 0.75rem 0;
+    }
+
+    .header-content {
+        flex-wrap: wrap;
+    }
+
+    .app-title {
+        font-size: 1.25rem;
+    }
+
+    .header-actions {
+        /* On mobile, we want the controls (theme, user) to be visible,
+           but the nav links to be hidden by default.
+           We might want to reorder things so the hamburger is on the right.
+        */
+        gap: 0.75rem;
+    }
+
+    .mobile-menu-toggle {
+        display: flex;
+        order: 10; /* Make sure it's at the end of controls-group if inside */
+    }
+
+    /* Controls Group adjustments */
+    .controls-group {
+        gap: 0.5rem;
+    }
+
+    .header-budget {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+    }
+
+    #current-username {
+        display: none; /* Hide username text on mobile to save space */
+    }
+
+    .user-btn .icon {
+        font-size: 1rem;
+    }
+
+    /* Navigation Menu - Mobile */
+    .main-nav {
+        display: none;
+        width: 100%;
+        order: 3; /* Move to the next line */
+        margin-top: 1rem;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+
+    .main-nav.active {
+        display: block;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    .main-nav ul {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .main-nav li {
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .main-nav li:last-child {
+        border-bottom: none;
+    }
+
+    .nav-link {
+        display: block;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .nav-link:hover {
+        background-color: var(--bg-body);
+    }
+
+    /* Main Content adjustments */
+    .main-content {
+        padding: 2rem 0;
+    }
+
+    .hero-text h2 {
+        font-size: 1.5rem;
+    }
+
+    /* Grids */
+    .model-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
+    }
+
+    .translations-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Forms */
+    .form-textarea {
+        min-height: 120px;
+    }
+
+    /* Stats Tables */
+    .stats-details table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .stats-details th, .stats-details td {
+        white-space: nowrap;
+        padding: 0.75rem;
+    }
+
+    /* Charts */
+    .stats-section .chart-container {
+        height: 300px;
+    }
+
+    /* Info Details */
+    .info-section {
+        flex-direction: column;
+    }
+
+    .info-details {
+        min-width: 100%;
+    }
+
+    /* Global Stats */
+    .global-stats-grid {
+        grid-template-columns: 1fr 1fr; /* 2 columns on mobile instead of 1 usually looks ok, or 1 if very small */
+    }
+
+    @media (max-width: 480px) {
+        .global-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+}
