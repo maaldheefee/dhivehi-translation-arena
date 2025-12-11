@@ -33,7 +33,19 @@
     </div>
 
     <div class="stats-details">
-        <h3>{{ _('stats_table_header') }}</h3>
+        <div class="results-header" style="justify-content: space-between; display: flex; align-items: center; margin-bottom: 1rem;">
+            <h3>{{ _('stats_table_header') }}</h3>
+            <div class="header-actions">
+                <button id="stats-copy-json" class="btn secondary sm-btn" title="Only copy JSON data">
+                    <span class="icon">{}</span>
+                    <span class="btn-text">JSON</span>
+                </button>
+                <button id="stats-copy-prompt" class="btn secondary sm-btn" title="Copy stats within analysis prompt">
+                    <span class="icon">📋</span>
+                    <span class="btn-text">Analysis Prompt</span>
+                </button>
+            </div>
+        </div>
         <table>
             <thead>
                 <tr>
@@ -264,6 +276,107 @@
                 }
             }
         });
+
+        // Expose data for copy functions
+        window.statsData = {{ model_scores|tojson }};
+        window.globalStats = {{ global_stats|tojson }};
+
+        function showLocalToast(message, type = 'info') {
+            // Reusing the container from base.html if it exists, or create one
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container); // Append to body if not found
+            }
+            // Check if container needs basic styles if newly created (unlikely given base.html)
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for ELO-style comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated with a 50% weight from the star rating and 50% from the ELO rating. Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
+
+        function getStatsExportData() {
+            return {
+                metadata: {
+                    generated_at: new Date().toISOString(),
+                    total_votes: {{ total_votes }},
+                    total_translations: window.globalStats.total_generations
+                },
+                models: window.statsData.map(m => ({
+                    name: m.display_name,
+                    base_model: m.base_model,
+                    preset: m.preset_name,
+                    avg_score: m.average_score,
+                    elo: m.elo_rating,
+                    elo_details: {
+                        wins: m.elo_wins,
+                        losses: m.elo_losses,
+                        ties: m.elo_ties
+                    },
+                    win_rate: m.elo_win_rate,
+                    votes: m.votes_cast,
+                    cost_per_100k: m.projected_cost_100k,
+                    bang_for_buck: m.bang_for_buck,
+                    is_active: m.is_active,
+                    config: m.config
+                }))
+            };
+        }
+
+        async function copyStatsJSON() {
+            const data = getStatsExportData();
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                showLocalToast('Stats data copied to clipboard!', 'success');
+            } catch (err) {
+                console.error(err);
+                showLocalToast('Failed to copy data', 'error');
+            }
+        }
+
+        async function copyStatsPrompt() {
+            const data = getStatsExportData();
+            const promptText = `Please analyze the following Leaderboard data from the Dhivehi Translation Arena.
+
+Methodology:
+${METHODOLOGY_TEXT}
+
+Total Votes: ${data.metadata.total_votes}
+Total Translations: ${data.metadata.total_translations}
+
+Leaderboard Data (JSON):
+${JSON.stringify(data, null, 2)}
+
+Please analyze the performance of the different LLMs. 
+- Identify the top-tier models for Dhivehi translation.
+- Compare the "Bang for Buck" to find the most cost-effective options.
+- Discuss any discrepancy between pure Rating/ELO and Cost.
+- Identify patterns regarding temperature/thinking/presets. For example:
+    - Does low temperature (0.1) improve specific model families (e.g. Anthropic vs Gemini)?
+    - Do "Thinking" models outperform their standard counterparts?
+    - Are there specific presets that seem to yield better results?
+- Note the win/loss ratios in the detailed ELO stats.`;
+
+            try {
+                await navigator.clipboard.writeText(promptText);
+                showLocalToast('Analysis prompt copied to clipboard!', 'success');
+            } catch (err) {
+                console.error(err);
+                showLocalToast('Failed to copy data', 'error');
+            }
+        }
+
+        document.getElementById('stats-copy-json').addEventListener('click', copyStatsJSON);
+        document.getElementById('stats-copy-prompt').addEventListener('click', copyStatsPrompt);
 
         // Add sorting event listeners
         document.querySelectorAll('th[data-sort]').forEach(th => {

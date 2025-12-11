@@ -159,6 +159,12 @@ def calculate_model_scores():
                 "elo_ties": elo_ties,
                 "elo_win_rate": elo_win_rate,
                 "combined_score": combined_score,
+                # Config data for analysis
+                "config": {
+                    "temperature": model_config.get("temperature"),
+                    "thinking_budget": model_config.get("thinking_budget"),
+                    "reasoning": model_config.get("reasoning"),
+                },
             }
         )
 

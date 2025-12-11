@@ -785,6 +785,13 @@ button {
     text-align: center;
 }
 .lg-btn { padding: 0.75rem 2rem; font-size: 1.1rem; }
+.sm-btn { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+
+#copy-json-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
 /* Info Section / Instructions */
 .info-section {
