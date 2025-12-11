@@ -134,7 +134,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 1.25,
             "output_cost_per_mtok": 10.0,
-            "is_active": True,
+            "is_active": False,
             "rate_limit": None,
             "reasoning": {
                 "max_tokens": 128
