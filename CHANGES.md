@@ -15,6 +15,7 @@
 - **Cleanup**: Removed native Gemini Client in favor of unified OpenRouter client.
 - **Model Presets**: Added Low Temperature (0.1) variants for Gemini 2.0, 2.5, and Claude models.
 - **Smart Model Selection**: Updated main page selection logic to group model presets together (e.g. Base and Low Temp), facilitating better pairwise comparisons.
+- **Balanced Model Selection**: Refactored selection algorithm to eliminate vendor bias. Now uses bucketed randomization to ensure fair representation across all vendors (Google, Anthropic) while still prioritizing low-usage models and grouping preset variants together.
 
 ### Fixes
 - **Login Fix**: Resolved 400 Bad Request error when running behind Cloudflare Tunnel by adding `ProxyFix` middleware.
