@@ -1,5 +1,6 @@
 import json
 import random
+from collections import defaultdict
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from itertools import combinations
 
@@ -33,45 +34,86 @@ main_bp = Blueprint("main", __name__)
 
 def _select_models(available_models_map, usage_stats, config):
     """
-    Selects models prioritizing low usage, but groups variants of the same base model together.
-    """
-    # Sort models by usage count (ascending) to prefer those with fewer data points
-    sorted_keys = sorted(
-        available_models_map.keys(), key=lambda m: usage_stats.get(m, 0)
-    )
+    Selects up to MAX_MODELS models with balanced randomness and strategic grouping.
 
-    selected_keys = []
+    Main objective:
+    - Random selection of models limited to MAX_MODELS
+
+    Secondary objectives:
+    - Prioritize models with low usage/votes to build up data evenly
+    - Group preset variants of the same base model together (e.g., thinking vs no-thinking,
+      high temp vs low temp) to enable quality ELO comparisons between configurations
+
+    Algorithm:
+    1. Group models by base_model
+    2. Calculate average usage per group (to prioritize low-usage groups)
+    3. Shuffle groups with similar usage to add randomness
+    4. Select groups in priority order, including all variants from each group
+    5. Stop when we would exceed MAX_MODELS
+    """
     max_models = config.MAX_MODELS_SELECTION
 
-    # Determine base models for all keys
-    key_to_base = {
-        k: config.MODELS.get(k, {}).get("base_model") for k in available_models_map
-    }
+    # Group models by base_model
+    base_groups = defaultdict(list)
+    for key in available_models_map:
+        base = config.MODELS.get(key, {}).get("base_model", key)
+        base_groups[base].append(key)
 
-    # We work on a copy to allow modification
-    working_keys = list(sorted_keys)
+    # Calculate average usage for each group (for prioritization)
+    # Lower average = higher priority
+    group_priorities = []
+    for base, model_keys in base_groups.items():
+        avg_usage = sum(usage_stats.get(k, 0) for k in model_keys) / len(model_keys)
+        group_priorities.append((avg_usage, base, model_keys))
 
-    while len(selected_keys) < max_models and working_keys:
-        # Pick the next best model that hasn't been processed
-        candidate = working_keys.pop(0)
-        selected_keys.append(candidate)
+    # Sort by average usage (ascending = low usage first)
+    group_priorities.sort(key=lambda x: x[0])
 
-        if len(selected_keys) >= max_models:
+    # Add randomness: group by usage buckets and shuffle within buckets
+    # This prevents deterministic bias while still prioritizing low-usage models
+    bucketed_groups = []
+    current_bucket = []
+    current_bucket_max = -1
+
+    for avg_usage, base, model_keys in group_priorities:
+        # Create buckets of groups with similar usage (within 5 votes of each other)
+        if current_bucket_max < 0 or avg_usage <= current_bucket_max + 5:
+            current_bucket.append((avg_usage, base, model_keys))
+            current_bucket_max = max(current_bucket_max, avg_usage)
+        else:
+            # Shuffle current bucket and add to result
+            random.shuffle(current_bucket)
+            bucketed_groups.extend(current_bucket)
+            # Start new bucket
+            current_bucket = [(avg_usage, base, model_keys)]
+            current_bucket_max = avg_usage
+
+    # Don't forget the last bucket
+    if current_bucket:
+        random.shuffle(current_bucket)
+        bucketed_groups.extend(current_bucket)
+
+    # Select groups until we reach MAX_MODELS
+    selected_keys = []
+    for _, _base, model_keys in bucketed_groups:
+        # Check if adding this entire group would exceed the limit
+        if len(selected_keys) + len(model_keys) <= max_models:
+            # Include all variants from this base model
+            selected_keys.extend(model_keys)
+        elif len(selected_keys) < max_models:
+            # Partial selection: we have some room but not enough for all variants
+            # Randomly select variants to fill remaining slots
+            remaining_slots = max_models - len(selected_keys)
+            # Sort variants by usage within this group, then take top N
+            variants_by_usage = sorted(model_keys, key=lambda k: usage_stats.get(k, 0))
+            selected_keys.extend(variants_by_usage[:remaining_slots])
+            break
+        else:
+            # Already at capacity
             break
 
-        base = key_to_base.get(candidate)
-        if base:
-            # Find all other models with this base that are still in working_keys
-            siblings = [k for k in working_keys if key_to_base.get(k) == base]
-
-            for sib in siblings:
-                if len(selected_keys) < max_models:
-                    selected_keys.append(sib)
-                    working_keys.remove(sib)
-                else:
-                    break
-
     return selected_keys
+
 
 
 @main_bp.route("/")

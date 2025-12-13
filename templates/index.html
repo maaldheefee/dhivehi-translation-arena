@@ -68,8 +68,18 @@
     <div id="results-section" class="results-section hidden">
         <div class="results-header">
             <h3>{{ _('results_header') }}</h3>
-             <div class="cost-badge" title="{{ _('total_cost_label') }}">
-                <span class="currency">$</span><span id="total-cost">0.000000</span>
+            <div class="header-actions">
+                <button id="copy-json-btn" class="btn secondary sm-btn" title="Only copy JSON data">
+                    <span class="icon">{}</span>
+                    <span class="btn-text">JSON</span>
+                </button>
+                <button id="copy-prompt-btn" class="btn secondary sm-btn" title="Copy results within analysis prompt">
+                    <span class="icon">📋</span>
+                    <span class="btn-text">Analysis Prompt</span>
+                </button>
+                <div class="cost-badge" title="{{ _('total_cost_label') }}">
+                    <span class="currency">$</span><span id="total-cost">0.000000</span>
+                </div>
             </div>
         </div>
 

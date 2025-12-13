@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
         translationsContainer: document.querySelector('.translations-grid'),
         totalCost: document.getElementById('total-cost'),
         modelParams: document.getElementById('model-selection-checkboxes'),
+        copyJsonBtn: document.getElementById('copy-json-btn'),
+        copyPromptBtn: document.getElementById('copy-prompt-btn'),
         
         submitVotesBtn: document.getElementById('submit-votes-btn'),
         voteStatus: document.getElementById('vote-status'),
@@ -497,6 +499,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (elements.loginBtn) elements.loginBtn.addEventListener('click', handleLogin);
         if (elements.translateBtn) elements.translateBtn.addEventListener('click', handleTranslate);
         if (elements.submitVotesBtn) elements.submitVotesBtn.addEventListener('click', submitVotes);
+        if (elements.copyJsonBtn) elements.copyJsonBtn.addEventListener('click', copyJSON);
+        if (elements.copyPromptBtn) elements.copyPromptBtn.addEventListener('click', copyAnalysisPrompt);
         
         // Chip clicks
         elements.chips.forEach(chip => {
@@ -560,6 +564,94 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (err) {
             console.error('Retry error:', err);
             renderError(modelKey, 'Network error during retry');
+        }
+    }
+    const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for ELO-style comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated with a 50% weight from the star rating and 50% from the ELO rating. Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
+
+    const RUBRIC_TEXT = `Scoring Rubric:
+- 3 Stars (Excellent): Perfect or near-perfect translation. Captures meaning, tone, and grammar accurately.
+- 2 Stars (Good): Good translation with minor errors. Usable but might need slight polish.
+- 1 Star (Okay): Intelligible but has noticeable flaws or errors and inaccuracies. Captures the gist but may sound unnatural.
+- Reject (Trash): Completely wrong, hallucianted, or nonsense translation.`;
+
+    function getTranslationData() {
+        const query = elements.queryInput.value.trim();
+        if (!query) return null;
+
+        const results = [];
+        document.querySelectorAll('.translation-card').forEach(card => {
+             if (card.classList.contains('placeholder')) return;
+             
+             const modelNameEl = card.querySelector('.model');
+             const outputEl = card.querySelector('.translation-text');
+             
+             if (modelNameEl && outputEl) {
+                 let modelName = modelNameEl.textContent;
+                 // Remove "Duplicate Result" badging
+                 const duplicateBadge = modelNameEl.querySelector('.duplicate-badge');
+                 if (duplicateBadge) {
+                     modelName = modelName.replace(duplicateBadge.textContent, '').trim();
+                 }
+
+                 results.push({
+                     model: modelName.trim(),
+                     translation: outputEl.textContent.trim()
+                 });
+             }
+        });
+        
+        if (results.length === 0) return null;
+
+        return {
+            metadata: {
+                system_prompt: "Translate to Dhivehi. Don't explain. Only return the translated text.",
+                default_temperature: 0.85,
+                source_text: query
+            },
+            results: results
+        };
+    }
+
+    async function copyJSON() {
+        const data = getTranslationData();
+        if (!data) return showToast(t('No translations to copy'), 'error');
+
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+            showToast(t('JSON data copied!'), 'success');
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+            showToast(t('Failed to copy data'), 'error');
+        }
+    }
+
+    async function copyAnalysisPrompt() {
+        const data = getTranslationData();
+        if (!data) return showToast(t('No translations to copy'), 'error');
+
+        const promptText = `Please analyze the following translation data.
+
+Methodology:
+${METHODOLOGY_TEXT}
+
+${RUBRIC_TEXT}
+
+System Prompt: "${data.metadata.system_prompt}"
+Default Temperature: ${data.metadata.default_temperature}
+
+Source Text: "${data.metadata.source_text}"
+
+Data (JSON):
+${JSON.stringify(data, null, 2)}
+
+Please provide an analysis of the translations, comparing their accuracy, fluency, and adherence to Dhivehi grammar and idiom. Highlight the strengths and weaknesses of different models.`;
+
+        try {
+            await navigator.clipboard.writeText(promptText);
+            showToast(t('Analysis prompt and data copied!'), 'success');
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+            showToast(t('Failed to copy data'), 'error');
         }
     }
 });
