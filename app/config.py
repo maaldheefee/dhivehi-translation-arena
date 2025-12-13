@@ -247,9 +247,10 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 3.0,
             "output_cost_per_mtok": 15.0,
-            "is_active": True,
+            "is_active": False,
             "rate_limit": None,
             "base_model": "Claude 3.7 Sonnet",
+            "temperature": 0.85,
         },
         "claude-sonnet-3.7-low-temp-0.1": {
             "name": "anthropic/claude-3.7-sonnet",
