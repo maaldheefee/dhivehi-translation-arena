@@ -115,7 +115,6 @@ def _select_models(available_models_map, usage_stats, config):
     return selected_keys
 
 
-
 @main_bp.route("/")
 def index():
     """Renders the main page with a shuffled list of predefined queries."""
@@ -358,6 +357,9 @@ def get_random_comparison():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    target_models_str = request.args.get("target_models", "")
+    target_models = {m.strip() for m in target_models_str.split(",") if m.strip()}
+
     # Find queries with at least 2 translations
     queries_with_translations = (
         db_session.query(Query.id)
@@ -388,6 +390,10 @@ def get_random_comparison():
         if len(translations) < 2:
             continue
 
+        # Optimization: Early skip if targeting models and this query has none of them
+        if target_models and not any(t.model in target_models for t in translations):
+            continue
+
         # --- Filter Candidates ---
         # 1. Reject explicit trash (optional, if we track rejection status on Translation)
         # 2. Reject if average vote < 1.5 (requires joining votes, maybe expensive here)
@@ -415,6 +421,12 @@ def get_random_comparison():
         random.shuffle(translations)
 
         for t1, t2 in combinations(translations, 2):
+            # If targeting models, ensure at least one is in the target set
+            if target_models and (
+                t1.model not in target_models and t2.model not in target_models
+            ):
+                continue
+
             pair_key = frozenset([t1.id, t2.id])
             if pair_key in compared_pairs:
                 continue

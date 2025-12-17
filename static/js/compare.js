@@ -11,11 +11,24 @@ document.addEventListener('DOMContentLoaded', () => {
         skipBtn: document.getElementById('skip-btn')
     };
     
+    // Elements already defined above... adding new ones
+    elements.toggleFiltersBtn = document.getElementById('toggle-filters-btn');
+    elements.filterPanel = document.getElementById('filter-panel');
+    elements.modelFiltersGrid = document.getElementById('model-filters-grid');
+    elements.applyFiltersBtn = document.getElementById('apply-filters-btn');
+    elements.clearFiltersBtn = document.getElementById('clear-filters-btn');
+    elements.filterCountBadge = document.getElementById('filter-count-badge');
+    elements.activeFilterMsg = document.getElementById('active-filter-msg');
+    elements.activeFilterList = document.getElementById('active-filter-list');
+    
     // State
     let currentComparison = null;
     let isSubmitting = false;
+    let availableModels = {};
+    let selectedModels = new Set();
     
     // Initialization
+    fetchAvailableModels(); // Load models first, but don't wait for it to load comparison
     loadNextComparison();
     
     // Event Listeners
@@ -34,13 +47,114 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.skipBtn) {
         elements.skipBtn.addEventListener('click', loadNextComparison);
     }
+
+    // Filter Listeners
+    if(elements.toggleFiltersBtn) {
+        elements.toggleFiltersBtn.addEventListener('click', () => {
+             elements.filterPanel.classList.toggle('hidden');
+        });
+    }
+
+    if(elements.applyFiltersBtn) {
+        elements.applyFiltersBtn.addEventListener('click', () => {
+            updateSelectedModels();
+            loadNextComparison();
+            // Optional: Close panel on apply? keeping it open might be better if they want to tweak 
+            // elements.filterPanel.classList.add('hidden'); 
+        });
+    }
+
+    if(elements.clearFiltersBtn) {
+        elements.clearFiltersBtn.addEventListener('click', () => {
+             document.querySelectorAll('.model-filter-checkbox').forEach(cb => cb.checked = false);
+             updateSelectedModels(); // Will clear the set
+             loadNextComparison();
+        });
+    }
     
     // Functions
+    async function fetchAvailableModels() {
+        try {
+            const res = await fetch('/get_available_models');
+            const data = await res.json();
+            availableModels = data.models;
+            renderModelFilters();
+        } catch (err) {
+            console.error('Failed to load models', err);
+            if (elements.modelFiltersGrid) {
+                elements.modelFiltersGrid.innerHTML = '<div class="text-red-500 text-xs">Failed to load models</div>';
+            }
+        }
+    }
+
+    function renderModelFilters() {
+        if (!elements.modelFiltersGrid) return;
+        elements.modelFiltersGrid.innerHTML = '';
+        
+        // Sort by name
+        const sortedKeys = Object.keys(availableModels).sort((a, b) => {
+            return (availableModels[a].name || a).localeCompare(availableModels[b].name || b);
+        });
+
+        sortedKeys.forEach(key => {
+            const model = availableModels[key];
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2 text-xs p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `filter-${key}`;
+            checkbox.value = key;
+            checkbox.className = 'model-filter-checkbox rounded text-primary focus:ring-primary border-gray-300';
+            
+            const label = document.createElement('label');
+            label.htmlFor = `filter-${key}`;
+            label.className = 'truncate cursor-pointer select-none flex-1';
+            label.textContent = model.name;
+            label.title = model.name; 
+            
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            elements.modelFiltersGrid.appendChild(div);
+        });
+    }
+
+    function updateSelectedModels() {
+        selectedModels.clear();
+        document.querySelectorAll('.model-filter-checkbox:checked').forEach(cb => {
+            selectedModels.add(cb.value);
+        });
+        
+        // Update badge and active message
+        if (selectedModels.size > 0) {
+            if(elements.filterCountBadge) {
+                elements.filterCountBadge.textContent = selectedModels.size;
+                elements.filterCountBadge.classList.remove('hidden');
+            }
+            if(elements.activeFilterMsg) {
+                elements.activeFilterMsg.classList.remove('hidden');
+                elements.activeFilterList.textContent = Array.from(selectedModels).map(k => availableModels[k]?.name || k).join(', ');
+            }
+            // Highlight toggle button
+            elements.toggleFiltersBtn.classList.add('text-primary');
+        } else {
+            if(elements.filterCountBadge) elements.filterCountBadge.classList.add('hidden');
+            if(elements.activeFilterMsg) elements.activeFilterMsg.classList.add('hidden');
+            elements.toggleFiltersBtn.classList.remove('text-primary');
+        }
+    }
+
     async function loadNextComparison() {
         showLoading();
         
         try {
-            const res = await fetch('/compare/random');
+            let url = '/compare/random';
+            if (selectedModels.size > 0) {
+                const modelsParam = Array.from(selectedModels).join(',');
+                url += `?target_models=${encodeURIComponent(modelsParam)}`;
+            }
+
+            const res = await fetch(url);
             if (res.status === 404) {
                 showEmptyState();
                 return;
@@ -53,7 +167,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error('Error loading comparison:', err);
             // Show toast or error state
-            showToast('Failed to load comparison', 'error');
+            showToast('Failed to load comparison: ' + err.message, 'error');
+            
+            // If it failed because of strict filter, maybe we should show empty state
+            if (selectedModels.size > 0) {
+                 showEmptyState();
+                 // Custom message for empty state when filtering
+                 const emptyMsg = elements.emptyState.querySelector('h3');
+                 if(emptyMsg) emptyMsg.textContent = 'No comparisons found for selected models.';
+            }
         }
     }
     

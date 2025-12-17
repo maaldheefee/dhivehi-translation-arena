@@ -85,6 +85,10 @@ TRANSLATIONS = {
         "public_warning": "All translations are public and can be voted on by anyone.",
         "monthly_cost_label": "Monthly Translation Cost",
         "budget_exceeded": "Budget Exceeded",
+        "filter_models": "Filter Models",
+        "force_include_model": "Force Include Model",
+        "filter_description": "Comparison pairs will include at least one of the selected models.",
+        "apply_filters": "Apply Filters",
     },
     "dv": {
         "title": "ދިވެހި ތަރުޖަމާ އެރީނާ",
@@ -172,5 +176,9 @@ TRANSLATIONS = {
         "public_warning": "ހުރިހާ ތަރުޖަމާތަކަކީ އެންމެންނަށް ފެންނަ އެއްޗެއް. ކޮންމެ މީހަކަށްވެސް ވޯޓު ދެވިދާނެ.",
         "monthly_cost_label": "މަހުގެ ތަރުޖަމާ ޚަރަދު",
         "budget_exceeded": "ބަޖެޓް ހުސްވެއްޖެ",
+        "filter_models": "މޮޑެލް ފިލްޓަރ ކުރޭ",
+        "force_include_model": "މި މޮޑެލްތައް ހިމަނާ",
+        "filter_description": "އަޅާކިޔާ ޕެއަރ ތަކުގައި މަދުވެގެން މިތަނުން އެއް މޮޑެލް ހިމެނޭނެ.",
+        "apply_filters": "ފިލްޓަރ",
     },
 }
