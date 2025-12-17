@@ -99,17 +99,20 @@ document.addEventListener('DOMContentLoaded', () => {
         sortedKeys.forEach(key => {
             const model = availableModels[key];
             const div = document.createElement('div');
-            div.className = 'flex items-center gap-2 text-xs p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded';
+            // Increased gap to 3, improved dark mode hover, added padding
+            div.className = 'flex items-center gap-3 text-xs p-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded transition-colors';
             
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.id = `filter-${key}`;
             checkbox.value = key;
-            checkbox.className = 'model-filter-checkbox rounded text-primary focus:ring-primary border-gray-300';
+            // Added dark mode border and background for checkbox to be visible
+            checkbox.className = 'model-filter-checkbox rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-primary';
             
             const label = document.createElement('label');
             label.htmlFor = `filter-${key}`;
-            label.className = 'truncate cursor-pointer select-none flex-1';
+            // Added explicit dark mode text color
+            label.className = 'truncate cursor-pointer select-none flex-1 text-gray-700 dark:text-gray-200 font-medium';
             label.textContent = model.name;
             label.title = model.name; 
             
