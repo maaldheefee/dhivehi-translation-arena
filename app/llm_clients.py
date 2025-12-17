@@ -198,9 +198,9 @@ def get_translation_client(model_key: str) -> TranslationClient:
 
 
 def get_available_models() -> dict[str, str]:
-    """Get a dictionary of available, active models."""
+    """Get a dictionary of available, active, non-hidden models."""
     return {
         key: model["display_name"]
         for key, model in config.MODELS.items()
-        if model.get("is_active", True)
+        if model.get("is_active", True) and not model.get("is_hidden", False)
     }
