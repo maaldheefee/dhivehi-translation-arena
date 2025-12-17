@@ -23,12 +23,25 @@ In "Quick Compare" mode, users are presented with two blind translations side-by
 
 To maximize the utility of the data, the system unifies these two voting methods into a single dataset for ranking.
 
+
 - **Explicit Comparisons**: Results from the "Quick Compare" mode are used directly.
 - **Derived Comparisons**: Star ratings are converted into pairwise comparisons.
     - If a user rates Model A as **3 Stars** and Model B as **1 Star** for the same query, the system infers a "Win" for Model A over Model B.
-    - If ratings are equal, it is recorded as a "Tie".
+    - If ratings are equal (e.g., both 3 Stars), it is recorded as a "Tie" (0.5 vs 0.5).
 
-This hybrid approach allows the system to build a robust ranking even when users primarily engage with the star rating interface.
+### The "Funnel" Strategy (Cognitive Load vs. Precision)
+The system uses a hybrid "Funnel" approach to balance human effort with statistical precision:
+
+1.  **Phase 1: Coarse Sorting (Star Ratings)**
+    - Users provide independent ratings (1-3 Stars). This efficiently separates "Trash" from "Good" from "Excellent" in O(N) time.
+    - **Handling Draws**: If two models receive the same rating, the system records a Tie. This brings their ELO ratings closer together.
+
+2.  **Phase 2: Fine Tuning (Pairwise Comparison)**
+    - The "Compare" page uses an active learning algorithm to identify pairs with similar ELO ratings.
+    - Since "Derived Ties" result in similar ELOs, the system prioritizes these pairs for explicit side-by-side comparison.
+    - This allows users to resolve the "Tie" with a high-precision relative judgment (e.g., "Both are 3 stars, but A is slightly better").
+
+This hybrid approach ensures that the "easy" work (spotting trash) is done fast via ratings, while the "hard" work (ranking top contenders) is focused purely on the pairs that matter effectively self-correcting any lack of nuance in the initial star rating.
 
 ## 3. ELO Ranking Algorithm
 

@@ -1,44 +1,39 @@
 # Changelog
 
-## December 2025
+All notable changes to this project will be documented in this file.
 
-### New Features
-- **User Management**: Implemented `flask add-user`, `flask remove-user` CLI commands, and `manage_users.py` script.
-- **LLM Integration**: Added Gemini 3 Pro and Claude Opus 4.5 via OpenRouter. Implemented model presets (temperature, reasoning budget).
-- **Stats Improvements**: Added "Projected Cost (100k words)" and "Bang for Buck" metrics to stats page.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Improvements & Infrastructure
-- **Environment Config**: Used ENV variables for paths and secrets. Updated Docker and Justfile for dev/prod parity.
-- **CI/CD**: Added GitHub Action for Docker build and volume mounts in `compose.yml`.
-- **Frontend Model Selection**: Limit display to 6 models max, prioritizing those with fewer usage data points.
-- **Error Handling**: Improved LLM error handling (timeouts, max tokens). Allowed voting on successful responses even if some models fail.
-- **Cleanup**: Removed native Gemini Client in favor of unified OpenRouter client.
-- **Model Presets**: Added Low Temperature (0.1) variants for Gemini 2.0, 2.5, and Claude models.
-- **Smart Model Selection**: Updated main page selection logic to group model presets together (e.g. Base and Low Temp), facilitating better pairwise comparisons.
-- **Balanced Model Selection**: Refactored selection algorithm to eliminate vendor bias. Now uses bucketed randomization to ensure fair representation across all vendors (Google, Anthropic) while still prioritizing low-usage models and grouping preset variants together.
+## [0.2.0] - 2025-12-18
 
-### Fixes
-- **Login Fix**: Resolved 400 Bad Request error when running behind Cloudflare Tunnel by adding `ProxyFix` middleware.
-- **Stream Stability**: Fixed translation stream buffering/hanging issues by adding `no-cache` and `X-Accel-Buffering: no` headers.
-- **UI Hang**: Fixed issue where UI hangs on stream error. Pending translations are now marked as failed, allowing voting on successful results.
-- **Duplicate Handling**: Added warning badge for duplicate translation results from the same model to prevent redundant voting.
-- **Stats Sorting**: Fixed sorting behavior for "Bang for Buck" and "ELO" columns by using numeric data attributes.
+### Added
+- **Core Feature**: "Funnel" ranking strategy. Star ratings now automatically generate approximate pairwise ELO comparisons (Derived Ties) to feed the active learning queue.
+- **CLI**: New `flask derive-elo` command to backfill pairwise comparisons from historical vote data.
+- **Docs**: Comprehensive documentation restructuring. Moved User docs to `/docs` and Dev notes to `/docs/dev_notes`.
+- **UI**: Advanced ELO Pairing filter to "force include" specific models in comparisons.
+- **Stats**: "Projected Cost (100k words)" and "Bang for Buck" metrics.
+- **Config**: "Low Temperature" variants (0.1) for Gemini and Claude models.
 
-### Localization & Polish
-- **Full Localization**: Implemented full English/Dhivehi support for all UI elements including badges, toasts, and tooltips.
-- **Rating Tips**: Added descriptive tooltips for rating stars (1-3 stars) to guide better quality assessment.
-- **UI Polish**: Unified UI components and fixed untranslated strings.
-- **Compare UI Localization**: Added missing Dhivehi translations for the new comparison feature.
-- **Model Selection Fix**: Restored logic to select top 6 models with least data points, then randomizing display order.
-- **Header Budget**: Moved user cost tracking to global header for better visibility.
-- **Compare Progress**: Added stats indicator showing comparisons submitted and pairs remaining.
-- **ELO Optimization**: Refactored pair selection to maximize information gain (similar ELOs) and optimized DB queries (N+1 fix).
+### Changed
+- **Algorithm**: Balanced Model Selection now uses bucketed randomization to ensure fair vendor representation while prioritizing low-usage models.
+- **Algorithm**: ELO active learning now prioritizes pairs with close ELO ratings (including derived ties) for explicit comparison.
+- **UI**: Significant visual polish to model selector, main page layout, and stats grid.
+- **UI**: Combined scores now displayed as 0-100 percentage with color coding.
+- **Refactor**: Renamed `DEPLOYMENT.md` to `docs/deployment.md`.
 
-### UX & Design Updates
-- **Main Page Restructure**: Repositioned query snippets for better accessibility. Collapsible sections for instructions and configuration.
-- **Visual Enhancements**: Major improvements to model selector readability, dark mode consistency, and stats grid layout.
-- **Compare Flow**: Centered action buttons and improved navigation in comparison mode.
-- **Advanced ELO Pairing**: Added optional filter to "force include" specific models in pairwise comparisons, accelerating data collection for new or low-volume models.
-- **Typography & Accessibility**: Enforced Latin fonts for model names and technical data for better legibility.
-- **Stats Formatting**: Updated conditional formatting for voting scores (<0.5 as low quality) and converted combined scores to a 0-100 percentage scale with color coding (>70 great, <40 bad).
+### Fixed
+- **Authentication**: Resolved `ProxyFix` issues for Cloudflare Tunnel.
+- **Streaming**: Fixed buffering issues with `X-Accel-Buffering: no` headers.
+- **Stability**: Pending translations are correctly marked as failed on stream error, preventing UI hangs.
+- **Sorting**: Fixed numeric sorting for "Bang for Buck" stats column.
+- **Localization**: Complete Eng/Dhivehi support for all new comparison UI elements.
+
+## [1.0.0] - 2025-12-01
+
+### Added
+- Initial release of Dhivehi Translation Arena.
+- Basic Voting (1-3 Stars) and ELO Ranking System.
+- Google Gemini and Anthropic Claude integration.
+- Dark/Light mode support.
 

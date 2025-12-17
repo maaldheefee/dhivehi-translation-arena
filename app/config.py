@@ -292,7 +292,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 5.0,
             "output_cost_per_mtok": 25.0,
-            "is_active": True,
+            "is_active": False,
             "rate_limit": None,
             "base_model": "Claude Opus 4.5",
             "temperature": 0.85,

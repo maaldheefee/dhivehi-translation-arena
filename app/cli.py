@@ -79,8 +79,26 @@ def list_users_command():
         click.echo(f"{user.username:<20} {role:<10}")
 
 
+
+@click.command("derive-elo")
+@click.option("--user-id", type=int, default=None, help="Filter by user ID")
+@with_appcontext
+def derive_elo_command(user_id):
+    """Derive ELO comparisons from existing votes."""
+    from app.services.elo_service import get_elo_service
+
+    try:
+        elo_service = get_elo_service()
+        print("Deriving ELO comparisons from existing votes...")
+        count = elo_service.derive_from_existing_votes(user_id=user_id)
+        print(f"Successfully derived {count} new pairwise comparisons.")
+    except Exception as e:
+        print(f"Error deriving ELO comparisons: {e}")
+
+
 def register_commands(app):
     app.cli.add_command(init_db_command)
     app.cli.add_command(add_user_command)
     app.cli.add_command(remove_user_command)
     app.cli.add_command(list_users_command)
+    app.cli.add_command(derive_elo_command)
