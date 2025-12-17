@@ -111,8 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const label = document.createElement('label');
             label.htmlFor = `filter-${key}`;
-            // Added explicit dark mode text color
-            label.className = 'truncate cursor-pointer select-none flex-1 text-gray-700 dark:text-gray-200 font-medium';
+            // Removed explicit color classes to inherit var(--text-primary) from body
+            label.className = 'truncate cursor-pointer select-none flex-1 font-medium';
             label.textContent = model.name;
             label.title = model.name; 
             
