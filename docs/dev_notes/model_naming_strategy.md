@@ -41,10 +41,10 @@ Examples:
 
 ### Migration Plan
 
-See `docs/MODEL_NAMING_ANALYSIS.md` for:
-- Complete list of models to rename
+For model renaming procedures, see [model_renaming.md](model_renaming.md) which documents:
 - Step-by-step migration commands
 - Rollback procedures
+- Common scenarios
 
 ### Implementation Tasks
 
@@ -65,9 +65,8 @@ See `docs/MODEL_NAMING_ANALYSIS.md` for:
 
 ### Next Steps
 
-1. Review the detailed analysis in `docs/MODEL_NAMING_ANALYSIS.md`
-2. Add `is_hidden` field to config schema
-3. Test migration script with dry-run
-4. Execute migration when ready
-5. Update config.py with new model keys
-6. Implement UI changes for `is_hidden` flag
+1. Use `scripts/rename_model.py --dry-run` to preview changes
+2. Execute migration when ready
+3. Update config.py with new model keys
+4. Restart application and verify
+

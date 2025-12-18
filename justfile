@@ -74,7 +74,7 @@ restart:
 # Backup the database (⚠️  Creates a timestamped backup)
 backup:
     @echo "Creating database backup..."
-    cp data/translations.db "data/translations_backup_$(date +%Y%m%d_%H%M%S).db"
+    cp data/dhivehi_translation_arena.db "data/dhivehi_translation_arena_backup_$(date +%Y%m%d_%H%M%S).db"
     @echo "Backup created successfully"
 
 # Clean up old backup files (⚠️  WARNING: This will delete old backup files)
@@ -82,7 +82,7 @@ clean-backups:
     @echo "⚠️  WARNING: This will delete backup files older than 30 days!"
     @echo "Press Ctrl+C to cancel, or Enter to continue..."
     @read
-    find data/ -name "translations_backup_*.db" -mtime +30 -delete
+    find data/ -name "*_backup_*.db" -mtime +30 -delete
     @echo "Old backups cleaned up"
 
 # Maintenance commands
@@ -102,7 +102,7 @@ status:
     docker-compose ps
     @echo ""
     @echo "=== Database Status ==="
-    @if [ -f "data/translations.db" ]; then echo "Database exists"; else echo "Database not found - run 'just init-db'"; fi
+    @if [ -f "data/dhivehi_translation_arena.db" ]; then echo "Database exists"; else echo "Database not found - run 'just init-db'"; fi
     @echo ""
     @echo "=== Environment ==="
     @if [ -f ".env" ]; then echo ".env file exists"; else echo ".env file missing - copy from example.env"; fi

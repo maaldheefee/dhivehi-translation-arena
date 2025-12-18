@@ -232,7 +232,7 @@ This provides a temporary `*.trycloudflare.com` URL.
 just backup
 
 # Manual backup
-cp data/translations.db "data/translations_backup_$(date +%Y%m%d_%H%M%S).db"
+cp data/dhivehi_translation_arena.db "data/dhivehi_translation_arena_backup_$(date +%Y%m%d_%H%M%S).db"
 ```
 
 ### Restore from Backup
@@ -242,7 +242,7 @@ cp data/translations.db "data/translations_backup_$(date +%Y%m%d_%H%M%S).db"
 just down
 
 # Restore database
-cp data/translations_backup_YYYYMMDD_HHMMSS.db data/translations.db
+cp data/YOUR_BACKUP_FILE.db data/dhivehi_translation_arena.db
 
 # Start application
 just up

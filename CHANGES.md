@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Localization**: Resolved missing placeholders (`stats_subheader`, `option_a`, etc.) in the Compare and Stats interfaces.
 - **UI**: Fixed visibility and dark mode support for the advanced model filter button and panel.
 - **RTL**: Improved RTL spacing and alignment for collapsible summary icons.
+- **Docs**: Fixed outdated references to `DEPLOYMENT.md`, non-existent `MODEL_NAMING_ANALYSIS.md`, and incorrect database filename `translations.db`.
 
 
 ## [0.2.0] - 2025-12-18

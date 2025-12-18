@@ -119,7 +119,7 @@ SECRET_KEY=your_secret_key_here
 - **Architecture:** Single container deployment suitable for low-traffic scenarios
 - **Data Persistence:** SQLite database stored in `./data` directory (mounted as Docker volume)
 - **Port:** Application runs on port 8101 (mapped from container port 8080)
-- **Future:** Ready for Cloudflare Zero Trust Tunnel integration (see `DEPLOYMENT.md`)
+- **Future:** Ready for Cloudflare Zero Trust Tunnel integration (see `docs/deployment.md`)
 
 ## Data Storage
 
@@ -132,4 +132,4 @@ All translations and votes are stored in a SQLite database located in the `data`
 - **Database issues:** `just init-db` (⚠️ this will reset all data)
 - **Docker issues:** `just docker-clean` (⚠️ this will remove unused Docker resources)
 
-For detailed deployment instructions and Cloudflare tunnel setup, see `DEPLOYMENT.md`.
+For detailed deployment instructions and Cloudflare tunnel setup, see [docs/deployment.md](docs/deployment.md).
