@@ -1,0 +1,15 @@
+[Unit]
+Description=Dhivehi Translation Arena Gunicorn Service
+After=network.target
+
+[Service]
+# Replace <YOUR_USER> with your system username
+User=<YOUR_USER>
+Group=<YOUR_USER>
+WorkingDirectory=/path/to/dhivehi-translation-arena
+ExecStart=/home/<YOUR_USER>/.local/bin/uv run python wsgi.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

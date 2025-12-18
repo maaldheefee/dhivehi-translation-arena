@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('stats_title') }}{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="translation-shell stats-section">
+    <div class="hero-text">
+        <h2>{{ _('stats_header') }}</h2>
+        <p>{{ _('stats_subheader') }}</p>
+    </div>
+
+    <div class="global-stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_votes }}</div>
+            <div class="stat-label">{{ _('total_votes') }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ global_stats.total_generations }}</div>
+            <div class="stat-label">{{ _('total_translations') }}</div>
+        </div>
+        <div class="stat-card">
+             <div class="stat-value">${{ "%.2f"|format(global_stats.total_cost) }}</div>
+            <div class="stat-label">{{ _('total_cost') }}</div>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="modelPerformanceChart"></canvas>
+    </div>
+
+    <div class="stats-details">
+        <div class="results-header" style="justify-content: space-between; display: flex; align-items: center; margin-bottom: 1rem;">
+            <h3>{{ _('stats_table_header') }}</h3>
+            <div class="header-actions">
+                <button id="stats-copy-json" class="btn secondary sm-btn" title="Only copy JSON data">
+                    <span class="icon">{}</span>
+                    <span class="btn-text">JSON</span>
+                </button>
+                <button id="stats-copy-prompt" class="btn secondary sm-btn" title="Copy stats within analysis prompt">
+                    <span class="icon">📋</span>
+                    <span class="btn-text">Analysis Prompt</span>
+                </button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th data-sort="number">{{ _('rank') }}</th>
+                    <th data-sort="string">{{ _('model_name') }}</th>
+                    <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
+                    <th data-sort="number">{{ _('avg_score') }}</th>
+                    <th data-sort="number">{{ _('elo_rating') }}</th>
+                    <th data-sort="number">{{ _('combined_score') }}
+                    <div style="font-size: 0.75em; color: #6b7280; margin-top: 2px;">Avg + ELO</div></th>
+                    <th data-sort="number">{{ _('projected_cost_100k') }}</th>
+                    <th data-sort="number">{{ _('bang_for_buck_score') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in model_scores %}
+                <tr class="{% if not model.is_active %}deprecated-model{% endif %}">
+                    <td><span class="rank-badge">{{ loop.index }}</span></td>
+                    <td class="latin-content">
+                        <strong>{{ model.base_model }}</strong>
+                        {% if model.preset_name %}
+                        <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">{{ model.preset_name }}</div>
+                        {% endif %}
+                        {% if not model.is_active %}<span class="deprecated-tag">({{ _('inactive', default='Inactive') }})</span>{% endif %}
+                    </td>
+                    <td style="text-align: left;">
+                        <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
+                            {% if model.votes_cast > 0 %}
+                                {% if model.excellent_count > 0 %}
+                                <div class="bar excellent" style="width: {{ (model.excellent_count / model.votes_cast) * 100 }}%"><span>{{ model.excellent_count }}</span></div>
+                                {% endif %}
+                                {% if model.good_count > 0 %}
+                                <div class="bar good" style="width: {{ (model.good_count / model.votes_cast) * 100 }}%"><span>{{ model.good_count }}</span></div>
+                                {% endif %}
+                                {% if model.okay_count > 0 %}
+                                <div class="bar okay" style="width: {{ (model.okay_count / model.votes_cast) * 100 }}%"><span>{{ model.okay_count }}</span></div>
+                                {% endif %}
+                                {% if model.rejected_count > 0 %}
+                                <div class="bar rejected" style="width: {{ (model.rejected_count / model.votes_cast) * 100 }}%"><span>{{ model.rejected_count }}</span></div>
+                                {% endif %}
+                            {% else %}
+                            <div class="bar no-votes" style="width: 100%">{{ _('no_votes_yet') }}</div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% set score = model.average_score %}
+                        {% if score > 1.5 %}
+                            {% set score_class = 'high-score' %}
+                        {% elif score >= 0.5 %}
+                            {% set score_class = 'medium-score' %}
+                        {% else %}
+                            {% set score_class = 'low-score' %}
+                        {% endif %}
+                        <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
+                    </td>
+                    <td data-sort-value="{{ model.elo_rating }}">
+                        <div class="elo-badge" style="font-weight: bold; color: var(--primary);">
+                            {{ "%.0f"|format(model.elo_rating) }}
+                        </div>
+                        <div class="win-rate" style="font-size: 0.8em; color: var(--text-secondary);">
+                            {{ "%.1f"|format(model.elo_win_rate) }}% WR
+                        </div>
+                    </td>
+                    <td>
+                        {% set combined_val = (model.combined_score * 100) | round | int %}
+                        {% if combined_val > 70 %}
+                            {% set combined_class = 'high-score' %}
+                        {% elif combined_val < 40 %}
+                            {% set combined_class = 'low-score' %}
+                        {% else %}
+                            {% set combined_class = 'medium-score' %}
+                        {% endif %}
+                         <span class="score-badge {{ combined_class }}">{{ combined_val }}</span>
+                    </td>
+                    <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
+                    <td data-sort-value="{{ model.bang_for_buck }}">
+                        <div class="bang-for-buck-bar-container" title="{{ '%.1f'|format(model.bang_for_buck) }}">
+                            <div class="bang-for-buck-bar" style="width: {{ (model.bang_for_buck * 10) }}%; max-width: 100%;"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="stats-details" style="margin-top: 2rem;">
+        <h3>{{ _('cost_breakdown_header') }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ _('model_name') }}</th>
+                    <th>{{ _('total_cost') }}</th>
+                    <th>{{ _('total_translations') }}</th>
+                    <th>{{ _('projected_cost_100k') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cost_breakdown %}
+                <tr>
+                    <td><strong>{{ item.base_model }}</strong></td>
+                    <td>${{ "%.2f"|format(item.total_cost) }}</td>
+                    <td>{{ item.total_generations }}</td>
+                    <td>${{ "%.2f"|format(item.projected_cost_100k) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function sortTable(table, colIndex, type) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.rows);
+        const isAscending = table.getAttribute('data-sort-order') === 'asc';
+        const direction = isAscending ? 1 : -1;
+
+        rows.sort((a, b) => {
+            const aCellEl = a.cells[colIndex];
+            const bCellEl = b.cells[colIndex];
+            
+            let aVal, bVal;
+
+            // Check for explicit sort value first
+            if (aCellEl.hasAttribute('data-sort-value')) {
+                const aSortVal = aCellEl.getAttribute('data-sort-value');
+                const bSortVal = bCellEl.getAttribute('data-sort-value');
+                
+                if (type === 'number') {
+                    aVal = parseFloat(aSortVal) || 0;
+                    bVal = parseFloat(bSortVal) || 0;
+                } else {
+                    aVal = aSortVal.toLowerCase();
+                    bVal = bSortVal.toLowerCase();
+                }
+            } else {
+                const aText = aCellEl.innerText.trim();
+                const bText = bCellEl.innerText.trim();
+
+                if (type === 'number') {
+                    // Remove currency symbols, commas, etc.
+                    aVal = parseFloat(aText.replace(/[^0-9.-]+/g, '')) || 0;
+                    bVal = parseFloat(bText.replace(/[^0-9.-]+/g, '')) || 0;
+                } else {
+                    aVal = aText.toLowerCase();
+                    bVal = bText.toLowerCase();
+                }
+            }
+
+            if (aVal === bVal) return 0;
+            return (aVal > bVal ? 1 : -1) * direction;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+        table.setAttribute('data-sort-order', isAscending ? 'desc' : 'asc');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('modelPerformanceChart').getContext('2d');
+        
+        const labels = {{ model_scores|map(attribute='display_name')|list|tojson }};
+        const scores = {{ model_scores|map(attribute='average_score')|list|tojson }};
+        const elos = {{ model_scores|map(attribute='elo_rating')|list|tojson }};
+        
+        // Normalize ELO to be comparable to 3-point scale for visualization (rough mapping)
+        // 1300 -> 0, 1700 -> 3
+        const normalizedElos = elos.map(e => Math.max(0, (e - 1300) / (1700 - 1300) * 3));
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '{{ _("average_score") }}',
+                        data: scores,
+                        backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                        borderColor: 'rgba(37, 99, 235, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: '{{ _("elo_rating") }} (Scaled)',
+                        data: normalizedElos,
+                        type: 'line',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 3.5,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.dataset.type === 'line') {
+                                    // Show actual ELO in tooltip, not scaled
+                                    return 'ELO Rating: ' + elos[context.dataIndex].toFixed(0);
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Expose data for copy functions
+        window.statsData = {{ model_scores|tojson }};
+        window.globalStats = {{ global_stats|tojson }};
+
+        function showLocalToast(message, type = 'info') {
+            // Reusing the container from base.html if it exists, or create one
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container); // Append to body if not found
+            }
+            // Check if container needs basic styles if newly created (unlikely given base.html)
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for ELO-style comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated with a 50% weight from the star rating and 50% from the ELO rating. Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
+
+        function getStatsExportData() {
+            return {
+                metadata: {
+                    generated_at: new Date().toISOString(),
+                    total_votes: {{ total_votes }},
+                    total_translations: window.globalStats.total_generations
+                },
+                models: window.statsData.map(m => ({
+                    name: m.display_name,
+                    base_model: m.base_model,
+                    preset: m.preset_name,
+                    avg_score: m.average_score,
+                    elo: m.elo_rating,
+                    elo_details: {
+                        wins: m.elo_wins,
+                        losses: m.elo_losses,
+                        ties: m.elo_ties
+                    },
+                    win_rate: m.elo_win_rate,
+                    votes: m.votes_cast,
+                    cost_per_100k: m.projected_cost_100k,
+                    bang_for_buck: m.bang_for_buck,
+                    is_active: m.is_active,
+                    config: m.config
+                }))
+            };
+        }
+
+        async function copyStatsJSON() {
+            const data = getStatsExportData();
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                showLocalToast('Stats data copied to clipboard!', 'success');
+            } catch (err) {
+                console.error(err);
+                showLocalToast('Failed to copy data', 'error');
+            }
+        }
+
+        async function copyStatsPrompt() {
+            const data = getStatsExportData();
+            const promptText = `Please analyze the following Leaderboard data from the Dhivehi Translation Arena.
+
+Methodology:
+${METHODOLOGY_TEXT}
+
+Total Votes: ${data.metadata.total_votes}
+Total Translations: ${data.metadata.total_translations}
+
+Leaderboard Data (JSON):
+${JSON.stringify(data, null, 2)}
+
+Please analyze the performance of the different LLMs. 
+- Identify the top-tier models for Dhivehi translation.
+- Compare the "Bang for Buck" to find the most cost-effective options.
+- Discuss any discrepancy between pure Rating/ELO and Cost.
+- Identify patterns regarding temperature/thinking/presets. For example:
+    - Does low temperature (0.1) improve specific model families (e.g. Anthropic vs Gemini)?
+    - Do "Thinking" models outperform their standard counterparts?
+    - Are there specific presets that seem to yield better results?
+- Note the win/loss ratios in the detailed ELO stats.`;
+
+            try {
+                await navigator.clipboard.writeText(promptText);
+                showLocalToast('Analysis prompt copied to clipboard!', 'success');
+            } catch (err) {
+                console.error(err);
+                showLocalToast('Failed to copy data', 'error');
+            }
+        }
+
+        document.getElementById('stats-copy-json').addEventListener('click', copyStatsJSON);
+        document.getElementById('stats-copy-prompt').addEventListener('click', copyStatsPrompt);
+
+        // Add sorting event listeners
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const table = th.closest('table');
+                const colIndex = th.cellIndex;
+                const type = th.getAttribute('data-sort');
+                sortTable(table, colIndex, type);
+            });
+            th.style.cursor = 'pointer';
+            th.style.userSelect = 'none';
+        });
+    });
+</script>
+{% endblock %}

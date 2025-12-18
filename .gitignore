@@ -1,0 +1,42 @@
+# Agent configuration (local development)
+.agent/
+
+# Environment variables
+.env
+
+# Python virtual environment
+.venv
+venv
+.env.local
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+data/*.db
+*.sqlite
+*.db-wal
+*.db-shm
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+llm.txt
+compose.yml
+compose.dev.yml
+TODO.md
