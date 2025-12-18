@@ -76,9 +76,21 @@
 
 {% block content %}
 <section class="translation-shell">
-    <div class="hero-text">
-        <h2>{{ _('compare_header') }}</h2>
-        <p>{{ _('compare_subheader') }}</p>
+    <div class="results-header" style="margin-bottom: 1.5rem;">
+        <div>
+            <h2>{{ _('compare_header') }}</h2>
+            <p>{{ _('compare_subheader') }}</p>
+        </div>
+        <div class="header-actions">
+            <button id="compare-copy-json-btn" class="btn secondary sm-btn" title="Only copy JSON data">
+                <span class="icon">{}</span>
+                <span class="btn-text">JSON</span>
+            </button>
+            <button id="compare-copy-prompt-btn" class="btn secondary sm-btn" title="Copy comparison within analysis prompt">
+                <span class="icon">📋</span>
+                <span class="btn-text">Analysis Prompt</span>
+            </button>
+        </div>
     </div>
 
     <!-- Filters -->
@@ -178,10 +190,10 @@
             </div>
         </div>
         
-        <!-- Tie Button -->
-        <div class="actions-container" style="display: flex; justify-content: center; margin-top: 2rem; align-items: center;">
+        <!-- Tie/Skip Buttons -->
+        <div class="actions-container" style="display: flex; justify-content: center; margin-top: 2rem; align-items: center; gap: 1rem;">
             <button id="tie-btn" class="btn secondary px-8" style="padding: 0.5rem 2rem;">{{ _('mark_as_tie') }}</button>
-            <button id="skip-btn" class="btn text-btn ml-4 text-secondary" style="margin-left: 1rem; color: var(--text-secondary);">{{ _('skip') }}</button>
+            <button id="skip-btn" class="btn text-btn text-secondary" style="color: var(--text-secondary);">{{ _('skip') }}</button>
         </div>
         </div>
         

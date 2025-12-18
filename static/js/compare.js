@@ -339,4 +339,128 @@ document.addEventListener('DOMContentLoaded', () => {
         const remainingText = stats.pairs_remaining !== undefined ? ` (${stats.pairs_remaining} ${t('stats_remaining')})` : '';
         container.textContent = `${t('stats_submitted')}: ${stats.comparisons_done}${remainingText}`;
     }
+
+    // Copy Functions for Compare Page
+    function getComparisonData() {
+        if (!currentComparison) return null;
+        
+        const t1 = currentComparison.translations[0];
+        const t2 = currentComparison.translations[1];
+        
+        return {
+            query_id: currentComparison.query_id,
+            source_text: currentComparison.source_text,
+            translations: [
+                {
+                    id: t1.id,
+                    model: t1.model,
+                    base_model: t1.base_model,
+                    preset_name: t1.preset_name,
+                    text: t1.text
+                },
+                {
+                    id: t2.id,
+                    model: t2.model,
+                    base_model: t2.base_model,
+                    preset_name: t2.preset_name,
+                    text: t2.text
+                }
+            ]
+        };
+    }
+
+    async function copyComparisonJSON() {
+        const data = getComparisonData();
+        if (!data) {
+            showToast(t('no_translations_copy'), 'error');
+            return;
+        }
+        
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+            showToast(t('json_copied'), 'success');
+        } catch (err) {
+            console.error('Failed to copy JSON:', err);
+            showToast(t('failed_copy'), 'error');
+        }
+    }
+
+    async function copyComparisonPrompt() {
+        const data = getComparisonData();
+        if (!data) {
+            showToast(t('no_translations_copy'), 'error');
+            return;
+        }
+        
+        const t1 = data.translations[0];
+        const t2 = data.translations[1];
+        
+        const promptText = `# AI Judge - Dhivehi Translation Comparison
+
+## Task
+You are an expert judge evaluating two Dhivehi translations of the same source text. Analyze both translations and determine which one is superior, or if they are of equal quality.
+
+## Source Text (Arabic)
+${data.source_text}
+
+## Translation A
+**Model**: ${t1.base_model || t1.model}${t1.preset_name ? ` (${t1.preset_name})` : ''}
+**Translation**:
+${t1.text}
+
+## Translation B
+**Model**: ${t2.base_model || t2.model}${t2.preset_name ? ` (${t2.preset_name})` : ''}
+**Translation**:
+${t2.text}
+
+## Evaluation Criteria
+Please evaluate both translations based on:
+
+1. **Accuracy**: Does the translation correctly convey the meaning of the source text?
+2. **Fluency**: Is the Dhivehi natural and grammatically correct?
+3. **Completeness**: Are all parts of the source text translated?
+4. **Style**: Is the tone and register appropriate?
+5. **Cultural Appropriateness**: Does it use culturally appropriate terms and expressions?
+
+## Your Response
+Provide your analysis in the following format:
+
+### Analysis
+[Detailed comparison of both translations addressing each criterion]
+
+### Verdict
+- **Winner**: [A / B / Tie]
+- **Confidence**: [High / Medium / Low]
+- **Reasoning**: [Brief explanation of your decision]
+
+### Specific Issues (if any)
+- Translation A: [List any errors or weaknesses]
+- Translation B: [List any errors or weaknesses]
+
+Please be thorough and objective in your evaluation.
+
+## Data (JSON)
+\`\`\`json
+${JSON.stringify(data, null, 2)}
+\`\`\``;
+
+        try {
+            await navigator.clipboard.writeText(promptText);
+            showToast(t('analysis_prompt_copied'), 'success');
+        } catch (err) {
+            console.error('Failed to copy prompt:', err);
+            showToast(t('failed_copy'), 'error');
+        }
+    }
+
+    // Add event listeners for copy buttons
+    const compareCopyJsonBtn = document.getElementById('compare-copy-json-btn');
+    if (compareCopyJsonBtn) {
+        compareCopyJsonBtn.addEventListener('click', copyComparisonJSON);
+    }
+
+    const compareCopyPromptBtn = document.getElementById('compare-copy-prompt-btn');
+    if (compareCopyPromptBtn) {
+        compareCopyPromptBtn.addEventListener('click', copyComparisonPrompt);
+    }
 });

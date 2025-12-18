@@ -102,6 +102,8 @@ TRANSLATIONS = {
         "json_copied": "JSON data copied!",
         "failed_copy": "Failed to copy data",
         "analysis_prompt_copied": "Analysis prompt and data copied!",
+        "ai_judge": "AI Judge",
+        "ai_judge_prompt_copied": "AI Judge prompt copied!",
     },
     "dv": {
         "title": "ދިވެހި ތަރުޖަމާ އެރީނާ",
@@ -206,5 +208,7 @@ TRANSLATIONS = {
         "json_copied": "JSON ކޮޕީކުރެވިއްޖެ!",
         "failed_copy": "ކޮޕީ ނުކުރެވުނު",
         "analysis_prompt_copied": "އެނަލިސިސް ޕްރޮމްޕްޓް ކޮޕީކުރެވިއްޖެ!",
+        "ai_judge": "އޭއައި ފަނޑިޔާރު",
+        "ai_judge_prompt_copied": "އޭއައި ފަނޑިޔާރު ޕްރޮމްޕްޓް ކޮޕީކުރެވިއްޖެ!",
     },
 }

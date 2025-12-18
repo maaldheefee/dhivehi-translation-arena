@@ -302,14 +302,15 @@
             }, 4000);
         }
 
-        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for ELO-style comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated with a 50% weight from the star rating and 50% from the ELO rating. Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
+        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for ELO-style comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated with a 40% weight from the star rating and 60% from the ELO rating (to correct for optimism bias in user ratings). Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
 
         function getStatsExportData() {
             return {
                 metadata: {
                     generated_at: new Date().toISOString(),
                     total_votes: {{ total_votes }},
-                    total_translations: window.globalStats.total_generations
+                    total_translations: window.globalStats.total_generations,
+                    methodology: METHODOLOGY_TEXT
                 },
                 models: window.statsData.map(m => ({
                     name: m.display_name,
@@ -324,6 +325,12 @@
                     },
                     win_rate: m.elo_win_rate,
                     votes: m.votes_cast,
+                    vote_distribution: {
+                        excellent: m.excellent_count,
+                        good: m.good_count,
+                        okay: m.okay_count,
+                        rejected: m.rejected_count
+                    },
                     cost_per_100k: m.projected_cost_100k,
                     bang_for_buck: m.bang_for_buck,
                     is_active: m.is_active,
@@ -345,26 +352,72 @@
 
         async function copyStatsPrompt() {
             const data = getStatsExportData();
-            const promptText = `Please analyze the following Leaderboard data from the Dhivehi Translation Arena.
+            const promptText = `# Dhivehi Translation Arena - Leaderboard Analysis Request
 
-Methodology:
+## Task
+Analyze the following leaderboard data from the Dhivehi Translation Arena and provide comprehensive insights into LLM performance for Arabic/English to Dhivehi translation.
+
+## Methodology
 ${METHODOLOGY_TEXT}
 
-Total Votes: ${data.metadata.total_votes}
-Total Translations: ${data.metadata.total_translations}
+## Dataset Overview
+- **Total Votes Cast**: ${data.metadata.total_votes}
+- **Total Translations Generated**: ${data.metadata.total_translations}
+- **Data Generated**: ${data.metadata.generated_at}
 
-Leaderboard Data (JSON):
+## Analysis Requirements
+
+### 1. Overall Performance Ranking
+- Identify the top 5 models based on combined score
+- Highlight any models that significantly outperform or underperform expectations
+- Note any surprising results or anomalies
+
+### 2. Cost-Effectiveness Analysis
+- Identify the best "Bang for Buck" models (high quality at reasonable cost)
+- Compare premium vs budget options
+- Recommend optimal models for different use cases (quality-first vs cost-first)
+
+### 3. Configuration Impact Analysis
+Examine how different configurations affect performance:
+
+**Temperature Effects:**
+- Compare low temperature (0.1) vs standard (0.85) variants
+- Does low temperature improve consistency? Does it reduce creativity?
+- Which model families benefit most from low temperature?
+
+**Reasoning/Thinking Models:**
+- Do "thinking" or "reasoning" models justify their higher cost?
+- Compare thinking variants to their standard counterparts
+- Analyze win/loss ratios for reasoning models
+
+**Model Family Patterns:**
+- Compare Anthropic Claude vs Google Gemini families
+- Identify family-specific strengths or weaknesses
+- Note any consistent patterns across model families
+
+### 4. Vote Distribution Insights
+- Analyze the vote distribution (excellent/good/okay/rejected) for each model
+- Identify models with polarizing results (high excellent + high rejected)
+- Find consensus models (consistent good/excellent ratings)
+
+### 5. ELO vs Rating Discrepancies
+- Identify models where ELO rating significantly differs from average star rating
+- Explain potential reasons for these discrepancies
+- Which metric is more reliable for this use case?
+
+### 6. Recommendations
+Based on your analysis, provide:
+- Top 3 models for production use
+- Best budget option
+- Most cost-effective premium option
+- Models to avoid and why
+
+## Leaderboard Data (JSON)
+\`\`\`json
 ${JSON.stringify(data, null, 2)}
+\`\`\`
 
-Please analyze the performance of the different LLMs. 
-- Identify the top-tier models for Dhivehi translation.
-- Compare the "Bang for Buck" to find the most cost-effective options.
-- Discuss any discrepancy between pure Rating/ELO and Cost.
-- Identify patterns regarding temperature/thinking/presets. For example:
-    - Does low temperature (0.1) improve specific model families (e.g. Anthropic vs Gemini)?
-    - Do "Thinking" models outperform their standard counterparts?
-    - Are there specific presets that seem to yield better results?
-- Note the win/loss ratios in the detailed ELO stats.`;
+Please provide a detailed, data-driven analysis addressing all points above.`;
 
             try {
                 await navigator.clipboard.writeText(promptText);
