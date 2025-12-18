@@ -32,7 +32,11 @@ def main():
         # Create default users if none exist
         default_users = [
             # Default admin - set INIT_ADMIN_PASSWORD env var or change password immediately after first login
-            {"username": "admin", "password": os.environ.get("INIT_ADMIN_PASSWORD", "changeme"), "is_admin": True},
+            {
+                "username": "admin",
+                "password": os.environ.get("INIT_ADMIN_PASSWORD", "changeme"),
+                "is_admin": True,
+            },
         ]
 
         user_count = db_session.query(User).count()

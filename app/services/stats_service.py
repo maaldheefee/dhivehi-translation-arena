@@ -1,4 +1,5 @@
 import datetime
+import math
 from collections import defaultdict
 from typing import cast
 
@@ -168,14 +169,29 @@ def calculate_model_scores():
             }
         )
 
-    # Normalize Bang for Buck (0-10 scale)
+    # Normalize Bang for Buck (0-10 scale) using logarithmic scaling
+    # This prevents cheap models from completely dominating (getting 10)
+    # while compressing all others into a narrow 0-3 range.
+    # Log scaling spreads values more evenly across the full 0-10 range.
     if stats_list:
-        max_bb = max(s["bang_for_buck"] for s in stats_list)
+        # Apply log transform to spread values more evenly
         for s in stats_list:
-            if max_bb > 0:
-                s["bang_for_buck"] = (s["bang_for_buck"] / max_bb) * 10
+            if s["bang_for_buck"] > 0:
+                s["bang_for_buck"] = math.log(s["bang_for_buck"] + 1)
             else:
                 s["bang_for_buck"] = 0
+
+        # Now normalize the log-transformed values to 0-10
+        max_bb = max(s["bang_for_buck"] for s in stats_list)
+        min_bb = min(s["bang_for_buck"] for s in stats_list)
+        range_bb = max_bb - min_bb
+
+        for s in stats_list:
+            if range_bb > 0:
+                # Scale to 0-10 based on min-max of log values
+                s["bang_for_buck"] = ((s["bang_for_buck"] - min_bb) / range_bb) * 10
+            else:
+                s["bang_for_buck"] = 5  # All same value, default to middle
 
     stats_list.sort(key=lambda x: x["combined_score"], reverse=True)
 
@@ -299,7 +315,7 @@ def get_cost_breakdown():
             upstream_base_models[u_name] = b_name
 
     for t in translations:
-        model_key = t.model
+        model_key = str(t.model)
         # Fallback if model missing from config
         upstream_name = model_key
         display_name = model_key

@@ -34,7 +34,9 @@ def init_db_command():
             )
         print("Default users created successfully!")
     elif user_count == 0:
-        print("No users found. Use 'flask add-user <username> <password>' to create users.")
+        print(
+            "No users found. Use 'flask add-user <username> <password>' to create users."
+        )
     else:
         print(f"{user_count} users already exist.")
 

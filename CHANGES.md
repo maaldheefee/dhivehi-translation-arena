@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Algorithm**: Bang-for-buck scoring now uses logarithmic normalization instead of linear. This spreads values more evenly across the 0-10 range, preventing cheap models from dominating at 10 while compressing all others into a narrow 0-3 range.
+
 ### Fixes
 
 - **UI**: Fixed visibility and dark mode support for the advanced model filter button and panel.

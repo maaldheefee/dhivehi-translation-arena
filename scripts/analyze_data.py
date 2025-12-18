@@ -54,15 +54,15 @@ def analyze_pairwise_temperature(session):
     total_relevant = 0
 
     for comp in comparisons:
-        w = comp.winner_model
-        l = comp.loser_model
+        winner = comp.winner_model
+        loser = comp.loser_model
 
-        if not w or not l:
+        if not winner or not loser:
             continue
 
         # Check if one is high and one is low
-        w_temp = "low" if "t0.1" in w or "t0.3" in w else "high"
-        l_temp = "low" if "t0.1" in l or "t0.3" in l else "high"
+        w_temp = "low" if "t0.1" in winner or "t0.3" in winner else "high"
+        l_temp = "low" if "t0.1" in loser or "t0.3" in loser else "high"
 
         if w_temp != l_temp:
             total_relevant += 1
