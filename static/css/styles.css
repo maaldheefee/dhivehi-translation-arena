@@ -1,38 +1,43 @@
 /* CSS Variables & Theme */
 :root {
     /* Light Theme (Default) */
-    --bg-body: #f8f9fa;
+    --bg-body: #f8fafc;
     --bg-card: #ffffff;
-    --bg-header: #ffffff;
-    --text-primary: #1a1a1a;
-    --text-secondary: #6c757d;
+    --bg-header: rgba(255, 255, 255, 0.85);
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
     --border-color: #e2e8f0;
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
-    --danger-color: #dc2626;
-    --success-color: #16a34a;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --danger-color: #ef4444;
+    --success-color: #10b981;
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     --radius-md: 0.5rem;
     --radius-lg: 0.75rem;
     --font-heading: 'Tharujamaanu', 'Roboto', sans-serif;
     --font-body: 'Tharujamaanu', 'Roboto', sans-serif;
     
-    --transition-fast: 0.2s ease;
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.5);
 }
 
 [data-theme="dark"] {
     /* Dark Theme */
-    --bg-body: #121212;
-    --bg-card: #1e1e1e;
-    --bg-header: #1e1e1e;
-    --text-primary: #e5e5e5;
-    --text-secondary: #a3a3a3;
-    --border-color: #2c2c2c;
+    --bg-body: #0f172a;
+    --bg-card: #1e293b;
+    --bg-header: rgba(30, 41, 59, 0.85);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border-color: #334155;
     --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
+    --primary-hover: #60a5fa;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 /* Reset & Base */
@@ -66,6 +71,8 @@ button {
 /* Header */
 .app-header {
     background-color: var(--bg-header);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-color);
     padding: 1rem 0;
     position: sticky;
@@ -220,12 +227,14 @@ button {
 }
 
 .btn.primary {
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
     color: white;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .btn.primary:hover {
-    background-color: var(--primary-hover);
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+    transform: translateY(-1px);
 }
 
 .btn.secondary {

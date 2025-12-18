@@ -1,3 +1,13 @@
+    // --- Localization Helper ---
+    function t(key, params = {}) {
+        let text = window.translations && window.translations[key] ? window.translations[key] : key;
+        for (const [k, v] of Object.entries(params)) {
+             text = text.replace(`{${k}}`, v);
+        }
+        return text;
+    }
+    window.t = t;
+
 document.addEventListener('DOMContentLoaded', function() {
     // --- Configuration & Elements ---
     const elements = {
@@ -30,15 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let eventSource = null;
     let currentTotalCost = 0;
     let seenHashes = new Set();
-
-    // --- Localization Helper ---
-    function t(key, params = {}) {
-        let text = window.translations && window.translations[key] ? window.translations[key] : key;
-        for (const [k, v] of Object.entries(params)) {
-             text = text.replace(`{${k}}`, v);
-        }
-        return text;
-    }
 
     // --- Initialization ---
     initTheme();

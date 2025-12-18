@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  showEmptyState();
                  // Custom message for empty state when filtering
                  const emptyMsg = elements.emptyState.querySelector('h3');
-                 if(emptyMsg) emptyMsg.textContent = 'No comparisons found for selected models.';
+                 if(emptyMsg) emptyMsg.textContent = t('no_more_comparisons');
             }
         }
     }
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error('Failed to submit comparison');
             
             // Success! Load next
-            showToast('Comparison recorded', 'success');
+            showToast(t('toast_votes_submitted'), 'success');
             setTimeout(() => {
                 isSubmitting = false;
                 loadNextComparison();
@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log("Comparison Stats:", stats);
         // "Comparisons submitted: 5 (20 remaining)"
-        const remainingText = stats.pairs_remaining !== undefined ? ` (${stats.pairs_remaining} remaining)` : '';
-        container.textContent = `Comparisons submitted: ${stats.comparisons_done}${remainingText}`;
+        const remainingText = stats.pairs_remaining !== undefined ? ` (${stats.pairs_remaining} ${t('stats_remaining')})` : '';
+        container.textContent = `${t('stats_submitted')}: ${stats.comparisons_done}${remainingText}`;
     }
 });

@@ -7,13 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Localization**: Global translation helper `t()` and `window.translations` injection in `base.html` for consistent access to localized strings across all scripts.
+- **Localization**: Added missing localization keys for Compare UI, stats headers, and toast messages.
+- **UI**: New glassmorphism and premium UI utility classes in CSS.
+
 ### Changed
+- **UI**: Complete visual overhaul for a "Premium" aesthetic using a slate/blue color palette, cleaner shadows, and improved input focus states.
+- **UI**: Combined "Instructions", "Configure Models", and "Predefined Queries" into a single cohesive "Controls Card" on the main page.
+- **UI**: Refined the "Filter Models" button in the Compare UI with a new icon and cleaner styling.
+- **Algorithm**: Bang-for-buck scoring now uses logarithmic normalization instead of linear. This spreads values more evenly across the 0-10 range.
 
-- **Algorithm**: Bang-for-buck scoring now uses logarithmic normalization instead of linear. This spreads values more evenly across the 0-10 range, preventing cheap models from dominating at 10 while compressing all others into a narrow 0-3 range.
-
-### Fixes
-
+### Fixed
+- **Localization**: Resolved missing placeholders (`stats_subheader`, `option_a`, etc.) in the Compare and Stats interfaces.
 - **UI**: Fixed visibility and dark mode support for the advanced model filter button and panel.
+- **RTL**: Improved RTL spacing and alignment for collapsible summary icons.
 
 
 ## [0.2.0] - 2025-12-18
@@ -50,4 +58,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic Voting (1-3 Stars) and ELO Ranking System.
 - Google Gemini and Anthropic Claude integration.
 - Dark/Light mode support.
-

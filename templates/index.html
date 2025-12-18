@@ -9,11 +9,13 @@
         <p>{{ _('main_subheader') }}</p>
     </div>
 
-    <div class="info-section">
+    <div class="controls-card">
         <details class="info-details clean-details">
             <summary class="info-summary clean-summary">
-                <span class="summary-icon">ℹ️</span>
-                <span>{{ _('instructions_header') }}</span>
+                <div class="summary-left" style="display:flex; align-items:center;">
+                    <span class="summary-icon">ℹ️</span>
+                    <span>{{ _('instructions_header') }}</span>
+                </div>
                 <span class="chevron">▼</span>
             </summary>
             <div class="info-content">
@@ -31,11 +33,15 @@
                 </div>
             </div>
         </details>
-    </div>
 
-    <div class="advanced-options">
-         <details class="options-details">
-            <summary class="options-summary">{{ _('configure_models') }}</summary>
+         <details class="options-details clean-details">
+            <summary class="options-summary clean-summary">
+                <div class="summary-left" style="display:flex; align-items:center;">
+                    <span class="summary-icon">⚙️</span>
+                    <span>{{ _('configure_models') }}</span>
+                </div>
+                <span class="chevron">▼</span>
+            </summary>
             <div class="options-content">
                 <h4>{{ _('select_models_prompt') }}</h4>
                 <div id="model-selection-checkboxes" class="model-grid" dir="ltr">
@@ -43,12 +49,16 @@
                 </div>
             </div>
         </details>
-    </div>
 
-    <div class="predefined-queries-section">
-         <details class="queries-details">
-            <summary class="queries-summary">{{ _('predefined_queries_header') }}</summary>
-             <div class="query-chips">
+         <details class="queries-details clean-details">
+            <summary class="queries-summary clean-summary">
+                <div class="summary-left" style="display:flex; align-items:center;">
+                    <span class="summary-icon">💬</span>
+                    <span>{{ _('predefined_queries_header') }}</span>
+                </div>
+                <span class="chevron">▼</span>
+            </summary>
+             <div class="query-chips" style="padding: 1.25rem; border-top: 1px solid var(--border-color);">
                 {% for query in predefined_queries %}
                 <button class="chip" data-query="{{ query }}">{{ query }}</button>
                 {% endfor %}
@@ -140,7 +150,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    window.translations = {{ translations | tojson }};
-</script>
+
 {% endblock %}

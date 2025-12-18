@@ -84,9 +84,9 @@
     <!-- Filters -->
     <div class="max-w-4xl mx-auto mb-6 px-4">
         <div class="flex justify-end">
-            <button id="toggle-filters-btn" class="text-sm text-secondary hover:text-primary flex items-center gap-2 transition-colors py-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sliders-horizontal"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" y1="2" y2="6"/><line x1="8" y1="10" y2="14"/><line x1="16" y1="18" y2="22"/></svg>
-                {{ _('filter_models') }} <span id="filter-count-badge" class="hidden bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">0</span>
+            <button id="toggle-filters-btn" class="text-sm text-secondary hover:text-primary flex items-center gap-1 transition-colors py-1 px-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                <span class="font-medium">{{ _('filter_models') }}</span> <span id="filter-count-badge" class="hidden bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">0</span>
             </button>
         </div>
         
@@ -106,7 +106,7 @@
             </div>
 
             <div class="mt-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-3">
-                <button id="clear-filters-btn" class="text-xs text-secondary hover:text-red-500 transition-colors">Clear All</button>
+                <button id="clear-filters-btn" class="text-xs text-secondary hover:text-red-500 transition-colors">{{ _('clear_all') }}</button>
                 <button id="apply-filters-btn" class="btn primary text-sm px-4 py-1.5">{{ _('apply_filters') }}</button>
             </div>
             
@@ -146,7 +146,7 @@
             <!-- Option A -->
             <div class="compare-card cursor-pointer hover:border-primary transition-all duration-200" data-id="" id="option-a">
                 <div class="card-header flex justify-between items-center" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span class="font-bold text-secondary" style="font-weight: bold; color: var(--text-secondary);">Option A</span>
+                    <span class="font-bold text-secondary" style="font-weight: bold; color: var(--text-secondary);">{{ _('option_a') }}</span>
                     <!-- Hidden model name for debug/admin -->
                     <span class="model-name hidden" style="font-size: 0.75rem; color: #9ca3af;"></span>
                 </div>
@@ -160,13 +160,13 @@
 
             <!-- VS Badge -->
             <div class="vs-badge-container">
-                <div class="vs-badge">VS</div>
+                <div class="vs-badge">{{ _('vs_badge') }}</div>
             </div>
 
             <!-- Option B -->
             <div class="compare-card cursor-pointer hover:border-primary transition-all duration-200" data-id="" id="option-b">
                 <div class="card-header flex justify-between items-center" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span class="font-bold text-secondary" style="font-weight: bold; color: var(--text-secondary);">Option B</span>
+                    <span class="font-bold text-secondary" style="font-weight: bold; color: var(--text-secondary);">{{ _('option_b') }}</span>
                     <span class="model-name hidden" style="font-size: 0.75rem; color: #9ca3af;"></span>
                 </div>
                 <div class="card-body">
