@@ -47,7 +47,7 @@ jobs:
         if: success()
         run: |
           curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.WEBHOOK_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"id": "deploy-dv-trans"}' \
-            https://webhook.hardev.win/hooks/deploy-dv-trans
+            ${{ secrets.DEPLOY_WEBHOOK_URL }}

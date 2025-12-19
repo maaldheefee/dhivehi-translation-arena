@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI**: New glassmorphism and premium UI utility classes in CSS.
 - **Stats**: Vote distribution (excellent/good/okay/rejected) now included in JSON export for detailed analysis.
 - **Copy Buttons**: Unified JSON and Analysis Prompt copy buttons across all three pages (Main, Compare, Stats) with consistent styling and placement.
+- **Agent**: Added `/commit` workflow for standardized commit messages and CHANGELOG updates.
 
 ### Changed
 - **UI**: Complete visual overhaul for a "Premium" aesthetic using a slate/blue color palette, cleaner shadows, and improved input focus states.
@@ -20,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI**: Refined the "Filter Models" button in the Compare UI with a new icon and cleaner styling.
 - **Algorithm**: Bang-for-buck scoring now uses logarithmic normalization instead of linear. This spreads values more evenly across the 0-10 range.
 - **Stats**: Enhanced analysis prompt with comprehensive evaluation framework including cost-effectiveness, configuration impact, and vote distribution insights.
+- **CI/CD**: Updated deployment webhook to use dedicated secrets `DEPLOY_WEBHOOK_TOKEN` and `DEPLOY_WEBHOOK_URL` for better security and flexibility.
+- **Project Structure**: Renamed `CHANGES.md` to `CHANGELOG.md` to follow standard conventions and updated `.gitignore` to track `.agent/` configuration.
+- **DevOps**: Added detailed setup and usage instructions to `dhivehi-translation-arena.service` template.
 
 ### Fixed
 - **Localization**: Resolved missing placeholders (`stats_subheader`, `option_a`, etc.) in the Compare and Stats interfaces.

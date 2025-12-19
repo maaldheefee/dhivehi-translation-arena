@@ -1,3 +1,23 @@
+# =============================================================================
+# TEMPLATE: This is a template file that needs customization before deployment
+# =============================================================================
+#
+# Instructions:
+# 1. Copy this file to /etc/systemd/system/dhivehi-translation-arena.service
+# 2. Replace ALL <YOUR_USER> placeholders with your actual system username
+# 3. Replace /path/to/dhivehi-translation-arena with the actual path
+# 4. Verify the ExecStart path matches your uv installation location
+# 5. Run: sudo systemctl daemon-reload
+# 6. Run: sudo systemctl enable dhivehi-translation-arena
+# 7. Run: sudo systemctl start dhivehi-translation-arena
+#
+# Example after customization:
+# User=john
+# Group=john
+# WorkingDirectory=/home/john/apps/dhivehi-translation-arena
+# ExecStart=/home/john/.local/bin/uv run python wsgi.py
+# =============================================================================
+
 [Unit]
 Description=Dhivehi Translation Arena Gunicorn Service
 After=network.target

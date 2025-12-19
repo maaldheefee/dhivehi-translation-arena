@@ -1,6 +1,3 @@
-# Agent configuration (local development)
-.agent/
-
 # Environment variables
 .env
 
