@@ -431,7 +431,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 3.0,
             "output_cost_per_mtok": 15.0,
-            "is_active": False,
+            "is_active": True,
             "rate_limit": None,
             "base_model": "Claude Sonnet 4.6",
             "temperature": 0.1,
