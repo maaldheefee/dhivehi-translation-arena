@@ -207,7 +207,7 @@ def get_translation_client(model_key: str) -> TranslationClient:
             "Using OpenRouterClient."
         )
 
-    return OpenRouterClient(model_config)
+    return OpenRouterClient(model_key, model_config)
 
 
 def get_available_models() -> dict[str, str]:
