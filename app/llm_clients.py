@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 
 from openai import APITimeoutError, OpenAI
@@ -15,14 +16,17 @@ class TranslationClient:
 
     SYSTEM_PROMPT = config.SYSTEM_PROMPT
 
-    def __init__(self, model_config: ModelConfig):
+    # Shared state for rate limiting across instances: {model_key: {"last_request_time": float, "request_count": int}}
+    _shared_state: dict[str, dict[str, float | int]] = {}
+    _lock = threading.Lock()
+
+    def __init__(self, model_key: str, model_config: ModelConfig):
         """Initialize the translation client."""
+        self.model_key = model_key
         self.model_name = model_config["name"]
         self.input_cost_per_mtok = model_config["input_cost_per_mtok"]
         self.output_cost_per_mtok = model_config["output_cost_per_mtok"]
         self.rate_limit = model_config.get("rate_limit")
-        self.last_request_time = 0.0
-        self.request_count = 0
 
     def translate(self, text: str) -> tuple[str, float]:
         """
@@ -57,22 +61,37 @@ class TranslationClient:
         current_time = time.time()
         # Default rate limit window is 60 seconds
         rate_limit_window = 60
-        if current_time - self.last_request_time < rate_limit_window:
-            if self.request_count >= self.rate_limit:
-                return False
-            self.request_count += 1
-        else:
-            self.last_request_time = current_time
-            self.request_count = 1
+
+        with self._lock:
+            # Initialize state for this model if it doesn't exist
+            if self.model_key not in self._shared_state:
+                self._shared_state[self.model_key] = {
+                    "last_request_time": current_time,
+                    "request_count": 1,
+                }
+                return True
+
+            state = self._shared_state[self.model_key]
+            last_request_time = state["last_request_time"]
+            request_count = state["request_count"]
+
+            if current_time - last_request_time < rate_limit_window:
+                if request_count >= self.rate_limit:
+                    return False
+                state["request_count"] += 1
+            else:
+                state["last_request_time"] = current_time
+                state["request_count"] = 1
+
         return True
 
 
 class OpenRouterClient(TranslationClient):
     """Client for OpenRouter models."""
 
-    def __init__(self, model_config: ModelConfig):
+    def __init__(self, model_key: str, model_config: ModelConfig):
         """Initialize the OpenRouter client."""
-        super().__init__(model_config)
+        super().__init__(model_key, model_config)
         self.reasoning = model_config.get("reasoning")
         self.custom_temperature = model_config.get("temperature")
         self.timeout = model_config.get("timeout", 90.0)  # Thinking models use 180s
@@ -81,6 +100,12 @@ class OpenRouterClient(TranslationClient):
         """Translate text using the OpenRouter API."""
         if not config.OPENROUTER_API_KEY:
             return "Error: API key not configured for OpenRouter", 0.0
+
+        if not self._check_rate_limit():
+            return (
+                f"Error: Rate limit exceeded for model {self.model_name}. Please try again later.",
+                0.0,
+            )
 
         try:
             client = OpenAI(
