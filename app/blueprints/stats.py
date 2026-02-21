@@ -10,7 +10,7 @@ from app.services.stats_service import (
 stats_bp = Blueprint("stats", __name__)
 
 
-@stats_bp.route("/stats")
+@stats_bp.route("/")
 def stats():
     """Renders the statistics page with model performance data."""
     username = session.get("username", "Guest")
