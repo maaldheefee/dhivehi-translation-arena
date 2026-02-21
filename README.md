@@ -103,10 +103,7 @@ For local development without Docker:
 Create a `.env` file from `example.env` with:
 
 ```env
-# Google Gemini API Key
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# OpenRouter API Key (for Sonnet 3.7 access)
+# OpenRouter API Key (used for all models including Gemini and Claude)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # Flask secret key (used for session management)
