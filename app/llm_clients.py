@@ -191,35 +191,23 @@ def get_translation_client(model_key: str) -> TranslationClient:
         A translation client instance.
 
     Raises:
-        ValueError: If the model key or type is unknown.
+        ValueError: If the model key is unknown.
     """
     model_config = config.MODELS.get(model_key)
     if not model_config:
         msg = f"Unknown model: {model_key}"
         raise ValueError(msg)
 
-    # Simplified logic: All active models essentially use OpenRouter now as per requirement.
-    # But check type just in case.
+    # All active models use OpenRouter as per requirement.
+    # We use OpenRouterClient for all models since other clients have been removed.
     model_type = model_config.get("type", "openrouter")
-
-    if model_type == "openrouter":
-        return OpenRouterClient(model_key, model_config)
-
-    # Fallback or error for now? User said "Remove Gemini Client... use OpenRouter for all models".
-    # So we force OpenRouterClient even if type says gemini (if we updated config correctly, type is openrouter).
-    # But if config still has "gemini" type for old models and we didn't update them all?
-    # I updated config to set type="openrouter" for all Gemini models.
-    # So this should be safe.
-
-    if model_type == "gemini":
-        # Fallback to OpenRouterClient as GeminiClient is removed
+    if model_type != "openrouter":
         logger.warning(
-            f"Model {model_key} has type 'gemini' but GeminiClient is removed. Using OpenRouterClient."
+            f"Model {model_key} has type '{model_type}', but only 'openrouter' is supported. "
+            "Using OpenRouterClient."
         )
-        return OpenRouterClient(model_key, model_config)
 
-    msg = f"Unsupported model type: {model_type}"
-    raise ValueError(msg)
+    return OpenRouterClient(model_config)
 
 
 def get_available_models() -> dict[str, str]:
