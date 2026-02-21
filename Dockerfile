@@ -54,6 +54,9 @@ USER nonroot
 # Expose port
 EXPOSE 8101
 
+# Set permissions for entrypoint script
+RUN chmod +x /app/entrypoint.sh
+
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
 
