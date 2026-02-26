@@ -59,16 +59,16 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.applyFiltersBtn.addEventListener('click', () => {
             updateSelectedModels();
             loadNextComparison();
-            // Optional: Close panel on apply? keeping it open might be better if they want to tweak 
-            // elements.filterPanel.classList.add('hidden'); 
+            elements.filterPanel.classList.add('hidden');
         });
     }
 
     if(elements.clearFiltersBtn) {
         elements.clearFiltersBtn.addEventListener('click', () => {
-             document.querySelectorAll('.model-filter-checkbox').forEach(cb => cb.checked = false);
-             updateSelectedModels(); // Will clear the set
-             loadNextComparison();
+            document.querySelectorAll('.model-filter-checkbox').forEach(cb => cb.checked = false);
+            updateSelectedModels(); // Will clear the set
+            loadNextComparison();
+            elements.filterPanel.classList.add('hidden');
         });
     }
     
