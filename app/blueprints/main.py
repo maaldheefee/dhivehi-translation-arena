@@ -380,112 +380,131 @@ def get_random_comparison():
     elo_service = get_elo_service()
     all_elos = {r["model"]: r["elo_rating"] for r in elo_service.get_all_rankings()}
 
-    # Optimize: Get user's existing comparisons for checking (could be large, so maybe filter by query later if needed)
-    # Actually, better to fetch per query to avoid massive memory usage if user has done 1000s.
-    for query_id in query_ids:
-        translations = (
-            db_session.query(Translation).filter(Translation.query_id == query_id).all()
+    # Process in chunks of 100 queries to balance performance with memory/scaling
+    chunk_size = 100
+    for i in range(0, len(query_ids), chunk_size):
+        chunk_ids = query_ids[i : i + chunk_size]
+
+        # Batch fetch all translations for this chunk
+        all_translations = (
+            db_session.query(Translation)
+            .filter(Translation.query_id.in_(chunk_ids))
+            .all()
         )
+        translations_by_query = defaultdict(list)
+        for t in all_translations:
+            translations_by_query[t.query_id].append(t)
 
-        if len(translations) < 2:
-            continue
-
-        # Optimization: Early skip if targeting models and this query has none of them
-        if target_models and not any(t.model in target_models for t in translations):
-            continue
-
-        # --- Filter Candidates ---
-        # 1. Reject explicit trash (optional, if we track rejection status on Translation)
-        # 2. Reject if average vote < 1.5 (requires joining votes, maybe expensive here)
-        # For now, we trust the "model sorting" to naturally deprioritize bad models if we selected good ones upstream.
-
-        # Optimize: Fetch ALL existing comparisons for this query by this user in ONE query
-        # This replaces the N*N loop of DB calls
-        existing_pairs = (
+        # Batch fetch all existing comparisons for this chunk by this user
+        all_existing_comparisons = (
             db_session.query(
-                PairwiseComparison.translation_a_id, PairwiseComparison.translation_b_id
+                PairwiseComparison.query_id,
+                PairwiseComparison.translation_a_id,
+                PairwiseComparison.translation_b_id,
             )
             .filter(
                 PairwiseComparison.user_id == user.id,
-                PairwiseComparison.query_id == query_id,
+                PairwiseComparison.query_id.in_(chunk_ids),
                 PairwiseComparison.source == "explicit",
             )
             .all()
         )
-        # Create a set of frozen sets for order-independent lookup: {(id1, id2), ...}
-        compared_pairs = {frozenset([p[0], p[1]]) for p in existing_pairs}
+        compared_pairs_by_query = defaultdict(set)
+        for c in all_existing_comparisons:
+            compared_pairs_by_query[c.query_id].add(
+                frozenset([c.translation_a_id, c.translation_b_id])
+            )
 
-        candidate_pairs = []
+        for query_id in chunk_ids:
+            translations = translations_by_query.get(query_id, [])
 
-        # Shuffle translations first to ensure random tie-breaking
-        random.shuffle(translations)
+            if len(translations) < 2:
+                continue
 
-        for t1, t2 in combinations(translations, 2):
-            # If targeting models, ensure at least one is in the target set
-            if target_models and (
-                t1.model not in target_models and t2.model not in target_models
+            # Optimization: Early skip if targeting models and this query has none of them
+            if target_models and not any(
+                t.model in target_models for t in translations
             ):
                 continue
 
-            pair_key = frozenset([t1.id, t2.id])
-            if pair_key in compared_pairs:
-                continue
+            # --- Filter Candidates ---
+            # 1. Reject explicit trash (optional, if we track rejection status on Translation)
+            # 2. Reject if average vote < 1.5 (requires joining votes, maybe expensive here)
+            # For now, we trust the "model sorting" to naturally deprioritize bad models if we selected good ones upstream.
 
-            # Calculate ELO difference
-            elo1 = all_elos.get(t1.model, 1500.0)
-            elo2 = all_elos.get(t2.model, 1500.0)
-            diff = abs(elo1 - elo2)
+            compared_pairs = compared_pairs_by_query.get(query_id, set())
 
-            candidate_pairs.append(((t1, t2), diff))
+            candidate_pairs = []
 
-        if candidate_pairs:
-            # Sort by ELO difference (ascending) -> compare closest models first
-            # Add noise to the sort key? No, easier to just pick random from top N.
-            candidate_pairs.sort(key=lambda x: x[1])
+            # Shuffle translations first to ensure random tie-breaking
+            random.shuffle(translations)
 
-            # Take top 5 closest pairs and pick one randomly
-            top_candidates = candidate_pairs[:5]
-            selected_pair, _ = random.choice(top_candidates)
-            t1, t2 = selected_pair
+            for t1, t2 in combinations(translations, 2):
+                # If targeting models, ensure at least one is in the target set
+                if target_models and (
+                    t1.model not in target_models and t2.model not in target_models
+                ):
+                    continue
 
-            # Found a pair!
-            query = db_session.query(Query).get(query_id)
-            conf = get_config()
+                pair_key = frozenset([t1.id, t2.id])
+                if pair_key in compared_pairs:
+                    continue
 
-            # Stats Calculation
-            stats = _get_user_comparison_stats(user.id)
+                # Calculate ELO difference
+                elo1 = all_elos.get(t1.model, 1500.0)
+                elo2 = all_elos.get(t2.model, 1500.0)
+                diff = abs(elo1 - elo2)
 
-            return jsonify(
-                {
-                    "query_id": query_id,
-                    "source_text": query.source_text if query else "",
-                    "translations": [
-                        {
-                            "id": t1.id,
-                            "text": t1.translation,
-                            "model": t1.model,
-                            "base_model": conf.MODELS.get(t1.model, {}).get(
-                                "base_model", t1.model
-                            ),
-                            "preset_name": conf.MODELS.get(t1.model, {}).get(
-                                "preset_name"
-                            ),
-                        },
-                        {
-                            "id": t2.id,
-                            "text": t2.translation,
-                            "model": t2.model,
-                            "base_model": conf.MODELS.get(t2.model, {}).get(
-                                "base_model", t2.model
-                            ),
-                            "preset_name": conf.MODELS.get(t2.model, {}).get(
-                                "preset_name"
-                            ),
-                        },
-                    ],
-                    "stats": stats,
-                }
-            )
+                candidate_pairs.append(((t1, t2), diff))
+
+            if candidate_pairs:
+                # Sort by ELO difference (ascending) -> compare closest models first
+                # Add noise to the sort key? No, easier to just pick random from top N.
+                candidate_pairs.sort(key=lambda x: x[1])
+
+                # Take top 5 closest pairs and pick one randomly
+                top_candidates = candidate_pairs[:5]
+                selected_pair, _ = random.choice(top_candidates)
+                t1, t2 = selected_pair
+
+                # Found a pair!
+                query = db_session.query(Query).get(query_id)
+                conf = get_config()
+
+                # Stats Calculation
+                stats = _get_user_comparison_stats(user.id)
+
+                return jsonify(
+                    {
+                        "query_id": query_id,
+                        "source_text": query.source_text if query else "",
+                        "translations": [
+                            {
+                                "id": t1.id,
+                                "text": t1.translation,
+                                "model": t1.model,
+                                "base_model": conf.MODELS.get(t1.model, {}).get(
+                                    "base_model", t1.model
+                                ),
+                                "preset_name": conf.MODELS.get(t1.model, {}).get(
+                                    "preset_name"
+                                ),
+                            },
+                            {
+                                "id": t2.id,
+                                "text": t2.translation,
+                                "model": t2.model,
+                                "base_model": conf.MODELS.get(t2.model, {}).get(
+                                    "base_model", t2.model
+                                ),
+                                "preset_name": conf.MODELS.get(t2.model, {}).get(
+                                    "preset_name"
+                                ),
+                            },
+                        ],
+                        "stats": stats,
+                    }
+                )
 
     return jsonify({"error": "All pairs have been compared"}), 404
 
