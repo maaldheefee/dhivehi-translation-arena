@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session
 
+from app.decorators import login_required
 from app.services.stats_service import (
     calculate_global_stats,
     calculate_model_scores,
@@ -11,6 +12,7 @@ stats_bp = Blueprint("stats", __name__)
 
 
 @stats_bp.route("/")
+@login_required
 def stats():
     """Renders the statistics page with model performance data."""
     username = session.get("username", "Guest")

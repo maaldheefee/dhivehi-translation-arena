@@ -20,6 +20,7 @@ from sqlalchemy import func
 
 from app.config import get_config
 from app.database import db_session
+from app.decorators import login_required
 from app.llm_clients import get_available_models
 from app.models import PairwiseComparison, Query, Translation, User
 from app.predefined_queries import PREDEFINED_QUERIES
@@ -339,6 +340,7 @@ def set_language(lang):
 
 
 @main_bp.route("/compare")
+@login_required
 def compare_ui():
     """Renders the pairwise comparison UI."""
     username = session.get("username", "Guest")
@@ -346,6 +348,7 @@ def compare_ui():
 
 
 @main_bp.route("/compare/random")
+@login_required
 def get_random_comparison():
     """
     Get 2 translations from the same query for pairwise comparison.
@@ -546,6 +549,7 @@ def _get_user_comparison_stats(user_id):
 
 
 @main_bp.route("/compare/submit", methods=["POST"])
+@login_required
 def submit_comparison():
     """
     Record a pairwise comparison result.
