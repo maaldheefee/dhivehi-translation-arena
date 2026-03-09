@@ -82,10 +82,8 @@
                         </button>
                         <div id="user-menu-dropdown" class="dropdown-menu hidden">
                              <div class="dropdown-content">
-                                <label for="username-select" class="dropdown-label">{{ _('select_user') }}</label>
-                                <select id="username-select" class="form-select full-width">
-                                    <option value="">{{ _('select_user') }}</option>
-                                </select>
+                                <label for="username-input" class="dropdown-label">{{ _('enter_username') }}</label>
+                                <input type="text" id="username-input" placeholder="{{ _('enter_username') }}" class="form-input full-width">
                                 <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="form-input full-width mt-2">
                                 <button id="login-btn" class="btn primary full-width mt-2">{{ _('login') }}</button>
                              </div>

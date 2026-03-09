@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
         themeIconDark: document.querySelector('.dark-icon'),
         userMenuBtn: document.getElementById('user-menu-btn'),
         userMenuDropdown: document.getElementById('user-menu-dropdown'),
-        usernameSelect: document.getElementById('username-select'),
+        usernameInput: document.getElementById('username-input'),
         userPassword: document.getElementById('user-password'),
         loginBtn: document.getElementById('login-btn'),
         currentUsername: document.getElementById('current-username'),
@@ -43,7 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Initialization ---
     initTheme();
-    loadUsers();
     loadModels();
     setupEventListeners();
 
@@ -98,20 +97,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- API Interactions ---
     function loadUsers() {
-        fetch('/auth/get_users')
-            .then(res => res.json())
-            .then(data => {
-                 if (data.users && elements.usernameSelect) {
-                    elements.usernameSelect.innerHTML = `<option value="">${t('select_user')}</option>`;
-                    data.users.forEach(user => {
-                        const opt = document.createElement('option');
-                        opt.value = user.username;
-                        opt.textContent = user.username;
-                        elements.usernameSelect.appendChild(opt);
-                    });
-                 }
-            })
-            .catch(err => console.error('Failed to load users', err));
+        // Automatically fetch users is removed for security, 
+        // using manual username input instead.
     }
 
     function loadModels() {
@@ -189,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function handleLogin() {
-        const username = elements.usernameSelect.value;
+        const username = elements.usernameInput.value.trim();
         const password = elements.userPassword.value;
         
         if (!username || !password) {
@@ -630,22 +617,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = getTranslationData();
         if (!data) return showToast(t('No translations to copy'), 'error');
 
-        const promptText = `Please analyze the following translation data.
+        const promptText = `# Translation Evaluation Analysis
 
-Methodology:
-${METHODOLOGY_TEXT}
+## Task
+You are an expert linguistic judge evaluating multiple Dhivehi translations of the same source text. Analyze the translations below and determine their relative quality.
 
+## Context
+**System Prompt**: "${data.metadata.system_prompt}"
+**Temperature**: ${data.metadata.default_temperature}
+
+## Source Text
+${data.metadata.source_text}
+
+## Translations to Evaluate
+${data.results.map((r, i) => `### Option ${i+1}: ${r.model}\n${r.translation}\n`).join('\n')}
+
+## Evaluation Criteria
 ${RUBRIC_TEXT}
 
-System Prompt: "${data.metadata.system_prompt}"
-Default Temperature: ${data.metadata.default_temperature}
+Please evaluate all translations based on:
+1. **Accuracy**: Does the translation correctly convey the meaning of the source text?
+2. **Fluency**: Is the Dhivehi natural, grammatically correct, and idiomatic?
+3. **Completeness**: Are all parts of the source text translated?
 
-Source Text: "${data.metadata.source_text}"
+## Your Response Format
+1. **Analysis**: Discuss strengths and weaknesses of each option.
+2. **Rankings**: Rank the translations from best to worst.
+3. **Verdict**: Declare a clear winner and explain why.
 
-Data (JSON):
+## Reference Data (JSON)
+\`\`\`json
 ${JSON.stringify(data, null, 2)}
-
-Please provide an analysis of the translations, comparing their accuracy, fluency, and adherence to Dhivehi grammar and idiom. Highlight the strengths and weaknesses of different models.`;
+\`\`\``;
 
         try {
             await navigator.clipboard.writeText(promptText);
