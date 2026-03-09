@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request, session
 
 from app.database import db_session
 from app.models import User
-from app.services.user_service import check_password, create_user, get_user_by_username
+from app.services.user_service import check_password, get_user_by_username
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -59,43 +59,3 @@ def get_users():
             ]
         }
     )
-
-
-@auth_bp.route("/add_user", methods=["POST"])
-def add_user():
-    """Adds a new user to the database."""
-    data = request.json
-
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-
-    username = data.get("username")
-    password = data.get("password")
-    is_admin = data.get("is_admin", False)
-
-    if not username or not password:
-        return jsonify({"error": "Username and password are required"}), 400
-
-    user = create_user(username, password, is_admin=is_admin)
-    if not user:
-        return jsonify({"error": "Username already exists"}), 400
-
-    return jsonify({"success": True, "username": username})
-
-
-@auth_bp.route("/select_user", methods=["POST"])
-def select_user():
-    """Allows selecting a user without a password (for demo purposes)."""
-    data = request.json
-    if data is None:
-        return jsonify({"error": "Invalid JSON data"}), 400
-    username = data.get("username")
-
-    # This is an insecure way to switch users, for demo only.
-    if not username:
-        return jsonify({"error": "Invalid username"}), 400
-
-    session["username"] = username
-    session.permanent = True
-
-    return jsonify({"success": True, "username": username})
