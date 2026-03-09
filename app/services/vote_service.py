@@ -107,7 +107,16 @@ def _derive_pairwise_from_votes(session, user_id, query_id, votes_data):
         elif r2 > r1:
             winner_model = t2.model
             loser_model = t1.model
-        # Equal ratings = tie (winner and loser stay None)
+        else:
+            # r1 == r2 -> tie
+            if r1 == 3:
+                # Both achieved perfection; this is a measure of query ease,
+                # not comparative skill. Do not record a tie.
+                continue
+            else:
+                # Both struggled equally (e.g., both got 1 star or 2 stars). A tie.
+                winner_model = None
+                loser_model = None
 
         try:
             elo_service.record_comparison(
