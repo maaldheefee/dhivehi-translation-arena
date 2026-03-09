@@ -279,7 +279,7 @@ def calculate_global_stats():
     }
 
 
-def get_monthly_spending_stats():
+def get_monthly_spending_stats() -> dict[str, list[float] | list[str]]:
     """
     Returns monthly spending data for the last 12 months.
     """

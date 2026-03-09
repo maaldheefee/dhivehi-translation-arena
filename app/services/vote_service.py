@@ -14,7 +14,7 @@ from app.services.elo_service import get_elo_service
 logger = logging.getLogger(__name__)
 
 
-def process_votes(user_id, query_id, votes_data):
+def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | str]:
     """
     Process votes for a query from a user.
 
@@ -81,7 +81,9 @@ def process_votes(user_id, query_id, votes_data):
         return {"success": True, "message": "Votes processed successfully"}
 
 
-def _derive_pairwise_from_votes(session, user_id, query_id, votes_data):
+def _derive_pairwise_from_votes(
+    session: Session, user_id, query_id, votes_data
+) -> None:
     """
     Derive pairwise comparisons from star rating votes.
 
@@ -102,11 +104,11 @@ def _derive_pairwise_from_votes(session, user_id, query_id, votes_data):
         loser_model = None
 
         if r1 > r2:
-            winner_model = t1.model
-            loser_model = t2.model
+            winner_model = str(t1.model)
+            loser_model = str(t2.model)
         elif r2 > r1:
-            winner_model = t2.model
-            loser_model = t1.model
+            winner_model = str(t2.model)
+            loser_model = str(t1.model)
         else:
             # r1 == r2 -> tie
             if r1 == 3:

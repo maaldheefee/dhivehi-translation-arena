@@ -9,7 +9,7 @@ from app.models import Vote
 class VoteRepository:
     """Repository for Vote model database operations."""
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session) -> None:
         """Initialize repository with database session."""
         self.db_session = db_session
 

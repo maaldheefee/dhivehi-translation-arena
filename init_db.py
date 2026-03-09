@@ -12,7 +12,7 @@ from app.models import Base, ModelELO, PairwiseComparison, User
 from app.services.user_service import create_user
 
 
-def main():
+def main() -> None:
     """Initialize the database with schema and default users."""
     print("Starting database initialization...")
 
@@ -58,7 +58,7 @@ def main():
         print("Database initialization completed successfully!")
 
 
-def _migrate_elo_data():
+def _migrate_elo_data() -> None:
     """Derive pairwise comparisons and ELO ratings from existing star ratings."""
     # Check if we already have ELO data
     existing_comparisons = db_session.query(PairwiseComparison).count()

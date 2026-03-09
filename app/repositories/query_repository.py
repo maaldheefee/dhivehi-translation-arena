@@ -8,7 +8,7 @@ from app.models import Query
 class QueryRepository:
     """Repository for Query model database operations."""
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session) -> None:
         """Initialize repository with database session."""
         self.db_session = db_session
 

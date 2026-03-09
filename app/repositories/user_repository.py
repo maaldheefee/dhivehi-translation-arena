@@ -8,7 +8,7 @@ from app.models import User
 class UserRepository:
     """Repository for User model database operations."""
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session) -> None:
         """Initialize repository with database session."""
         self.db_session = db_session
 
@@ -26,7 +26,7 @@ class UserRepository:
         """Get user by ID."""
         return self.db_session.query(User).filter(User.id == user_id).first()
 
-    def get_all(self):
+    def get_all(self) -> list[User]:
         """Get all users."""
         return self.db_session.query(User).all()
 

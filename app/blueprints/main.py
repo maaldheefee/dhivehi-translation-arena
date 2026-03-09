@@ -17,8 +17,9 @@ from flask import (
 )
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import aliased
+from werkzeug.wrappers import Response as WerkzeugResponse
 
-from app.config import get_config
+from app.config import Config, get_config
 from app.database import db_session
 from app.decorators import login_required
 from app.llm_clients import get_available_models
@@ -33,7 +34,9 @@ from app.services.vote_service import process_votes
 main_bp = Blueprint("main", __name__)
 
 
-def _select_models(available_models_map, usage_stats, config):
+def _select_models(
+    available_models_map: dict[str, str], usage_stats: dict[str, int], config: Config
+):
     """
     Selects up to MAX_MODELS models with balanced randomness and strategic grouping.
 
@@ -117,7 +120,7 @@ def _select_models(available_models_map, usage_stats, config):
 
 
 @main_bp.route("/")
-def index():
+def index() -> str:
     """Renders the main page with a shuffled list of predefined queries."""
     username = session.get("username", "Guest")
     shuffled_queries = PREDEFINED_QUERIES.copy()
@@ -152,7 +155,7 @@ def index():
 
 
 @main_bp.route("/get_available_models")
-def available_models():
+def available_models() -> Response:
     """Returns a list of available (active) models for selection."""
     available_models_map = get_available_models()
     usage_stats = get_model_usage_stats()
@@ -181,7 +184,9 @@ def available_models():
     return jsonify({"models": models_data})
 
 
-def stream_translation_generator(query_text, selected_models, user_id=None):
+def stream_translation_generator(
+    query_text: str, selected_models: list[str], user_id: int | None = None
+):
     """
     A generator function that yields translation results as they are completed.
     This function will be used with stream_with_context.
@@ -223,7 +228,7 @@ def stream_translation_generator(query_text, selected_models, user_id=None):
 
 
 @main_bp.route("/stream-translate")
-def stream_translate():
+def stream_translate() -> Response:
     """
     Handles the translation request by streaming results as they are ready.
     """
@@ -252,7 +257,7 @@ def stream_translate():
 
     # Get user ID for cost tracking
     user = db_session.query(User).filter(User.username == username).first()
-    user_id = user.id if user else None
+    user_id = int(user.id) if user else None  # type: ignore[arg-type]
 
     return Response(
         stream_with_context(
@@ -268,7 +273,7 @@ def stream_translate():
 
 
 @main_bp.route("/vote", methods=["POST"])
-def vote():
+def vote() -> Response | tuple[Response, int]:
     """Handles voting for translations using the star-rating voting system."""
     data = request.json
     if data is None:
@@ -284,7 +289,7 @@ def vote():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    result = process_votes(user.id, query_id, votes)
+    result = process_votes(int(user.id), query_id, votes)  # type: ignore[arg-type]
 
     if result["success"]:
         return jsonify({"status": "success"})
@@ -292,7 +297,7 @@ def vote():
 
 
 @main_bp.route("/retry-single", methods=["POST"])
-def retry_single():
+def retry_single() -> Response | tuple[Response, int]:
     """Retry a single model translation. Returns JSON instead of SSE."""
     username = session.get("username", "Guest")
     if username == "Guest":
@@ -335,7 +340,7 @@ def retry_single():
 
 
 @main_bp.route("/set_language/<lang>")
-def set_language(lang):
+def set_language(lang) -> WerkzeugResponse:
     """Set the language for the user session."""
     if lang in ["en", "dv"]:
         session["lang"] = lang
@@ -344,7 +349,7 @@ def set_language(lang):
 
 @main_bp.route("/compare")
 @login_required
-def compare_ui():
+def compare_ui() -> str:
     """Renders the pairwise comparison UI."""
     username = session.get("username", "Guest")
     return render_template("compare.html", username=username)
@@ -352,7 +357,7 @@ def compare_ui():
 
 @main_bp.route("/compare/random")
 @login_required
-def get_random_comparison():
+def get_random_comparison() -> Response | tuple[Response, int]:
     """
     Get 2 translations from the same query for pairwise comparison.
     Returns translations that haven't been compared yet or need more comparisons.
@@ -442,7 +447,7 @@ def get_random_comparison():
 
     conf = get_config()
 
-    stats = _get_user_comparison_stats(user.id)
+    stats = _get_user_comparison_stats(int(user.id))  # type: ignore[arg-type]
 
     # Shuffle t1 and t2 for display to eliminate position bias
     if random.choice([True, False]):
@@ -460,7 +465,9 @@ def get_random_comparison():
                     "base_model": conf.MODELS.get(str(t1.model), {}).get(
                         "base_model", t1.model
                     ),
-                    "preset_name": conf.MODELS.get(str(t1.model), {}).get("preset_name"),
+                    "preset_name": conf.MODELS.get(str(t1.model), {}).get(
+                        "preset_name"
+                    ),
                 },
                 {
                     "id": t2.id,
@@ -469,7 +476,9 @@ def get_random_comparison():
                     "base_model": conf.MODELS.get(str(t2.model), {}).get(
                         "base_model", t2.model
                     ),
-                    "preset_name": conf.MODELS.get(str(t2.model), {}).get("preset_name"),
+                    "preset_name": conf.MODELS.get(str(t2.model), {}).get(
+                        "preset_name"
+                    ),
                 },
             ],
             "stats": stats,
@@ -477,7 +486,7 @@ def get_random_comparison():
     )
 
 
-def _get_user_comparison_stats(user_id):
+def _get_user_comparison_stats(user_id: int):
     """Helper to calculate user comparison stats efficiently."""
     # 1. Count user's explicit comparisons
     comparisons_count = (
@@ -515,7 +524,7 @@ def _get_user_comparison_stats(user_id):
 
 @main_bp.route("/compare/submit", methods=["POST"])
 @login_required
-def submit_comparison():
+def submit_comparison() -> Response | tuple[Response, int]:
     """
     Record a pairwise comparison result.
 

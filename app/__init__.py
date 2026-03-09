@@ -15,11 +15,12 @@ from app.database import init_db, shutdown_session
 from app.i18n import TRANSLATIONS
 
 
-def create_app():
+def create_app() -> Flask:
     # Load environment variables from .env file
     if os.getenv("FLASK_ENV") != "production":
         try:
             from dotenv import load_dotenv  # noqa: PLC0415
+
             load_dotenv()
         except ImportError:
             logging.warning("python-dotenv not installed, skipping load_dotenv()")  # noqa: LOG015
@@ -63,7 +64,7 @@ def create_app():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)  # type: ignore
 
     @app.before_request
-    def before_request():
+    def before_request() -> None:
         # Hardcode language to Dhivehi
         g.lang = "dv"
 

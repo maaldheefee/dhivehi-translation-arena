@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security**: Hardened authentication by adding `@login_required` to sensitive data routes and removing insecure backdoors.
 - **Algorithm**: Implemented "Trivial Query" ELO penalty protection to prevent high-quality models from losing ranking points on easy queries.
 - **Performance**: Full refactor of the Stats dashboard and Pairwise generator to use server-side SQL aggregations and joins, eliminating $O(N)$ memory bottlenecks.
-- **Typing**: Comprehensive type-safety migration using `ty` (uvx ty check), resolving all SQLAlchemy-related type inference warnings.
+- **Typing**: Completed comprehensive type-hinting across blueprints, services, and models to achieve 100% `ty check` coverage.
+- **Scripts**: Refactored `analyze_data.py` and `rename_model.py` with modern `pathlib` integration and improved error handling.
 - **Code Quality**: Applied project-wide linting and formatting standards using `Ruff` (Python) and `Biome` (JS).
 
 ### Changed
@@ -31,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DevOps**: Added detailed setup and usage instructions to `dhivehi-translation-arena.service` template.
 
 ### Fixed
+- **Code Quality**: Resolved several type-checking ambiguities in `main.py` related to `werkzeug` vs `flask` response types and SQLAlchemy column casts.
 - **DevOps**: Resolved `ModuleNotFoundError: No module named 'dotenv'` in production by deferring `load_dotenv()` import and making it conditional on non-production environments.
 - **Localization**: Resolved missing placeholders (`stats_subheader`, `option_a`, etc.) in the Compare and Stats interfaces.
 - **UI**: Fixed visibility and dark mode support for the advanced model filter button and panel.

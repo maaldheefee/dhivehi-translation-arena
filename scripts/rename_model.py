@@ -24,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Config
 from app.models import ModelELO, PairwiseComparison, Translation
@@ -32,10 +32,10 @@ from app.models import ModelELO, PairwiseComparison, Translation
 # Create standalone database connection
 database_uri = f"sqlite:///{Config.DATA_DIR}/dhivehi_translation_arena.db"
 engine = create_engine(database_uri)
-Session = sessionmaker(bind=engine)
+SessionFactory = sessionmaker(bind=engine)
 
 
-def count_references(session, old_name: str) -> dict[str, int]:
+def count_references(session: Session, old_name: str) -> dict[str, int]:
     """Count how many records reference the old model name."""
     counts = {}
 
@@ -66,7 +66,7 @@ def count_references(session, old_name: str) -> dict[str, int]:
     return counts
 
 
-def check_new_name_exists(session, new_name: str) -> dict[str, bool]:
+def check_new_name_exists(session: Session, new_name: str) -> dict[str, bool]:
     """Check if the new name already exists in any table."""
     exists = {}
 
@@ -92,7 +92,7 @@ def check_new_name_exists(session, new_name: str) -> dict[str, bool]:
     return exists
 
 
-def rename_model(old_name: str, new_name: str, dry_run: bool = True) -> bool:
+def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
     """
     Rename a model across all database tables.
 
@@ -104,7 +104,7 @@ def rename_model(old_name: str, new_name: str, dry_run: bool = True) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    session = Session()
+    session = SessionFactory()
 
     print(f"\n{'=' * 60}")
     print(f"Model Rename Migration: '{old_name}' → '{new_name}'")
@@ -248,7 +248,7 @@ def rename_model(old_name: str, new_name: str, dry_run: bool = True) -> bool:
         return False
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Rename a model across all database tables",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -285,7 +285,7 @@ Examples:
             print("❌ Migration cancelled")
             return
 
-    success = rename_model(args.old_name, args.new_name, args.dry_run)
+    success = rename_model(args.old_name, args.new_name, dry_run=args.dry_run)
 
     if success and not args.dry_run:
         print("\n" + "=" * 60)

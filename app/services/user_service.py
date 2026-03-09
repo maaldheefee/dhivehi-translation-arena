@@ -8,7 +8,7 @@ from app.models import User
 from app.repositories.user_repository import UserRepository
 
 
-def create_user(username, password, *, is_admin=False):
+def create_user(username, password, *, is_admin=False) -> User | None:
     """
     Creates a new user with the given credentials.
     Returns the created user object or None if creation fails.
@@ -34,21 +34,21 @@ def create_user(username, password, *, is_admin=False):
         return None
 
 
-def get_user_by_username(username):
+def get_user_by_username(username) -> User | None:
     """Retrieves a user by username."""
     session = cast(Session, db_session)
     user_repo = UserRepository(session)
     return user_repo.get_by_username(username)
 
 
-def check_password(user, password):
+def check_password(user, password) -> bool:
     """Verifies if the provided password matches the user's password."""
     if not user or not password:
         return False
     return check_password_hash(user.password_hash, password)
 
 
-def delete_user(username):
+def delete_user(username) -> bool:
     """Deletes a user by username."""
     session = cast(Session, db_session)
     user_repo = UserRepository(session)

@@ -42,7 +42,7 @@ class Config:
     )
 
     @classmethod
-    def check_configuration(cls):
+    def check_configuration(cls) -> None:
         """Check for critical configuration issues."""
         if (
             os.environ.get("FLASK_ENV") == "production"

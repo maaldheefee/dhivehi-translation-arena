@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 
-def run_command(command):
+def run_command(command: str) -> None:
     """Runs a shell command."""
     try:
         subprocess.run(command, shell=True, check=True)
@@ -12,11 +12,11 @@ def run_command(command):
         print(f"Error running command: {e}")
 
 
-def clear_screen():
+def clear_screen() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def main():
+def main() -> None:
     while True:
         clear_screen()
         print("=== Dhivehi Translation Arena - User Manager ===")

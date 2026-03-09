@@ -1,12 +1,12 @@
 import json
-import os
 import sys
+from pathlib import Path
 
 from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 # Add the parent directory to sys.path to import app modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import get_config
 from app.models import (
@@ -17,31 +17,29 @@ from app.models import (
 )
 
 
-def get_db_session():
+def get_db_session() -> Session:
     config = get_config()
     engine = create_engine(config.DATABASE_URI)
-    Session = sessionmaker(bind=engine)
-    return Session()
+    session_factory = sessionmaker(bind=engine)
+    return session_factory()
 
 
-def analyze_elo(session):
+def analyze_elo(session: Session):
     elos = session.query(ModelELO).order_by(ModelELO.elo_rating.desc()).all()
-    results = []
-    for elo in elos:
-        results.append(
-            {
-                "model": elo.model,
-                "elo": elo.elo_rating,
-                "wins": elo.wins,
-                "losses": elo.losses,
-                "ties": elo.ties,
-                "win_rate": elo.win_rate,
-            }
-        )
-    return results
+    return [
+        {
+            "model": elo.model,
+            "elo": elo.elo_rating,
+            "wins": elo.wins,
+            "losses": elo.losses,
+            "ties": elo.ties,
+            "win_rate": elo.win_rate,
+        }
+        for elo in elos
+    ]
 
 
-def analyze_pairwise_temperature(session):
+def analyze_pairwise_temperature(session: Session) -> dict[str, float | int]:
     # Find base models with both high and low temp variants
     comparisons = session.query(PairwiseComparison).all()
 
@@ -81,7 +79,7 @@ def analyze_pairwise_temperature(session):
     }
 
 
-def analyze_reasoning_impact(session):
+def analyze_reasoning_impact(session: Session) -> dict[str, float | int]:
     # Models with 'reasoning' or 'low' in name vs others?
     # Or just check performance of Gemini 3 models vs others.
 
@@ -110,7 +108,7 @@ def analyze_reasoning_impact(session):
     }
 
 
-def get_qualitative_examples(session):
+def get_qualitative_examples(session: Session):
     # Find a query with many translations
     # Group translations by query_id
 
@@ -128,17 +126,18 @@ def get_qualitative_examples(session):
     examples = []
     for qid in target_query_ids:
         query = session.query(Query).get(qid)
+        if not query:
+            continue
         translations = session.query(Translation).filter_by(query_id=qid).all()
 
-        t_data = []
-        for t in translations:
-            t_data.append(
-                {
-                    "model": t.model,
-                    "text": t.translation,
-                    "system_prompt": t.system_prompt,
-                }
-            )
+        t_data = [
+            {
+                "model": t.model,
+                "text": t.translation,
+                "system_prompt": t.system_prompt,
+            }
+            for t in translations
+        ]
 
         examples.append(
             {"query_id": qid, "source": query.source_text, "translations": t_data}
@@ -146,7 +145,7 @@ def get_qualitative_examples(session):
     return examples
 
 
-def run():
+def run() -> None:
     session = get_db_session()
 
     data = {

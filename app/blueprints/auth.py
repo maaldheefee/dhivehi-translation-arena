@@ -1,6 +1,6 @@
 import uuid
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, Response, jsonify, request, session
 
 from app.database import db_session
 from app.models import User
@@ -10,7 +10,7 @@ auth_bp = Blueprint("auth", __name__)
 
 
 @auth_bp.before_request
-def before_request():
+def before_request() -> None:
     """Initializes session."""
     if "user_id" not in session:
         session["user_id"] = str(uuid.uuid4())
@@ -23,7 +23,7 @@ def before_request():
 
 
 @auth_bp.route("/login", methods=["POST"])
-def login():
+def login() -> Response | tuple[Response, int]:
     """Handles user login."""
     data = request.json
 
@@ -48,7 +48,7 @@ def login():
 
 
 @auth_bp.route("/get_users", methods=["GET"])
-def get_users():
+def get_users() -> Response:
     """Returns a list of all users."""
     users = db_session.query(User).all()
 

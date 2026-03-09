@@ -24,7 +24,7 @@ DEFAULT_ELO = 1500.0
 class ELOService:
     """Service for managing ELO ratings and pairwise comparisons."""
 
-    def __init__(self, session: Session | None = None):
+    def __init__(self, session: Session | None = None) -> None:
         self.session = session or cast(Session, db_session)
 
     def get_or_create(self, model: str) -> ModelELO:
@@ -209,8 +209,12 @@ class ELOService:
                     user_id=int(uid),
                     winner_model=str(winner_model) if winner_model else None,
                     loser_model=str(loser_model) if loser_model else None,
-                    translation_a_id=int(v1.translation_id) if v1.translation_id else None,
-                    translation_b_id=int(v2.translation_id) if v2.translation_id else None,
+                    translation_a_id=int(v1.translation_id)
+                    if v1.translation_id
+                    else None,
+                    translation_b_id=int(v2.translation_id)
+                    if v2.translation_id
+                    else None,
                     source="derived",
                 )
                 comparisons_created += 1

@@ -8,14 +8,14 @@ Base = declarative_base()
 Base.query = db_session.query_property()
 
 
-def init_db(app):
+def init_db(app) -> None:
     global engine  # noqa: PLW0603
     engine = create_engine(app.config["DATABASE_URI"])
 
     if app.config["DATABASE_URI"].startswith("sqlite"):
 
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):
+        def set_sqlite_pragma(dbapi_connection, connection_record) -> None:
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
@@ -25,5 +25,5 @@ def init_db(app):
     Base.metadata.bind = engine
 
 
-def shutdown_session(exception=None):
+def shutdown_session(exception=None) -> None:
     db_session.remove()

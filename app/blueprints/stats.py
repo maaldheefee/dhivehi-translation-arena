@@ -13,7 +13,7 @@ stats_bp = Blueprint("stats", __name__)
 
 @stats_bp.route("/")
 @login_required
-def stats():
+def stats() -> str:
     """Renders the statistics page with model performance data."""
     username = session.get("username", "Guest")
     model_scores = calculate_model_scores()

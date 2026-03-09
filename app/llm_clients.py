@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+from typing import ClassVar
 
 from openai import APITimeoutError, OpenAI
 
@@ -17,10 +18,10 @@ class TranslationClient:
     SYSTEM_PROMPT = config.SYSTEM_PROMPT
 
     # Shared state for rate limiting across instances: {model_key: {"last_request_time": float, "request_count": int}}
-    _shared_state: dict[str, dict[str, float | int]] = {}
+    _shared_state: ClassVar[dict[str, dict[str, float | int]]] = {}
     _lock = threading.Lock()
 
-    def __init__(self, model_key: str, model_config: ModelConfig):
+    def __init__(self, model_key: str, model_config: ModelConfig) -> None:
         """Initialize the translation client."""
         self.model_key = model_key
         self.model_name = model_config["name"]
@@ -89,7 +90,7 @@ class TranslationClient:
 class OpenRouterClient(TranslationClient):
     """Client for OpenRouter models."""
 
-    def __init__(self, model_key: str, model_config: ModelConfig):
+    def __init__(self, model_key: str, model_config: ModelConfig) -> None:
         """Initialize the OpenRouter client."""
         super().__init__(model_key, model_config)
         self.reasoning = model_config.get("reasoning")

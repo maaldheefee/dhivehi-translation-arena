@@ -11,7 +11,7 @@ from app.services.user_service import create_user, delete_user
 
 @click.command("init-db")
 @with_appcontext
-def init_db_command():
+def init_db_command() -> None:
     """Initialize the database with default users."""
     Path(Config.DATA_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -46,7 +46,7 @@ def init_db_command():
 @click.argument("password")
 @click.option("--admin", is_flag=True, help="Set user as admin")
 @with_appcontext
-def add_user_command(username, password, admin):
+def add_user_command(username, password, admin) -> None:
     """Add a new user."""
     try:
         create_user(username, password, is_admin=admin)
@@ -58,7 +58,7 @@ def add_user_command(username, password, admin):
 @click.command("remove-user")
 @click.argument("username")
 @with_appcontext
-def remove_user_command(username):
+def remove_user_command(username) -> None:
     """Remove a user."""
     if delete_user(username):
         click.echo(f"User '{username}' removed successfully.")
@@ -68,7 +68,7 @@ def remove_user_command(username):
 
 @click.command("list-users")
 @with_appcontext
-def list_users_command():
+def list_users_command() -> None:
     """List all users."""
     users = db_session.query(User).all()
     if not users:
@@ -85,7 +85,7 @@ def list_users_command():
 @click.command("derive-elo")
 @click.option("--user-id", type=int, default=None, help="Filter by user ID")
 @with_appcontext
-def derive_elo_command(user_id):
+def derive_elo_command(user_id) -> None:
     """Derive ELO comparisons from existing votes."""
     from app.services.elo_service import get_elo_service  # noqa: PLC0415
 
@@ -98,7 +98,7 @@ def derive_elo_command(user_id):
         print(f"Error deriving ELO comparisons: {e}")
 
 
-def register_commands(app):
+def register_commands(app) -> None:
     app.cli.add_command(init_db_command)
     app.cli.add_command(add_user_command)
     app.cli.add_command(remove_user_command)

@@ -1,3 +1,5 @@
+from typing import cast
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -25,7 +27,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username}>"
 
 
@@ -41,7 +43,7 @@ class Query(Base):
     )
     votes = relationship("Vote", back_populates="query", cascade="all, delete-orphan")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Query id={self.id} source_text={self.source_text[:20]}...>"
 
 
@@ -69,7 +71,7 @@ class Translation(Base):
         "Vote", back_populates="translation", cascade="all, delete-orphan"
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Translation id={self.id} model={self.model}>"
 
 
@@ -96,7 +98,7 @@ class Vote(Base):
     translation = relationship("Translation", back_populates="votes")
     query = relationship("Query", back_populates="votes")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Vote id={self.id} user_id={self.user_id} query_id={self.query_id} translation_id={self.translation_id} rating={self.rating}>"
 
 
@@ -125,7 +127,7 @@ class PairwiseComparison(Base):
     translation_a = relationship("Translation", foreign_keys=[translation_a_id])
     translation_b = relationship("Translation", foreign_keys=[translation_b_id])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<PairwiseComparison id={self.id} winner={self.winner_model} loser={self.loser_model}>"
 
 
@@ -142,18 +144,21 @@ class ModelELO(Base):
     ties = Column(Integer, default=0)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ModelELO model={self.model} elo={self.elo_rating}>"
 
     @property
-    def total_matches(self):
+    def total_matches(self) -> int:
         """Total number of matches this model has participated in."""
-        return (self.wins or 0) + (self.losses or 0) + (self.ties or 0)
+        wins = cast(int, self.wins) if self.wins is not None else 0
+        losses = cast(int, self.losses) if self.losses is not None else 0
+        ties = cast(int, self.ties) if self.ties is not None else 0
+        return wins + losses + ties
 
     @property
-    def win_rate(self):
+    def win_rate(self) -> float:
         """Win rate as a fraction (0.0 to 1.0)."""
         total = self.total_matches
         if total == 0:
             return 0.0
-        return (self.wins or 0) / total
+        return cast(int, self.wins) / total if self.wins is not None else 0.0 / total
