@@ -33,18 +33,22 @@ def create_app():
     # Load configuration from config.py
     app.config.from_object(Config)
     Config.check_configuration()
-    # Use a stable key for development to prevent session invalidation on reload
-    if (
+    # Use a stable key for development, but require one in production
+    is_development = (
         os.environ.get("FLASK_DEBUG") == "1"
         or os.environ.get("FLASK_ENV") == "development"
-    ):
-        default_secret = "dev-secret-key-stable"
-    else:
-        default_secret = os.urandom(24).hex()
-
-    app.config["SECRET_KEY"] = (
-        os.environ.get("SECRET_KEY") or app.config.get("SECRET_KEY") or default_secret
     )
+
+    secret_key = os.environ.get("SECRET_KEY") or app.config.get("SECRET_KEY")
+    if not secret_key or secret_key == "dev-secret-key-change-in-production":
+        if is_development:
+            secret_key = "dev-secret-key-stable"
+        else:
+            raise RuntimeError(
+                "SECRET_KEY environment variable is not set in production!"
+            )
+
+    app.config["SECRET_KEY"] = secret_key
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
 
     # Initialize database
