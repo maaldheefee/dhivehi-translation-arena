@@ -36,26 +36,23 @@ RUN groupadd --system --gid 999 nonroot \
 
 WORKDIR /app
 
-# Copy the environment from the builder stage
-COPY --from=builder --chown=nonroot:nonroot /app/.venv /app/.venv
+# Copy the entire app (including .venv) from the builder stage in one shot
 COPY --from=builder --chown=nonroot:nonroot /app /app
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
-# Ensure Python can import the src package if needed (though uv sync usually handles this)
-# ENV PYTHONPATH="/app/src:${PYTHONPATH}" 
+ENV VIRTUAL_ENV="/app/.venv"
 
-# Create data directory and set permissions
-RUN mkdir -p /app/data && chown -R nonroot:nonroot /app/data
+# Create data directory and set permissions, and ensure entrypoint is executable
+RUN mkdir -p /app/data \
+    && chown -R nonroot:nonroot /app/data \
+    && chmod +x /app/entrypoint.sh
 
 # Switch to non-root user
 USER nonroot
 
 # Expose port
 EXPOSE 8101
-
-# Set permissions for entrypoint script
-RUN chmod +x /app/entrypoint.sh
 
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
