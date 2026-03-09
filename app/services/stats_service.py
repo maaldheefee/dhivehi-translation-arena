@@ -3,13 +3,12 @@ import math
 from collections import defaultdict
 from typing import cast
 
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.config import get_config
 from app.database import db_session
-from app.models import ModelELO
-from app.repositories.translation_repository import TranslationRepository
-from app.repositories.vote_repository import VoteRepository
+from app.models import ModelELO, Query, Translation, Vote
 
 config = get_config()
 
@@ -20,59 +19,91 @@ def calculate_model_scores():
     Now includes ELO ratings from pairwise comparisons.
     """
     session = cast(Session, db_session)
-    vote_repo = VoteRepository(session)
-    translation_repo = TranslationRepository(session)
-
-    votes = vote_repo.get_all()
-    translations = translation_repo.get_all()
 
     # Get ELO ratings for all models
     elo_records = {r.model: r for r in session.query(ModelELO).all()}
 
     model_stats = {}
 
-    # Initialize all models from the translations table to capture costs
-    # even for models that haven't received votes yet.
-    for t in translations:
-        if t.model not in model_stats:
-            model_stats[t.model] = {
-                "score": 0,
+    # Query 1: Aggregate appearances, cost, and estimated word count
+    # Word count estimation in SQLite: len(text) - len(replace(text, ' ', '')) + 1
+    word_count_expr = (
+        func.length(func.trim(Query.source_text))
+        - func.length(func.replace(func.trim(Query.source_text), " ", ""))
+        + 1
+    )
+
+    trans_stats = (
+        session.query(
+            Translation.model,
+            func.count(Translation.id).label("appearances"),
+            func.sum(Translation.cost).label("total_cost"),
+            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label(
+                "source_word_count"
+            ),
+        )
+        .outerjoin(Query, Translation.query_id == Query.id)
+        .group_by(Translation.model)
+        .all()
+    )
+
+    for ts in trans_stats:
+        model_stats[ts.model] = {
+            "score": 0,
+            "total_cost": ts.total_cost or 0.0,
+            "appearances": ts.appearances or 0,
+            "votes_cast": 0,
+            "excellent_count": 0,
+            "good_count": 0,
+            "okay_count": 0,
+            "rejected_count": 0,
+            "source_word_count": ts.source_word_count or 0,
+        }
+
+    # Query 2: Aggregate votes
+    vote_stats = (
+        session.query(
+            Translation.model,
+            func.count(Vote.id).label("votes_cast"),
+            func.sum(case((Vote.rating == 3, 1), else_=0)).label("excellent_count"),
+            func.sum(case((Vote.rating == 2, 1), else_=0)).label("good_count"),
+            func.sum(case((Vote.rating == 1, 1), else_=0)).label("okay_count"),
+            func.sum(case((Vote.rating == -1, 1), else_=0)).label("rejected_count"),
+            func.sum(
+                case(
+                    (Vote.rating == 3, 3),
+                    (Vote.rating == 2, 1),
+                    (Vote.rating == -1, -2),
+                    else_=0,
+                )
+            ).label("score"),
+        )
+        .select_from(Vote)
+        .join(Translation, Vote.translation_id == Translation.id)
+        .group_by(Translation.model)
+        .all()
+    )
+
+    for vs in vote_stats:
+        if vs.model in model_stats:
+            model_stats[vs.model]["votes_cast"] = vs.votes_cast or 0
+            model_stats[vs.model]["excellent_count"] = vs.excellent_count or 0
+            model_stats[vs.model]["good_count"] = vs.good_count or 0
+            model_stats[vs.model]["okay_count"] = vs.okay_count or 0
+            model_stats[vs.model]["rejected_count"] = vs.rejected_count or 0
+            model_stats[vs.model]["score"] = vs.score or 0
+        else:
+            model_stats[vs.model] = {
+                "score": vs.score or 0,
                 "total_cost": 0.0,
-                "appearances": 0,  # Total times generated
-                "votes_cast": 0,
-                "excellent_count": 0,
-                "good_count": 0,
-                "okay_count": 0,
-                "rejected_count": 0,
+                "appearances": 0,
+                "votes_cast": vs.votes_cast or 0,
+                "excellent_count": vs.excellent_count or 0,
+                "good_count": vs.good_count or 0,
+                "okay_count": vs.okay_count or 0,
+                "rejected_count": vs.rejected_count or 0,
                 "source_word_count": 0,
             }
-
-    # Aggregate total cost and the number of times each model's translation was generated
-    for t in translations:
-        model_stats[t.model]["appearances"] += 1
-        model_stats[t.model]["total_cost"] += t.cost if t.cost else 0.0
-        if t.query and t.query.source_text:
-            model_stats[t.model]["source_word_count"] += len(
-                t.query.source_text.split()
-            )
-
-    # Aggregate scores based on votes
-    for vote in votes:
-        model_name = vote.translation.model
-        if model_name in model_stats:
-            model_stats[model_name]["votes_cast"] += 1
-
-            if vote.rating == 3:
-                model_stats[model_name]["score"] += 3
-                model_stats[model_name]["excellent_count"] += 1
-            elif vote.rating == 2:
-                model_stats[model_name]["score"] += 1
-                model_stats[model_name]["good_count"] += 1
-            elif vote.rating == 1:
-                model_stats[model_name]["okay_count"] += 1
-            elif vote.rating == -1:
-                model_stats[model_name]["score"] -= 2
-                model_stats[model_name]["rejected_count"] += 1
 
     # Calculate derived metrics and format for the view
     stats_list = []
@@ -211,33 +242,30 @@ def calculate_global_stats():
     Calculates global statistics for the dashboard.
     """
     session = cast(Session, db_session)
-    vote_repo = VoteRepository(session)
-    translation_repo = TranslationRepository(session)
 
-    translations = translation_repo.get_all()
-    votes = vote_repo.get_all()
+    total_generations = session.query(func.count(Translation.id)).scalar() or 0
+    voted_generations = (
+        session.query(func.count(func.distinct(Vote.translation_id))).scalar() or 0
+    )
+    total_cost = session.query(func.sum(Translation.cost)).scalar() or 0.0
 
-    total_cost = 0.0
-    total_generations = len(translations)
-    voted_generations = len({v.translation_id for v in votes})
-
-    # Cost over time (Current Month and Current Day)
     now = datetime.datetime.now()
-    current_month_cost = 0.0
-    current_day_cost = 0.0
+    start_of_month = datetime.datetime(now.year, now.month, 1)
+    start_of_day = datetime.datetime(now.year, now.month, now.day)
 
-    for t in translations:
-        cost = t.cost if t.cost else 0.0
-        total_cost += cost
+    current_month_cost = (
+        session.query(func.sum(Translation.cost))
+        .filter(Translation.created_at >= start_of_month)
+        .scalar()
+        or 0.0
+    )
 
-        if (
-            t.created_at
-            and t.created_at.year == now.year
-            and t.created_at.month == now.month
-        ):
-            current_month_cost += cost
-            if t.created_at.day == now.day:
-                current_day_cost += cost
+    current_day_cost = (
+        session.query(func.sum(Translation.cost))
+        .filter(Translation.created_at >= start_of_day)
+        .scalar()
+        or 0.0
+    )
 
     return {
         "total_cost": total_cost,
@@ -256,8 +284,6 @@ def get_monthly_spending_stats():
     Returns monthly spending data for the last 12 months.
     """
     session = cast(Session, db_session)
-    translation_repo = TranslationRepository(session)
-    translations = translation_repo.get_all()
 
     monthly_data = defaultdict(float)
     now = datetime.datetime.now()
@@ -268,10 +294,24 @@ def get_monthly_spending_stats():
         key = d.strftime("%Y-%m")
         monthly_data[key] = 0.0
 
-    for t in translations:
-        if t.created_at and t.cost:
-            key = t.created_at.strftime("%Y-%m")
-            monthly_data[key] += t.cost
+    # Calculate 12 months ago to filter the query and make it faster
+    twelve_months_ago = now - datetime.timedelta(days=365)
+
+    month_str = func.strftime("%Y-%m", Translation.created_at)
+    monthly_costs = (
+        session.query(
+            month_str.label("month"), func.sum(Translation.cost).label("total")
+        )
+        .filter(
+            Translation.cost.isnot(None), Translation.created_at >= twelve_months_ago
+        )
+        .group_by("month")
+        .all()
+    )
+
+    for row in monthly_costs:
+        if row.month and row.month in monthly_data:
+            monthly_data[row.month] += row.total or 0.0
 
     # Sort by date
     sorted_months = sorted(monthly_data.keys())
@@ -286,15 +326,6 @@ def get_cost_breakdown():
     Returns cost statistics grouped by upstream model ID (combining configurations).
     """
     session = cast(Session, db_session)
-    translation_repo = TranslationRepository(session)
-    vote_repo = VoteRepository(session)
-
-    translations = translation_repo.get_all()
-    votes = vote_repo.get_all()
-
-    voted_translation_ids = {v.translation_id for v in votes}
-
-    grouped_stats = {}
 
     # Pre-calculate a display name mapping: upstream_name -> shortest_display_name
     upstream_display_names = {}
@@ -308,14 +339,48 @@ def get_cost_breakdown():
             upstream_display_names[u_name]
         ):
             upstream_display_names[u_name] = d_name
-        # If we have a base_model defined, map it to the upstream name
-        # We can just take the first one we find, or any, since they should be consistent
-        # for the same upstream model usually.
         if b_name and u_name not in upstream_base_models:
             upstream_base_models[u_name] = b_name
 
-    for t in translations:
-        model_key = str(t.model)
+    # Word count estimation in SQLite
+    word_count_expr = (
+        func.length(func.trim(Query.source_text))
+        - func.length(func.replace(func.trim(Query.source_text), " ", ""))
+        + 1
+    )
+
+    trans_stats = (
+        session.query(
+            Translation.model,
+            func.count(Translation.id).label("total_generations"),
+            func.sum(Translation.cost).label("total_cost"),
+            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label(
+                "source_word_count"
+            ),
+        )
+        .outerjoin(Query, Translation.query_id == Query.id)
+        .group_by(Translation.model)
+        .all()
+    )
+
+    # For voted_generations, we need count of DISTINCT translations that received a vote per model
+    voted_stats = (
+        session.query(
+            Translation.model,
+            func.count(func.distinct(Vote.translation_id)).label("voted_generations"),
+        )
+        .select_from(Vote)
+        .join(Translation, Vote.translation_id == Translation.id)
+        .group_by(Translation.model)
+        .all()
+    )
+
+    voted_map = {row.model: row.voted_generations for row in voted_stats}
+
+    grouped_stats = {}
+
+    for row in trans_stats:
+        model_key = str(row.model)
         # Fallback if model missing from config
         upstream_name = model_key
         display_name = model_key
@@ -326,7 +391,6 @@ def get_cost_breakdown():
 
         if upstream_name not in grouped_stats:
             # Determine base_model to show
-            # Use the pre-calculated base_model if available, else fallback to display_name
             base_model_name = upstream_base_models.get(upstream_name, display_name)
 
             grouped_stats[upstream_name] = {
@@ -339,13 +403,10 @@ def get_cost_breakdown():
             }
 
         stats = grouped_stats[upstream_name]
-        stats["total_cost"] += t.cost if t.cost else 0.0
-        stats["total_generations"] += 1
-        if t.id in voted_translation_ids:
-            stats["voted_generations"] += 1
-
-        if t.query and t.query.source_text:
-            stats["source_word_count"] += len(t.query.source_text.split())
+        stats["total_cost"] += row.total_cost or 0.0
+        stats["total_generations"] += row.total_generations or 0
+        stats["voted_generations"] += voted_map.get(model_key, 0)
+        stats["source_word_count"] += row.source_word_count or 0
 
     result = []
     for s in grouped_stats.values():
