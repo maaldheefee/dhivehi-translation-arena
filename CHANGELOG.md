@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DevOps**: Added detailed setup and usage instructions to `dhivehi-translation-arena.service` template.
 
 ### Fixed
+- **DevOps**: Resolved `ModuleNotFoundError: No module named 'dotenv'` in production by deferring `load_dotenv()` import and making it conditional on non-production environments.
 - **Localization**: Resolved missing placeholders (`stats_subheader`, `option_a`, etc.) in the Compare and Stats interfaces.
 - **UI**: Fixed visibility and dark mode support for the advanced model filter button and panel.
 - **RTL**: Improved RTL spacing and alignment for collapsible summary icons.

@@ -2,7 +2,6 @@ import logging
 import os
 from datetime import timedelta
 
-from dotenv import load_dotenv
 from flask import Flask, g
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -19,7 +18,11 @@ from app.i18n import TRANSLATIONS
 def create_app():
     # Load environment variables from .env file
     if os.getenv("FLASK_ENV") != "production":
-        load_dotenv()
+        try:
+            from dotenv import load_dotenv  # noqa: PLC0415
+            load_dotenv()
+        except ImportError:
+            logging.warning("python-dotenv not installed, skipping load_dotenv()")  # noqa: LOG015
 
     # Initialize logging
     logging.basicConfig(
