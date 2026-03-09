@@ -463,4 +463,10 @@ ${JSON.stringify(data, null, 2)}
     if (compareCopyPromptBtn) {
         compareCopyPromptBtn.addEventListener('click', copyComparisonPrompt);
     }
+
+    const compareAiJudgeBtn = document.getElementById('compare-ai-judge-btn');
+    if (compareAiJudgeBtn) {
+        // Currently the Analysis Prompt for Compare is the AI Judge prompt.
+        compareAiJudgeBtn.addEventListener('click', copyComparisonPrompt);
+    }
 });
