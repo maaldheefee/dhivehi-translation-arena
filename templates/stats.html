@@ -36,6 +36,10 @@
         <div class="results-header" style="justify-content: space-between; display: flex; align-items: center; margin-bottom: 1rem;">
             <h3>{{ _('stats_table_header') }}</h3>
             <div class="header-actions">
+                <label style="margin-right: 15px; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.9em;">
+                    <input type="checkbox" id="show-inactive-toggle" style="margin-right: 6px;">
+                    {{ _('show_inactive_models', default='Show Inactive Models') }}
+                </label>
                 <button id="stats-copy-json" class="btn secondary sm-btn" title="Only copy JSON data">
                     <span class="icon">{}</span>
                     <span class="btn-text">JSON</span>
@@ -210,76 +214,113 @@
     document.addEventListener('DOMContentLoaded', () => {
         const ctx = document.getElementById('modelPerformanceChart').getContext('2d');
         
-        const labels = {{ model_scores|map(attribute='display_name')|list|tojson }};
-        const scores = {{ model_scores|map(attribute='average_score')|list|tojson }};
-        const elos = {{ model_scores|map(attribute='elo_rating')|list|tojson }};
+        let chartInstance = null;
+        let currentElos = [];
         
-        // Normalize ELO to be comparable to 3-point scale for visualization (rough mapping)
-        // 1300 -> 0, 1700 -> 3
-        const normalizedElos = elos.map(e => Math.max(0, (e - 1300) / (1700 - 1300) * 3));
+        function initOrUpdateChart(data) {
+            const labels = data.map(m => m.display_name);
+            const scores = data.map(m => m.average_score);
+            currentElos = data.map(m => m.elo_rating);
+            
+            // Normalize ELO to be comparable to 3-point scale for visualization (rough mapping)
+            // 1300 -> 0, 1700 -> 3
+            const normalizedElos = currentElos.map(e => Math.max(0, (e - 1300) / (1700 - 1300) * 3));
 
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: '{{ _("average_score") }}',
-                        data: scores,
-                        backgroundColor: 'rgba(37, 99, 235, 0.7)',
-                        borderColor: 'rgba(37, 99, 235, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y'
+            if (chartInstance) {
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = scores;
+                chartInstance.data.datasets[1].data = normalizedElos;
+                chartInstance.update();
+            } else {
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '{{ _("average_score") }}',
+                                data: scores,
+                                backgroundColor: 'rgba(37, 99, 235, 0.7)',
+                                borderColor: 'rgba(37, 99, 235, 1)',
+                                borderWidth: 1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '{{ _("elo_rating") }} (Scaled)',
+                                data: normalizedElos,
+                                type: 'line',
+                                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                borderColor: 'rgba(16, 185, 129, 1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            }
+                        ]
                     },
-                    {
-                        label: '{{ _("elo_rating") }} (Scaled)',
-                        data: normalizedElos,
-                        type: 'line',
-                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                        borderColor: 'rgba(16, 185, 129, 1)',
-                        borderWidth: 2,
-                        tension: 0.3,
-                        yAxisID: 'y'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 3.5,
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                    }
-                },
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 3.5,
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.dataset.type === 'line') {
+                                            // Show actual ELO in tooltip, not scaled
+                                            return 'ELO Rating: ' + currentElos[context.dataIndex].toFixed(0);
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y.toFixed(2);
+                                        }
+                                        return label;
+                                    }
                                 }
-                                if (context.dataset.type === 'line') {
-                                    // Show actual ELO in tooltip, not scaled
-                                    return 'ELO Rating: ' + elos[context.dataIndex].toFixed(0);
-                                }
-                                if (context.parsed.y !== null) {
-                                    label += context.parsed.y.toFixed(2);
-                                }
-                                return label;
                             }
                         }
                     }
-                }
+                });
             }
-        });
+        }
+
+        // Initialize with default view (active only, or all if you prefer, 
+        // but user requested default "active models only")
+        const showInactiveToggle = document.getElementById('show-inactive-toggle');
+        
+        function applyFilters() {
+            const showInactive = showInactiveToggle.checked;
+            
+            // Filter table rows
+            document.querySelectorAll('tr.deprecated-model').forEach(row => {
+                row.style.display = showInactive ? '' : 'none';
+            });
+            
+            // Filter Chart data
+            const filteredData = window.statsData.filter(m => showInactive || m.is_active);
+            initOrUpdateChart(filteredData);
+        }
+
+        // Apply filters once JS is loaded
+        // Note: The HTML output renders all rows by default, we hide them here.
+        // It's safe since statsData is fully populated by Jinja.
+        showInactiveToggle.addEventListener('change', applyFilters);
 
         // Expose data for copy functions
         window.statsData = {{ model_scores|tojson }};
         window.globalStats = {{ global_stats|tojson }};
+
+        // Initialize state
+        applyFilters();
 
         function showLocalToast(message, type = 'info') {
             // Reusing the container from base.html if it exists, or create one
@@ -312,27 +353,30 @@
                     total_translations: window.globalStats.total_generations,
                     methodology: METHODOLOGY_TEXT
                 },
-                models: window.statsData.map(m => (
+                models: window.statsData.map(m => ({
                     name: m.display_name,
                     base_model: m.base_model,
                     preset: m.preset_name,
                     avg_score: m.average_score,
                     elo: m.elo_rating,
-                    elo_details: 
+                    elo_details: {
                         wins: m.elo_wins,
                         losses: m.elo_losses,
                         ties: m.elo_ties,
+                    },
                     win_rate: m.elo_win_rate,
                     votes: m.votes_cast,
-                    vote_distribution: 
+                    vote_distribution: {
                         excellent: m.excellent_count,
                         good: m.good_count,
                         okay: m.okay_count,
                         rejected: m.rejected_count,
+                    },
                     cost_per_100k: m.projected_cost_100k,
                     bang_for_buck: m.bang_for_buck,
                     is_active: m.is_active,
-                    config: m.config))
+                    config: m.config
+                }))
             };
         }
 

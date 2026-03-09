@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI**: New glassmorphism and premium UI utility classes in CSS.
 - **Stats**: Vote distribution (excellent/good/okay/rejected) now included in JSON export for detailed analysis.
 - **Copy Buttons**: Unified JSON and Analysis Prompt copy buttons across all three pages (Main, Compare, Stats) with consistent styling and placement.
+- **UI/Stats**: Automatically hide inactive models from the stats table and chart by default, with a new toggle to show them.
 - **Agent**: Added `/commit` workflow for standardized commit messages and CHANGELOG updates.
 - **Security**: Hardened authentication by adding `@login_required` to sensitive data routes and removing insecure backdoors.
 - **Algorithm**: Implemented "Trivial Query" ELO penalty protection to prevent high-quality models from losing ranking points on easy queries.
@@ -36,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DevOps**: Resolved `ModuleNotFoundError: No module named 'dotenv'` in production by deferring `load_dotenv()` import and making it conditional on non-production environments.
 - **Localization**: Resolved missing placeholders (`stats_subheader`, `option_a`, etc.) in the Compare and Stats interfaces.
 - **UI**: Fixed visibility and dark mode support for the advanced model filter button and panel.
+- **UI/Stats**: Fixed a JavaScript syntax error that broke table sorting and chart rendering on the stats page.
 - **RTL**: Improved RTL spacing and alignment for collapsible summary icons.
 - **Docs**: Fixed outdated references to `DEPLOYMENT.md`, non-existent `MODEL_NAMING_ANALYSIS.md`, and incorrect database filename `translations.db`.
 
