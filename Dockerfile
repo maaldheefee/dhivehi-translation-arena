@@ -8,6 +8,10 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
+# Use the system Python, not a uv-managed Python.
+# Without this, uv downloads a Python to /root/.local/share/uv/python/...,
+# and .venv/bin/python becomes a broken symlink in the final stage.
+ENV UV_PYTHON_DOWNLOADS=never
 
 WORKDIR /app
 
