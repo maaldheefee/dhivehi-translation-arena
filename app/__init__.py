@@ -44,9 +44,8 @@ def create_app():
         if is_development:
             secret_key = "dev-secret-key-stable"
         else:
-            raise RuntimeError(
-                "SECRET_KEY environment variable is not set in production!"
-            )
+            msg = "SECRET_KEY environment variable is not set in production!"
+            raise RuntimeError(msg)
 
     app.config["SECRET_KEY"] = secret_key
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
@@ -58,7 +57,7 @@ def create_app():
     CSRFProtect(app)
 
     # Fix for running behind a proxy (Cloudflare, Nginx, etc.)
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)  # type: ignore
 
     @app.before_request
     def before_request():

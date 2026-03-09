@@ -15,7 +15,8 @@ from flask import (
     stream_with_context,
     url_for,
 )
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import aliased
 
 from app.config import get_config
 from app.database import db_session
@@ -320,7 +321,10 @@ def retry_single():
 
     try:
         result = get_translation_for_model(
-            query_text, model_key, position=0, user_id=user_id
+            query_text,
+            model_key,
+            position=0,
+            user_id=int(user_id) if user_id is not None else None,  # type: ignore
         )
         if result:
             return jsonify(result)
@@ -354,9 +358,6 @@ def get_random_comparison():
     Returns translations that haven't been compared yet or need more comparisons.
     """
 
-    from sqlalchemy import and_, or_
-    from sqlalchemy.orm import aliased
-
     username = session.get("username", "Guest")
     user = db_session.query(User).filter(User.username == username).first()
     if not user:
@@ -365,21 +366,24 @@ def get_random_comparison():
     target_models_str = request.args.get("target_models", "")
     target_models = {m.strip() for m in target_models_str.split(",") if m.strip()}
 
-    T1 = aliased(Translation)
-    T2 = aliased(Translation)
+    t1_alias = aliased(Translation)
+    t2_alias = aliased(Translation)
 
     # Base query for all relevant pairs (same query_id, different translations)
     base_query = db_session.query(
-        T1.id.label("t1_id"),
-        T2.id.label("t2_id"),
-        T1.model.label("t1_model"),
-        T2.model.label("t2_model"),
-        T1.query_id,
-    ).join(T2, and_(T1.query_id == T2.query_id, T1.id < T2.id))
+        t1_alias.id.label("t1_id"),
+        t2_alias.id.label("t2_id"),
+        t1_alias.model.label("t1_model"),
+        t2_alias.model.label("t2_model"),
+        t1_alias.query_id,
+    ).join(
+        t2_alias,
+        and_(t1_alias.query_id == t2_alias.query_id, t1_alias.id < t2_alias.id),
+    )
 
     if target_models:
         base_query = base_query.filter(
-            or_(T1.model.in_(target_models), T2.model.in_(target_models))
+            or_(t1_alias.model.in_(target_models), t2_alias.model.in_(target_models))
         )
 
     # Subquery to find already compared pairs for this user in explicit UI mode
@@ -397,12 +401,12 @@ def get_random_comparison():
         compared_subq,
         or_(
             and_(
-                T1.id == compared_subq.c.translation_a_id,
-                T2.id == compared_subq.c.translation_b_id,
+                t1_alias.id == compared_subq.c.translation_a_id,
+                t2_alias.id == compared_subq.c.translation_b_id,
             ),
             and_(
-                T1.id == compared_subq.c.translation_b_id,
-                T2.id == compared_subq.c.translation_a_id,
+                t1_alias.id == compared_subq.c.translation_b_id,
+                t2_alias.id == compared_subq.c.translation_a_id,
             ),
         ),
     ).filter(compared_subq.c.id.is_(None))
@@ -432,6 +436,10 @@ def get_random_comparison():
     t1 = db_session.query(Translation).get(selected_pair_row.t1_id)
     t2 = db_session.query(Translation).get(selected_pair_row.t2_id)
     query = db_session.query(Query).get(selected_pair_row.query_id)
+
+    if not t1 or not t2 or not query:
+        return jsonify({"error": "Data not found"}), 404
+
     conf = get_config()
 
     stats = _get_user_comparison_stats(user.id)
@@ -449,19 +457,19 @@ def get_random_comparison():
                     "id": t1.id,
                     "text": t1.translation,
                     "model": t1.model,
-                    "base_model": conf.MODELS.get(t1.model, {}).get(
+                    "base_model": conf.MODELS.get(str(t1.model), {}).get(
                         "base_model", t1.model
                     ),
-                    "preset_name": conf.MODELS.get(t1.model, {}).get("preset_name"),
+                    "preset_name": conf.MODELS.get(str(t1.model), {}).get("preset_name"),
                 },
                 {
                     "id": t2.id,
                     "text": t2.translation,
                     "model": t2.model,
-                    "base_model": conf.MODELS.get(t2.model, {}).get(
+                    "base_model": conf.MODELS.get(str(t2.model), {}).get(
                         "base_model", t2.model
                     ),
-                    "preset_name": conf.MODELS.get(t2.model, {}).get("preset_name"),
+                    "preset_name": conf.MODELS.get(str(t2.model), {}).get("preset_name"),
                 },
             ],
             "stats": stats,
@@ -558,12 +566,12 @@ def submit_comparison():
     try:
         elo_service = get_elo_service()
         elo_service.record_comparison(
-            query_id=query_id,
-            user_id=user.id,
-            winner_model=winner_model,
-            loser_model=loser_model,
-            translation_a_id=t1.id,
-            translation_b_id=t2.id,
+            query_id=int(query_id),
+            user_id=int(user.id),  # type: ignore
+            winner_model=str(winner_model) if winner_model else None,
+            loser_model=str(loser_model) if loser_model else None,
+            translation_a_id=int(t1.id),  # type: ignore
+            translation_b_id=int(t2.id),  # type: ignore
             source="explicit",
         )
         return jsonify({"status": "success"})

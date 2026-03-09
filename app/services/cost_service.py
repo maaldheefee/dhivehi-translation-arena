@@ -60,7 +60,7 @@ def check_user_budget(username: str) -> tuple[bool, float]:
     if not user:
         return (False, 0.0)
 
-    current_spend = get_user_monthly_cost(user.id)
+    current_spend = get_user_monthly_cost(int(user.id))  # type: ignore
     is_allowed = current_spend < MONTHLY_LIMIT_USD
 
     return (is_allowed, current_spend)

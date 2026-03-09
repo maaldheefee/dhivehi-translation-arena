@@ -113,10 +113,10 @@ def _derive_pairwise_from_votes(session, user_id, query_id, votes_data):
                 # Both achieved perfection; this is a measure of query ease,
                 # not comparative skill. Do not record a tie.
                 continue
-            else:
-                # Both struggled equally (e.g., both got 1 star or 2 stars). A tie.
-                winner_model = None
-                loser_model = None
+
+            # Both struggled equally (e.g., both got 1 star or 2 stars). A tie.
+            winner_model = None
+            loser_model = None
 
         try:
             elo_service.record_comparison(

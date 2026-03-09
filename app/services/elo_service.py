@@ -109,7 +109,7 @@ class ELOService:
             t_a = self.session.query(Translation).get(translation_a_id)
             t_b = self.session.query(Translation).get(translation_b_id)
             if t_a and t_b:
-                self.record_tie(t_a.model, t_b.model)
+                self.record_tie(str(t_a.model), str(t_b.model))
 
         return comparison
 
@@ -148,7 +148,7 @@ class ELOService:
         # Group by (query_id, user_id)
         vote_groups: dict[tuple[int, int], list[Vote]] = {}
         for vote in votes:
-            key = (int(vote.query_id), int(vote.user_id))
+            key = (int(vote.query_id), int(vote.user_id))  # type: ignore
             if key not in vote_groups:
                 vote_groups[key] = []
             vote_groups[key].append(vote)
@@ -198,15 +198,19 @@ class ELOService:
                 elif v2.rating > v1.rating:
                     winner_model = t2.model
                     loser_model = t1.model
+                elif v1.rating == 3:
+                    # Both are 3 (Excellent). Perfection on a trivial query
+                    # shouldn't penality high-ELO models with a tie.
+                    continue
                 # Equal ratings = tie (winner_model and loser_model stay None)
 
                 self.record_comparison(
-                    query_id=query_id,
-                    user_id=uid,
-                    winner_model=winner_model,
-                    loser_model=loser_model,
-                    translation_a_id=v1.translation_id,
-                    translation_b_id=v2.translation_id,
+                    query_id=int(query_id),
+                    user_id=int(uid),
+                    winner_model=str(winner_model) if winner_model else None,
+                    loser_model=str(loser_model) if loser_model else None,
+                    translation_a_id=int(v1.translation_id) if v1.translation_id else None,
+                    translation_b_id=int(v2.translation_id) if v2.translation_id else None,
                     source="derived",
                 )
                 comparisons_created += 1

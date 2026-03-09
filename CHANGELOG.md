@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stats**: Vote distribution (excellent/good/okay/rejected) now included in JSON export for detailed analysis.
 - **Copy Buttons**: Unified JSON and Analysis Prompt copy buttons across all three pages (Main, Compare, Stats) with consistent styling and placement.
 - **Agent**: Added `/commit` workflow for standardized commit messages and CHANGELOG updates.
+- **Security**: Hardened authentication by adding `@login_required` to sensitive data routes and removing insecure backdoors.
+- **Algorithm**: Implemented "Trivial Query" ELO penalty protection to prevent high-quality models from losing ranking points on easy queries.
+- **Performance**: Full refactor of the Stats dashboard and Pairwise generator to use server-side SQL aggregations and joins, eliminating $O(N)$ memory bottlenecks.
+- **Typing**: Comprehensive type-safety migration using `ty` (uvx ty check), resolving all SQLAlchemy-related type inference warnings.
+- **Code Quality**: Applied project-wide linting and formatting standards using `Ruff` (Python) and `Biome` (JS).
 
 ### Changed
 - **UI**: Complete visual overhaul for a "Premium" aesthetic using a slate/blue color palette, cleaner shadows, and improved input focus states.

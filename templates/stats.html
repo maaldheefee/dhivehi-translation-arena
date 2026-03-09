@@ -207,7 +207,7 @@
         table.setAttribute('data-sort-order', isAscending ? 'desc' : 'asc');
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', () => {
         const ctx = document.getElementById('modelPerformanceChart').getContext('2d');
         
         const labels = {{ model_scores|map(attribute='display_name')|list|tojson }};
@@ -257,7 +257,7 @@
                     legend: { position: 'top' },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: (context) => {
                                 let label = context.dataset.label || '';
                                 if (label) {
                                     label += ': ';
@@ -312,30 +312,27 @@
                     total_translations: window.globalStats.total_generations,
                     methodology: METHODOLOGY_TEXT
                 },
-                models: window.statsData.map(m => ({
+                models: window.statsData.map(m => (
                     name: m.display_name,
                     base_model: m.base_model,
                     preset: m.preset_name,
                     avg_score: m.average_score,
                     elo: m.elo_rating,
-                    elo_details: {
+                    elo_details: 
                         wins: m.elo_wins,
                         losses: m.elo_losses,
-                        ties: m.elo_ties
-                    },
+                        ties: m.elo_ties,
                     win_rate: m.elo_win_rate,
                     votes: m.votes_cast,
-                    vote_distribution: {
+                    vote_distribution: 
                         excellent: m.excellent_count,
                         good: m.good_count,
                         okay: m.okay_count,
-                        rejected: m.rejected_count
-                    },
+                        rejected: m.rejected_count,
                     cost_per_100k: m.projected_cost_100k,
                     bang_for_buck: m.bang_for_buck,
                     is_active: m.is_active,
-                    config: m.config
-                }))
+                    config: m.config))
             };
         }
 
