@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **UI/Footer**: Updated copyright year to a range (2025&ndash;2026) using proper typography.
+
+### Fixed
+- **UI**: Fixed RTL layout issues for toggle switches and table alignment in the stats dashboard.
+
+
 ## [0.3.0] - 2026-03-10
 
 ### Added
