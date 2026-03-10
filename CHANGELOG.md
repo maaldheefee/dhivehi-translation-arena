@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-10
+
 ### Added
 - **Localization**: Global translation helper `t()` and `window.translations` injection in `base.html` for consistent access to localized strings across all scripts.
 - **Localization**: Added missing localization keys for Compare UI, stats headers, and toast messages.
