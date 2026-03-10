@@ -66,6 +66,7 @@ TRANSLATIONS = {
         "cost_today": "Cost Today",
         "projected_cost_100k": "Projected Cost (100k words)",
         "bang_for_buck_score": "Bang For Buck Score",
+        "show_inactive_models": "Show Inactive Models",
         # New Compare UI
         "nav_compare": "Compare",
         "compare_header": "Quick Compare",
@@ -173,6 +174,7 @@ TRANSLATIONS = {
         "cost_today": "މިއަދުގެ ޚަރަދު",
         "projected_cost_100k": "ލަފާކުރެވޭ ޚަރަދު (1 ލައްކަ ބަސް)",
         "bang_for_buck_score": "އަގާއި އަޅާބަލާއިރު އެންމެ ރަނގަޅީ",
+        "show_inactive_models": "ބޭނުން ނުކުރާ މޮޑެލްތައް ދައްކާ",
         # New Compare UI
         "nav_compare": "އަޅާކިޔުން",
         "compare_header": "އަވަސް އަޅާކިޔުން",

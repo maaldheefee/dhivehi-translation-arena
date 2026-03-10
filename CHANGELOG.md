@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code Quality**: Applied project-wide linting and formatting standards using `Ruff` (Python) and `Biome` (JS).
 
 ### Changed
+- **UI/Stats**: Upgraded the "show inactive models" toggle to a modern switch design and added missing Dhivehi translations.
 - **UI**: Complete visual overhaul for a "Premium" aesthetic using a slate/blue color palette, cleaner shadows, and improved input focus states.
 - **UI**: Combined "Instructions", "Configure Models", and "Predefined Queries" into a single cohesive "Controls Card" on the main page.
 - **UI**: Refined the "Filter Models" button in the Compare UI with a new icon and cleaner styling.
