@@ -92,9 +92,16 @@ def _derive_pairwise_from_votes(
     """
     elo_service = get_elo_service(session)
 
+    # Pre-fetch translations to avoid N+1 query
+    translation_ids = {v["translation_id"] for v in votes_data if v.get("translation_id")}
+    translations = (
+        session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
+    )
+    translation_map = {t.id: t for t in translations}
+
     for v1, v2 in combinations(votes_data, 2):
-        t1 = session.query(Translation).get(v1["translation_id"])
-        t2 = session.query(Translation).get(v2["translation_id"])
+        t1 = translation_map.get(v1["translation_id"])
+        t2 = translation_map.get(v2["translation_id"])
 
         if not t1 or not t2:
             continue
