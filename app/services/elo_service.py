@@ -106,8 +106,9 @@ class ELOService:
             self.update_ratings(winner_model, loser_model)
         elif translation_a_id and translation_b_id and not winner_model:
             # It's a tie - get model names from translations
-            t_a = self.session.query(Translation).get(translation_a_id)
-            t_b = self.session.query(Translation).get(translation_b_id)
+            # Note: session.get uses the identity map (cache) if already loaded
+            t_a = self.session.get(Translation, translation_a_id)
+            t_b = self.session.get(Translation, translation_b_id)
             if t_a and t_b:
                 self.record_tie(str(t_a.model), str(t_b.model))
 
@@ -144,6 +145,15 @@ class ELOService:
         """
         # Get all votes grouped by query
         votes = self.session.query(Vote).all()
+
+        # Pre-fetch all translations to avoid N+1 query
+        translation_ids = {v.translation_id for v in votes if v.translation_id}
+        translations = (
+            self.session.query(Translation)
+            .filter(Translation.id.in_(translation_ids))
+            .all()
+        )
+        translation_map = {t.id: t for t in translations}
 
         # Group by (query_id, user_id)
         vote_groups: dict[tuple[int, int], list[Vote]] = {}
@@ -184,8 +194,8 @@ class ELOService:
                     continue
 
                 # Get model names from translations
-                t1 = self.session.query(Translation).get(v1.translation_id)
-                t2 = self.session.query(Translation).get(v2.translation_id)
+                t1 = translation_map.get(v1.translation_id)
+                t2 = translation_map.get(v2.translation_id)
                 if not t1 or not t2:
                     continue
 
