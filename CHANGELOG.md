@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Models**: Added Google Gemma 4 31B Instruct and Gemini 3.1 Flash Lite Preview models with T0.1 and T0.85 variants.
 - **UI/Footer**: Updated copyright year to a range (2025&ndash;2026) using proper typography.
 
 ### Fixed
