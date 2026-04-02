@@ -32,6 +32,10 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
     vote_repo = VoteRepository(session)
 
     try:
+        # Pre-fetch existing votes for the user and query to avoid N+1 query
+        existing_votes = vote_repo.get_by_user_and_query(user_id, query_id)
+        vote_map = {v.translation_id: v for v in existing_votes}
+
         # Process votes with Upsert logic
         processed_votes = []
         for vote_data in votes_data:
@@ -46,10 +50,8 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
             if rating not in [3, 2, 1, -1]:
                 continue
 
-            # Check if vote already exists
-            existing_vote = vote_repo.get_by_user_query_and_translation(
-                user_id, query_id, translation_id
-            )
+            # Check if vote already exists in the pre-fetched map
+            existing_vote = vote_map.get(translation_id)
 
             if existing_vote:
                 existing_vote.rating = rating
@@ -65,6 +67,8 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
                     rating=rating,
                 )
                 vote_repo.add(vote)
+                # Update map to avoid creating duplicates if translation_id repeats in votes_data
+                vote_map[translation_id] = vote
                 processed_votes.append(
                     {"translation_id": translation_id, "rating": rating}
                 )
@@ -93,7 +97,9 @@ def _derive_pairwise_from_votes(
     elo_service = get_elo_service(session)
 
     # Pre-fetch translations to avoid N+1 query
-    translation_ids = {v["translation_id"] for v in votes_data if v.get("translation_id")}
+    translation_ids = {
+        v["translation_id"] for v in votes_data if v.get("translation_id")
+    }
     translations = (
         session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
     )
