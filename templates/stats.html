@@ -363,7 +363,7 @@ input:checked + .toggle-slider:before {
         // but user requested default "active models only")
         const showInactiveToggle = document.getElementById('show-inactive-toggle');
         
-            // Filter Chart data
+        function applyFilters() {
             const showInactive = showInactiveToggle.checked;
             const filteredData = window.statsData.filter(m => {
                 const isHidden = window.Settings && window.Settings.isHidden(m.model_name);

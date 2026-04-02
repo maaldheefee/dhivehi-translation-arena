@@ -155,20 +155,35 @@ const Settings = {
             Object.entries(groups).forEach(([groupName, models]) => {
                 const groupEl = document.createElement('div');
                 groupEl.className = 'settings-group';
-                groupEl.innerHTML = `<h5>${groupName}</h5>`;
+                const h5 = document.createElement('h5');
+                h5.textContent = groupName;
+                groupEl.appendChild(h5);
                 
                 models.forEach(model => {
                     const row = document.createElement('div');
                     row.className = 'settings-row';
                     const isChecked = !this.isHidden(model.key);
-                    
-                    row.innerHTML = `
-                        <span class="settings-model-name">${model.name || model.key}</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" class="model-toggle" data-key="${model.key}" ${isChecked ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    `;
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'settings-model-name';
+                    nameSpan.textContent = model.name || model.key;
+
+                    const label = document.createElement('label');
+                    label.className = 'toggle-switch';
+
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.className = 'model-toggle';
+                    input.dataset.key = model.key;
+                    if (isChecked) input.checked = true;
+
+                    const slider = document.createElement('span');
+                    slider.className = 'toggle-slider';
+
+                    label.appendChild(input);
+                    label.appendChild(slider);
+                    row.appendChild(nameSpan);
+                    row.appendChild(label);
                     groupEl.appendChild(row);
                 });
                 listContainer.appendChild(groupEl);

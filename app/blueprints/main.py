@@ -175,6 +175,8 @@ def available_models() -> Response:
     count_param = request.args.get("count")
     try:
         max_models = int(count_param) if count_param else None
+        if max_models is not None:
+            max_models = max(1, min(max_models, conf.MAX_MODELS_SELECTION))
     except (ValueError, TypeError):
         max_models = None
 
