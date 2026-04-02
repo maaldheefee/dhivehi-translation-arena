@@ -93,7 +93,9 @@ def _derive_pairwise_from_votes(
     elo_service = get_elo_service(session)
 
     # Pre-fetch translations to avoid N+1 query
-    translation_ids = {v["translation_id"] for v in votes_data if v.get("translation_id")}
+    translation_ids = {
+        v["translation_id"] for v in votes_data if v.get("translation_id")
+    }
     translations = (
         session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
     )

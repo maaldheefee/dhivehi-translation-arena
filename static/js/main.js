@@ -105,12 +105,18 @@ document.addEventListener("DOMContentLoaded", () => {
 	function loadModels() {
 		if (!elements.modelParams) return;
 
-		fetch("/get_available_models")
+		const params = new URLSearchParams(window.Settings ? window.Settings.getQueryParams() : {});
+		fetch(`/get_available_models?${params.toString()}`)
 			.then((res) => res.json())
 			.then((data) => {
 				elements.modelParams.innerHTML = "";
 				if (data.models) {
 					Object.entries(data.models).forEach(([key, modelData]) => {
+						// Skip hidden models
+						if (window.Settings?.isHidden(key)) {
+							return;
+						}
+
 						// Container Card
 						const isSelected =
 							modelData.selected !== undefined ? modelData.selected : true;

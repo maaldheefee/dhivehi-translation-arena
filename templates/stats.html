@@ -132,7 +132,7 @@ input:checked + .toggle-slider:before {
             </thead>
             <tbody>
                 {% for model in model_scores %}
-                <tr class="{% if not model.is_active %}deprecated-model{% endif %}">
+                <tr class="{% if not model.is_active %}deprecated-model{% endif %}" data-model-name="{{ model.model_name }}">
                     <td><span class="rank-badge">{{ loop.index }}</span></td>
                     <td class="latin-content">
                         <strong>{{ model.base_model }}</strong>
@@ -363,23 +363,40 @@ input:checked + .toggle-slider:before {
         // but user requested default "active models only")
         const showInactiveToggle = document.getElementById('show-inactive-toggle');
         
-        function applyFilters() {
-            const showInactive = showInactiveToggle.checked;
-            
-            // Filter table rows
-            document.querySelectorAll('tr.deprecated-model').forEach(row => {
-                row.style.display = showInactive ? '' : 'none';
-            });
-            
             // Filter Chart data
-            const filteredData = window.statsData.filter(m => showInactive || m.is_active);
+            const showInactive = showInactiveToggle.checked;
+            const filteredData = window.statsData.filter(m => {
+                const isHidden = window.Settings && window.Settings.isHidden(m.model_name);
+                return !isHidden && (showInactive || m.is_active);
+            });
             initOrUpdateChart(filteredData);
         }
 
+        function applyTableFilters() {
+            const showInactive = showInactiveToggle.checked;
+            
+            document.querySelectorAll('tbody tr').forEach(row => {
+                // Find model name from the data points or row content
+                // A better way is to check the model name in the statsData
+                const modelName = row.dataset.modelName; 
+                if (modelName && window.Settings && window.Settings.isHidden(modelName)) {
+                    row.style.display = 'none';
+                    return;
+                }
+
+                if (row.classList.contains('deprecated-model')) {
+                    row.style.display = showInactive ? '' : 'none';
+                } else {
+                    row.style.display = '';
+                }
+            });
+        }
+
         // Apply filters once JS is loaded
-        // Note: The HTML output renders all rows by default, we hide them here.
-        // It's safe since statsData is fully populated by Jinja.
-        showInactiveToggle.addEventListener('change', applyFilters);
+        showInactiveToggle.addEventListener('change', () => {
+            applyFilters();
+            applyTableFilters();
+        });
 
         // Expose data for copy functions
         window.statsData = {{ model_scores|tojson }};
@@ -387,6 +404,7 @@ input:checked + .toggle-slider:before {
 
         // Initialize state
         applyFilters();
+        applyTableFilters();
 
         function showLocalToast(message, type = 'info') {
             // Reusing the container from base.html if it exists, or create one

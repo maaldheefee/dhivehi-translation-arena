@@ -35,7 +35,11 @@ main_bp = Blueprint("main", __name__)
 
 
 def _select_models(
-    available_models_map: dict[str, str], usage_stats: dict[str, int], config: Config
+    available_models_map: dict[str, str],
+    usage_stats: dict[str, int],
+    config: Config,
+    max_models: int | None = None,
+    excluded_models: set[str] | None = None,
 ):
     """
     Selects up to MAX_MODELS models with balanced randomness and strategic grouping.
@@ -55,11 +59,14 @@ def _select_models(
     4. Select groups in priority order, including all variants from each group
     5. Stop when we would exceed MAX_MODELS
     """
-    max_models = config.MAX_MODELS_SELECTION
+    max_models = max_models if max_models is not None else config.MAX_MODELS_SELECTION
+    excluded_models = excluded_models or set()
 
     # Group models by base_model
     base_groups = defaultdict(list)
     for key in available_models_map:
+        if key in excluded_models:
+            continue
         base = config.MODELS.get(key, {}).get("base_model", key)
         base_groups[base].append(key)
 
@@ -161,8 +168,26 @@ def available_models() -> Response:
     usage_stats = get_model_usage_stats()
     conf = get_config()
 
+    # Parse frontend parameters
+    hidden_param = request.args.get("hidden", "")
+    hidden_models = {m.strip() for m in hidden_param.split(",") if m.strip()}
+
+    count_param = request.args.get("count")
+    try:
+        max_models = int(count_param) if count_param else None
+    except (ValueError, TypeError):
+        max_models = None
+
     # Use smart selection logic
-    selected_keys = set(_select_models(available_models_map, usage_stats, conf))
+    selected_keys = set(
+        _select_models(
+            available_models_map,
+            usage_stats,
+            conf,
+            max_models=max_models,
+            excluded_models=hidden_models,
+        )
+    )
 
     # Still sort the returned list by usage to show least used first
     sorted_model_keys = sorted(
