@@ -147,7 +147,7 @@ const Settings = {
             // Group models by base_model for better UI
             const groups = {};
             Object.entries(data.models).forEach(([key, model]) => {
-                const groupName = model.base_model || 'Other';
+                const groupName = model.base_model || window.t('other_group') || 'Other';
                 if (!groups[groupName]) groups[groupName] = [];
                 groups[groupName].push({ key, ...model });
             });
@@ -190,7 +190,7 @@ const Settings = {
             });
         } catch (e) {
             console.error('Failed to populate model list:', e);
-            listContainer.innerHTML = '<p class="error-msg">Failed to load models.</p>';
+            listContainer.innerHTML = `<p class="error-msg">${window.t('error_failed_to_load_models') || 'Failed to load models.'}</p>`;
         }
     },
 

@@ -339,6 +339,17 @@ class Config:
             "preset_name": "Temp 0.1",
         },
         # ==================== Gemma 4 31B Instruct ====================
+        "gemma-4-31b": {
+            "name": "google/gemma-4-31b-it",
+            "display_name": "Gemma 4 31B Instruct (Default)",
+            "type": "openrouter",
+            "input_cost_per_mtok": 0.14,
+            "output_cost_per_mtok": 0.40,
+            "is_active": True,
+            "rate_limit": None,
+            "base_model": "Gemma 4 31B Instruct",
+            "preset_name": "Model Default",
+        },
         "gemma-4-31b-t0.85": {
             "name": "google/gemma-4-31b-it",
             "display_name": "Gemma 4 31B Instruct (T0.85)",
