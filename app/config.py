@@ -2,7 +2,10 @@
 
 import os
 import warnings
+from pathlib import Path
 from typing import Any, ClassVar, NotRequired, TypedDict
+
+import yaml
 
 
 class ModelConfig(TypedDict):
@@ -22,6 +25,70 @@ class ModelConfig(TypedDict):
     preset_name: NotRequired[str | None]
     base_model: NotRequired[str | None]
     timeout: NotRequired[float]  # API timeout in seconds, default 90
+
+
+_REQUIRED_MODEL_FIELDS = frozenset({
+    "name",
+    "display_name",
+    "type",
+    "input_cost_per_mtok",
+    "output_cost_per_mtok",
+    "is_active",
+})
+
+
+def _resolve_models_path() -> Path:
+    return Path(__file__).resolve().parent.parent / "models.yaml"
+
+
+def _load_models_from_yaml(path: Path | None = None) -> dict[str, ModelConfig]:
+    if path is None:
+        path = _resolve_models_path()
+
+    if not path.exists():
+        msg = f"models.yaml not found at {path}"
+        raise FileNotFoundError(msg)
+
+    with path.open(encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    if not isinstance(data, dict) or len(data) == 0:
+        msg = f"models.yaml must contain a non-empty mapping, got {type(data).__name__}"
+        raise ValueError(msg)
+
+    models: dict[str, ModelConfig] = {}
+    errors: list[str] = []
+
+    for key, entry in data.items():
+        if not isinstance(entry, dict):
+            errors.append(f"Model '{key}': expected mapping, got {type(entry).__name__}")
+            continue
+
+        missing = _REQUIRED_MODEL_FIELDS - set(entry)
+        if missing:
+            errors.append(f"Model '{key}': missing required fields: {', '.join(sorted(missing))}")
+            continue
+
+        if not isinstance(entry["is_active"], bool):
+            errors.append(f"Model '{key}': 'is_active' must be a boolean")
+            continue
+
+        if not isinstance(entry["input_cost_per_mtok"], (int, float)):
+            errors.append(f"Model '{key}': 'input_cost_per_mtok' must be a number")
+            continue
+
+        if not isinstance(entry["output_cost_per_mtok"], (int, float)):
+            errors.append(f"Model '{key}': 'output_cost_per_mtok' must be a number")
+            continue
+
+        models[key] = entry  # type: ignore[assignment]
+
+    if errors:
+        error_text = "\n  ".join(errors)
+        msg = f"Invalid models.yaml:\n  {error_text}"
+        raise ValueError(msg)
+
+    return models
 
 
 class Config:
@@ -64,453 +131,8 @@ class Config:
         "Translate to Dhivehi. Don't explain. Only return the translated text."
     )
 
-    # Model configurations
-    # Naming convention: {base-model}[-{reasoning}]-t{temp}
-    # Temperature is always explicit for stability and future-proofing
-    MODELS: ClassVar[dict[str, ModelConfig]] = {
-        # ==================== Gemini 2.0 Flash ====================
-        "gemini-2.0-flash-t0.85": {
-            "name": "google/gemini-2.0-flash-001",
-            "display_name": "Gemini 2.0 Flash (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.1,
-            "output_cost_per_mtok": 0.4,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Gemini 2.0 Flash",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "gemini-2.0-flash-t0.1": {
-            "name": "google/gemini-2.0-flash-001",
-            "display_name": "Gemini 2.0 Flash (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.1,
-            "output_cost_per_mtok": 0.4,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Gemini 2.0 Flash",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Gemini 3 Pro ====================
-        "gemini-3-pro-t1.0": {
-            "name": "google/gemini-3-pro-preview",
-            "display_name": "Gemini 3 Pro (T1.0)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 2.0,
-            "output_cost_per_mtok": 12.0,
-            "is_active": False,  # Discontinued (previously: Disabled due to high cost)
-            "rate_limit": None,
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Pro Preview",
-            "temperature": 1.0,
-            "preset_name": "Default, Temp 1.0",
-        },
-        "gemini-3-pro-low-t1.0": {
-            "name": "google/gemini-3-pro-preview",
-            "display_name": "Gemini 3 Pro (Low, T1.0)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 2.0,
-            "output_cost_per_mtok": 12.0,
-            "is_active": False,  # Discontinued
-            "rate_limit": None,
-            "reasoning": {"effort": "low"},
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Pro Preview",
-            "temperature": 1.0,
-            "preset_name": "Low Reasoning, Temp 1.0",
-        },
-        "gemini-3-pro-low-t0.35": {
-            "name": "google/gemini-3-pro-preview",
-            "display_name": "Gemini 3 Pro (Low, T0.35)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 2.0,
-            "output_cost_per_mtok": 12.0,
-            "is_active": False,  # Discontinued
-            "rate_limit": None,
-            "temperature": 0.35,
-            "reasoning": {"effort": "low"},
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Pro Preview",
-            "preset_name": "Low Reasoning, Temp 0.35",
-        },
-        "gemini-3.1-pro-low-t1.0": {
-            "name": "google/gemini-3.1-pro-preview",
-            "display_name": "Gemini 3.1 Pro (Low, T1.0)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 2.0,
-            "output_cost_per_mtok": 12.0,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"effort": "low"},
-            "timeout": 180.0,
-            "base_model": "Gemini 3.1 Pro Preview",
-            "temperature": 1.0,
-            "preset_name": "Low Reasoning, Temp 1.0",
-        },
-        "gemini-3.1-pro-low-t0.35": {
-            "name": "google/gemini-3.1-pro-preview",
-            "display_name": "Gemini 3.1 Pro (Low, T0.35)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 2.0,
-            "output_cost_per_mtok": 12.0,
-            "is_active": True,
-            "rate_limit": None,
-            "temperature": 0.35,
-            "reasoning": {"effort": "low"},
-            "timeout": 180.0,
-            "base_model": "Gemini 3.1 Pro Preview",
-            "preset_name": "Low Reasoning, Temp 0.35",
-        },
-        # ==================== Gemini 3 Flash ====================
-        "gemini-3-flash-t1.0": {
-            "name": "google/gemini-3-flash-preview",
-            "display_name": "Gemini 3 Flash (T1.0)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.5,
-            "output_cost_per_mtok": 3.0,
-            "is_active": True,
-            "rate_limit": None,
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Flash Preview",
-            "temperature": 1.0,
-            "preset_name": "Default, Temp 1.0",
-        },
-        "gemini-3-flash-low-t1.0": {
-            "name": "google/gemini-3-flash-preview",
-            "display_name": "Gemini 3 Flash (Low, T1.0)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.5,
-            "output_cost_per_mtok": 3.0,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"effort": "minimal"},
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Flash Preview",
-            "temperature": 1.0,
-            "preset_name": "Min Reasoning, Temp 1.0",
-        },
-        "gemini-3-flash-t0.3": {
-            "name": "google/gemini-3-flash-preview",
-            "display_name": "Gemini 3 Flash (T0.3)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.5,
-            "output_cost_per_mtok": 3.0,
-            "is_active": True,
-            "rate_limit": None,
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Flash Preview",
-            "temperature": 0.3,
-            "preset_name": "Temp 0.3",
-        },
-        "gemini-3-flash-low-t0.3": {
-            "name": "google/gemini-3-flash-preview",
-            "display_name": "Gemini 3 Flash (Low, T0.3)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.5,
-            "output_cost_per_mtok": 3.0,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"effort": "minimal"},
-            "timeout": 180.0,
-            "base_model": "Gemini 3 Flash Preview",
-            "temperature": 0.3,
-            "preset_name": "Min Reasoning, Temp 0.3",
-        },
-        # ==================== Gemini 3.1 Flash Lite ====================
-        "gemini-3.1-flash-lite-t0.85": {
-            "name": "google/gemini-3.1-flash-lite-preview",
-            "display_name": "Gemini 3.1 Flash Lite (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.25,
-            "output_cost_per_mtok": 1.5,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Gemini 3.1 Flash Lite Preview",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "gemini-3.1-flash-lite-t0.1": {
-            "name": "google/gemini-3.1-flash-lite-preview",
-            "display_name": "Gemini 3.1 Flash Lite (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.25,
-            "output_cost_per_mtok": 1.5,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Gemini 3.1 Flash Lite Preview",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Gemini 2.5 Pro ====================
-        "gemini-2.5-pro-min-t0.85": {
-            "name": "google/gemini-2.5-pro",
-            "display_name": "Gemini 2.5 Pro (Min, T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 1.25,
-            "output_cost_per_mtok": 10.0,
-            "is_active": False,
-            "rate_limit": None,
-            "reasoning": {"max_tokens": 128},
-            "timeout": 180.0,
-            "base_model": "Gemini 2.5 Pro",
-            "temperature": 0.85,
-            "preset_name": "Min Thinking, Temp 0.85",
-        },
-        "gemini-2.5-pro-min-t0.1": {
-            "name": "google/gemini-2.5-pro",
-            "display_name": "Gemini 2.5 Pro (Min, T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 1.25,
-            "output_cost_per_mtok": 10.0,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"max_tokens": 128},
-            "timeout": 180.0,
-            "base_model": "Gemini 2.5 Pro",
-            "temperature": 0.1,
-            "preset_name": "Min Thinking, Temp 0.1",
-        },
-        # ==================== Gemini 2.5 Flash ====================
-        "gemini-2.5-flash-t0.85": {
-            "name": "google/gemini-2.5-flash",
-            "display_name": "Gemini 2.5 Flash (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.3,
-            "output_cost_per_mtok": 2.5,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"max_tokens": 0},
-            "base_model": "Gemini 2.5 Flash",
-            "temperature": 0.85,
-            "preset_name": "No Thinking, Temp 0.85",
-        },
-        "gemini-2.5-flash-t0.1": {
-            "name": "google/gemini-2.5-flash",
-            "display_name": "Gemini 2.5 Flash (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.3,
-            "output_cost_per_mtok": 2.5,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"max_tokens": 0},
-            "base_model": "Gemini 2.5 Flash",
-            "temperature": 0.1,
-            "preset_name": "No Thinking, Temp 0.1",
-        },
-        "gemini-2.5-flash-reasoning-t0.85": {
-            "name": "google/gemini-2.5-flash",
-            "display_name": "Gemini 2.5 Flash (Reasoning, T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.3,
-            "output_cost_per_mtok": 2.5,
-            "is_active": True,
-            "rate_limit": None,
-            "reasoning": {"enabled": True},
-            "timeout": 180.0,
-            "base_model": "Gemini 2.5 Flash",
-            "temperature": 0.85,
-            "preset_name": "Reasoning, Temp 0.85",
-        },
-        # ==================== Gemini 2.5 Flash Lite ====================
-        "gemini-2.5-flash-lite-t0.85": {
-            "name": "google/gemini-2.5-flash-lite",
-            "display_name": "Gemini 2.5 Flash Lite (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.10,
-            "output_cost_per_mtok": 0.40,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Gemini 2.5 Flash Lite",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "gemini-2.5-flash-lite-t0.1": {
-            "name": "google/gemini-2.5-flash-lite",
-            "display_name": "Gemini 2.5 Flash Lite (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.10,
-            "output_cost_per_mtok": 0.40,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Gemini 2.5 Flash Lite",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Gemma 4 26B Instruct ====================
-        "gemma-4-26b": {
-            "name": "google/gemma-4-26b-a4b-it",
-            "display_name": "Gemma 4 26B Instruct (Default)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.13,
-            "output_cost_per_mtok": 0.40,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Gemma 4 26B Instruct",
-            "preset_name": "Model Default",
-        },
-        # ==================== Gemma 4 31B Instruct ====================
-        "gemma-4-31b": {
-            "name": "google/gemma-4-31b-it",
-            "display_name": "Gemma 4 31B Instruct (Default)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.14,
-            "output_cost_per_mtok": 0.40,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Gemma 4 31B Instruct",
-            "preset_name": "Model Default",
-        },
-        "gemma-4-31b-t0.85": {
-            "name": "google/gemma-4-31b-it",
-            "display_name": "Gemma 4 31B Instruct (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.14,
-            "output_cost_per_mtok": 0.40,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Gemma 4 31B Instruct",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "gemma-4-31b-t0.1": {
-            "name": "google/gemma-4-31b-it",
-            "display_name": "Gemma 4 31B Instruct (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 0.14,
-            "output_cost_per_mtok": 0.40,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Gemma 4 31B Instruct",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Claude Opus 4.5 ====================
-        "claude-opus-4.5-t0.85": {
-            "name": "anthropic/claude-opus-4.5",
-            "display_name": "Claude Opus 4.5 (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 5.0,
-            "output_cost_per_mtok": 25.0,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Claude Opus 4.5",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "claude-opus-4.5-t0.1": {
-            "name": "anthropic/claude-opus-4.5",
-            "display_name": "Claude Opus 4.5 (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 5.0,
-            "output_cost_per_mtok": 25.0,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Claude Opus 4.5",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        "claude-opus-4.6-t0.1": {
-            "name": "anthropic/claude-opus-4.6",
-            "display_name": "Claude Opus 4.6 (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 5.0,
-            "output_cost_per_mtok": 25.0,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Claude Opus 4.6",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Claude 3.7 Sonnet ====================
-        "claude-sonnet-3.7-t0.85": {
-            "name": "anthropic/claude-3.7-sonnet",
-            "display_name": "Claude 3.7 Sonnet (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Claude 3.7 Sonnet",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "claude-sonnet-3.7-t0.1": {
-            "name": "anthropic/claude-3.7-sonnet",
-            "display_name": "Claude 3.7 Sonnet (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Claude 3.7 Sonnet",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Claude 3.5 Sonnet ====================
-        "claude-sonnet-3.5-t0.85": {
-            "name": "anthropic/claude-3.5-sonnet",
-            "display_name": "Claude 3.5 Sonnet (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Claude 3.5 Sonnet",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "claude-sonnet-3.5-t0.1": {
-            "name": "anthropic/claude-3.5-sonnet",
-            "display_name": "Claude 3.5 Sonnet (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Claude 3.5 Sonnet",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        # ==================== Claude Sonnet 4 ====================
-        "claude-sonnet-4-t0.85": {
-            "name": "anthropic/claude-sonnet-4",
-            "display_name": "Claude Sonnet 4 (T0.85)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Claude Sonnet 4",
-            "temperature": 0.85,
-            "preset_name": "Temp 0.85",
-        },
-        "claude-sonnet-4-t0.1": {
-            "name": "anthropic/claude-sonnet-4",
-            "display_name": "Claude Sonnet 4 (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": False,
-            "rate_limit": None,
-            "base_model": "Claude Sonnet 4.6",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-        "claude-sonnet-4.6-t0.1": {
-            "name": "anthropic/claude-sonnet-4.6",
-            "display_name": "Claude Sonnet 4.6 (T0.1)",
-            "type": "openrouter",
-            "input_cost_per_mtok": 3.0,
-            "output_cost_per_mtok": 15.0,
-            "is_active": True,
-            "rate_limit": None,
-            "base_model": "Claude Sonnet 4.6",
-            "temperature": 0.1,
-            "preset_name": "Temp 0.1",
-        },
-    }
+    # Model configurations loaded from models.yaml
+    MODELS: ClassVar[dict[str, ModelConfig]] = _load_models_from_yaml()
 
     # API settings
     OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
