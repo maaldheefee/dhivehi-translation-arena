@@ -6,16 +6,16 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+from app.database import Base
 
 
 class User(Base):
@@ -49,6 +49,11 @@ class Query(Base):
 
 class Translation(Base):
     __tablename__ = "translations"
+    __table_args__ = (
+        Index("ix_translations_model", "model"),
+        Index("ix_translations_query_model", "query_id", "model"),
+        Index("ix_translations_user_created", "user_id", "created_at"),
+    )
 
     id = Column(Integer, primary_key=True)
     query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
@@ -111,6 +116,9 @@ class PairwiseComparison(Base):
     """
 
     __tablename__ = "pairwise_comparisons"
+    __table_args__ = (
+        Index("ix_pairwise_user_source", "user_id", "source"),
+    )
 
     id = Column(Integer, primary_key=True)
     query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)

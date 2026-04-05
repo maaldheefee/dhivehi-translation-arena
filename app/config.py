@@ -81,7 +81,7 @@ def _load_models_from_yaml(path: Path | None = None) -> dict[str, ModelConfig]:
             errors.append(f"Model '{key}': 'output_cost_per_mtok' must be a number")
             continue
 
-        models[key] = entry  # type: ignore[assignment]
+        models[key] = entry
 
     if errors:
         error_text = "\n  ".join(errors)
@@ -173,8 +173,15 @@ config = {
 }
 
 
+_config_instance: Config | None = None
+
+
 def get_config(config_name: str | None = None) -> Config:
-    """Get configuration instance."""
+    """Get configuration instance (cached)."""
+    global _config_instance  # noqa: PLW0603
+    if _config_instance is not None:
+        return _config_instance
     if config_name is None:
         config_name = os.environ.get("FLASK_ENV", "default")
-    return config.get(config_name, config["default"])()
+    _config_instance = config.get(config_name, config["default"])()
+    return _config_instance

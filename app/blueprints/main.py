@@ -1,5 +1,6 @@
 import json
 import random
+import time
 from collections import defaultdict
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
@@ -220,6 +221,8 @@ def stream_translation_generator(
     """
     shuffled_models = random.sample(selected_models, len(selected_models))
     futures = {}
+    max_duration = 180.0
+    start_time = time.monotonic()
 
     with ThreadPoolExecutor(max_workers=len(shuffled_models)) as executor:
         for i, model_key in enumerate(shuffled_models):
@@ -230,8 +233,23 @@ def stream_translation_generator(
 
         pending_futures = set(futures.keys())
         while pending_futures:
-            # Wait for any future to complete, or timeout after 2 seconds
-            done, _ = wait(pending_futures, return_when=FIRST_COMPLETED, timeout=2.0)
+            elapsed = time.monotonic() - start_time
+            if elapsed >= max_duration:
+                current_app.logger.warning(
+                    f"Stream timed out after {elapsed:.0f}s, cancelling {len(pending_futures)} pending futures"
+                )
+                for f in pending_futures:
+                    f.cancel()
+                    error_data = {"error": "Translation timed out", "model": futures[f]}
+                    yield f"data: {json.dumps(error_data)}\n\n"
+                break
+
+            remaining_timeout = max(2.0, max_duration - elapsed)
+            done, _ = wait(
+                pending_futures,
+                return_when=FIRST_COMPLETED,
+                timeout=min(2.0, remaining_timeout),
+            )
 
             if not done:
                 # No model finished in the last 2 seconds, send keep-alive comment

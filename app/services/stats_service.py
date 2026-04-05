@@ -10,8 +10,6 @@ from app.config import get_config
 from app.database import db_session
 from app.models import ModelELO, Query, Translation, Vote
 
-config = get_config()
-
 
 def calculate_model_scores():
     """
@@ -162,7 +160,7 @@ def calculate_model_scores():
         raw_bang_for_buck = ((10 * combined_score) ** 4) / projected_cost_100k
 
         # Get model config
-        model_config = config.MODELS.get(model_name, {})
+        model_config = get_config().MODELS.get(model_name, {})
 
         stats_list.append(
             {
@@ -233,8 +231,15 @@ def get_model_usage_stats() -> dict[str, int]:
     """
     Returns a dictionary mapping model names to their usage count (appearances).
     """
-    stats = calculate_model_scores()
-    return {item["model_name"]: item["appearances"] for item in stats}
+    session = cast(Session, db_session)
+
+    results = (
+        session.query(Translation.model, func.count(Translation.id).label("count"))
+        .group_by(Translation.model)
+        .all()
+    )
+
+    return {row.model: row.count for row in results}
 
 
 def calculate_global_stats():
@@ -330,7 +335,7 @@ def get_cost_breakdown():
     # Pre-calculate a display name mapping: upstream_name -> shortest_display_name
     upstream_display_names = {}
     upstream_base_models = {}
-    for conf in config.MODELS.values():
+    for conf in get_config().MODELS.values():
         u_name = conf["name"]
         d_name = conf["display_name"]
         b_name = conf.get("base_model")
@@ -385,8 +390,9 @@ def get_cost_breakdown():
         upstream_name = model_key
         display_name = model_key
 
-        if model_key in config.MODELS:
-            upstream_name = config.MODELS[model_key]["name"]
+        cfg = get_config()
+        if model_key in cfg.MODELS:
+            upstream_name = cfg.MODELS[model_key]["name"]
             display_name = upstream_display_names.get(upstream_name, upstream_name)
 
         if upstream_name not in grouped_stats:

@@ -1,11 +1,14 @@
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
+from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.orm import DeclarativeBase, scoped_session, sessionmaker
 
-engine = None
+
+class Base(DeclarativeBase):
+    pass
+
+
+engine: Engine | None = None
 SessionFactory = sessionmaker(autocommit=False, autoflush=False)
 db_session = scoped_session(SessionFactory)
-Base = declarative_base()
-Base.query = db_session.query_property()
 
 
 def init_db(app) -> None:
@@ -22,7 +25,6 @@ def init_db(app) -> None:
             cursor.close()
 
     db_session.configure(bind=engine)
-    Base.metadata.bind = engine
 
 
 def shutdown_session(exception=None) -> None:

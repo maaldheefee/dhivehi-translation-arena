@@ -7,8 +7,8 @@ from pathlib import Path
 # Note: In Docker, environment variables are already loaded
 # Import Flask app and database components
 from app import create_app, database
-from app.database import db_session
-from app.models import Base, ModelELO, PairwiseComparison, User
+from app.database import Base, db_session
+from app.models import ModelELO, PairwiseComparison, User
 from app.services.user_service import create_user
 
 
@@ -26,6 +26,9 @@ def main() -> None:
 
         # Create database schema (including new ELO tables)
         print("Creating database schema...")
+        if database.engine is None:
+            msg = "Database engine is not initialized. Ensure init_db(app) was called."
+            raise RuntimeError(msg)
         Base.metadata.create_all(bind=database.engine, checkfirst=True)
         print("Database schema created successfully.")
 

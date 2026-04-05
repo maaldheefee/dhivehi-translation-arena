@@ -1,72 +1,69 @@
-# Model Naming & Configuration
+# Model Configuration Guide
 
-## Summary
+Model definitions live in `models.yaml` at the project root. The `Config` class in `app/config.py` loads and validates them at startup.
 
-After discussion, we've settled on the following strategy for model naming and configuration:
+## Key Naming Convention
 
-### Key Decisions
+Database keys follow the pattern `{base-model}[-{reasoning}]-t{temp}`:
 
-1. **Database keys always include temperature** - e.g., `gemini-2.0-flash-t0.1`, `claude-opus-4.5-t0.85`
-2. **UI visibility controlled by flags** - `is_active` and `is_hidden` (new)
-3. **Display names adapt** - Show details when multiple presets, simplify when only one
-4. **One preset per model eventually** - After evaluation, deprecate/hide all but the best variant
-
-### Configuration Flags
-
-```python
-"is_active": bool    # Can be selected for new translations
-"is_hidden": bool    # Hidden from UI selectors (but data still accessible in stats)
 ```
+gemini-2.0-flash-t0.1
+gemini-3-flash-low-t1.0
+claude-opus-4.5-t0.85
+```
+
+Temperature is always explicit in the key so the identifier is self-documenting and never needs to change.
+
+## Configuration Flags
+
+| Flag          | Type   | Purpose                                        |
+| ------------- | ------ | ---------------------------------------------- |
+| `is_active`   | `bool` | Can be selected for new translations           |
+| `is_hidden`   | `bool` | Hidden from UI selectors (data kept in stats)  |
 
 **Flag combinations:**
-- `is_active=True, is_hidden=False` → Available and visible (normal state)
-- `is_active=False, is_hidden=False` → Deprecated but visible in stats
-- `is_active=False, is_hidden=True` → Fully hidden from UI
 
-### Naming Convention
+- `is_active: true, is_hidden: false` — Available and visible (normal state)
+- `is_active: false, is_hidden: false` — Deprecated but visible in stats
+- `is_active: false, is_hidden: true` — Fully hidden from UI
 
-**Database keys (model IDs):**
+## Required Fields per Model
+
+```yaml
+model-key:
+  name: "provider/model-id"        # Upstream model ID sent to OpenRouter
+  display_name: "Model Display"    # Shown in the UI
+  type: "openrouter"               # Only "openrouter" is supported
+  input_cost_per_mtok: 0.5         # Cost per million input tokens (USD)
+  output_cost_per_mtok: 2.0        # Cost per million output tokens (USD)
+  is_active: true                  # Whether model is selectable
 ```
-{base-model}[-{reasoning}]-t{temp}
 
-Examples:
-- gemini-2.0-flash-t0.1
-- gemini-3-flash-low-t1.0
-- claude-opus-4.5-t0.85
+## Optional Fields
+
+```yaml
+  temperature: 0.85                # Overrides DEFAULT_TEMPERATURE (0.1)
+  rate_limit: 10                   # Max requests per 60s window
+  timeout: 180.0                   # API timeout in seconds (default 90)
+  thinking_budget: 4096            # For thinking models
+  reasoning:                       # OpenRouter reasoning config
+    effort: low
+    max_tokens: 128
+  base_model: "Gemini 3 Flash"     # Groups variants together
+  preset_name: "Low Reasoning"     # Variant label in the UI
+  is_hidden: false                 # Hide from selectors
 ```
 
-**Display names:**
-- Multiple visible presets: `Gemini 2.0 Flash (T0.1)`, `Gemini 2.0 Flash (T0.85)`
-- Single visible preset: `Gemini 2.0 Flash`
+## Adding a New Model
 
-### Migration Plan
+1. Add the entry to `models.yaml`
+2. Run `uv run pytest tests/test_config.py` to validate
+3. Restart the application
 
-For model renaming procedures, see [model_renaming.md](model_renaming.md) which documents:
-- Step-by-step migration commands
-- Rollback procedures
-- Common scenarios
+## Deprecating a Model
 
-### Implementation Tasks
+Set `is_active: false` in `models.yaml`. Historical data is preserved in stats. To fully hide, also set `is_hidden: true`.
 
-1. **Add `is_hidden` field to ModelConfig TypedDict** in `app/config.py`
-2. **Run database migrations** using `scripts/rename_model.py`
-3. **Update all model configs** with new keys and `is_hidden` flag
-4. **Update UI logic** to respect `is_hidden` flag
-5. **Update display name logic** to adapt based on visible preset count
-6. **Test thoroughly** before deploying
+## Renaming a Model
 
-### Benefits
-
-✅ **Future-proof** - Can change defaults without DB migration  
-✅ **Self-documenting** - Temperature always explicit in DB  
-✅ **Flexible** - Can show/hide presets without losing data  
-✅ **Clean UI** - Simple names when only one preset active  
-✅ **Stable** - Model keys never change once set  
-
-### Next Steps
-
-1. Use `scripts/rename_model.py --dry-run` to preview changes
-2. Execute migration when ready
-3. Update config.py with new model keys
-4. Restart application and verify
-
+See [model_renaming.md](model_renaming.md) for the step-by-step migration process using `scripts/rename_model.py`.
