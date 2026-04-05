@@ -35,7 +35,7 @@ class Query(Base):
     __tablename__ = "queries"
 
     id = Column(Integer, primary_key=True)
-    source_text = Column(Text, nullable=False)
+    source_text = Column(Text, nullable=False, unique=True)
     timestamp = Column(DateTime, default=func.now())
 
     translations = relationship(

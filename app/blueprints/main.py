@@ -546,8 +546,6 @@ def _get_user_comparison_stats(user_id: int):
         "total_pairs": total_pairs,
     }
 
-    return jsonify({"error": "All pairs have been compared"}), 404
-
 
 @main_bp.route("/compare/submit", methods=["POST"])
 @login_required
