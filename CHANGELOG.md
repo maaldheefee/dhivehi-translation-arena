@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Models**: Added Google Gemma 4 31B Instruct and Gemini 3.1 Flash Lite Preview models with T0.1 and T0.85 variants, plus a Gemma 4 "Default" variant with no explicit temperature or reasoning.
+- **Models**: Added `google/gemma-4-26b-a4b-it` (Gemma 4 26B Instruct) with its default configuration.
 - **UI/Footer**: Updated copyright year to a range (2025&ndash;2026) using proper typography.
 - **Configuration**: New frontend settings system to hide specific models/presets from the UI and stats page, persisted in `localStorage`.
 - **Configuration**: Added "Auto-select N models" setting to customize the number of models automatically picked for comparison.
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **API**: Updated `/get_available_models` and backend selection logic to respect user-defined exclusions and counts passed from the frontend.
+- **Models**: Disabled `google/gemini-3-pro-preview` models as they have been discontinued.
 - **Stats**: Leaderboard table and performance charts now dynamically respect user-hidden model settings.
 
 ### Fixed

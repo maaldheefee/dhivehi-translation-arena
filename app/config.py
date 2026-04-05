@@ -100,7 +100,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 2.0,
             "output_cost_per_mtok": 12.0,
-            "is_active": False,  # Disabled due to high cost
+            "is_active": False,  # Discontinued (previously: Disabled due to high cost)
             "rate_limit": None,
             "timeout": 180.0,
             "base_model": "Gemini 3 Pro Preview",
@@ -113,7 +113,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 2.0,
             "output_cost_per_mtok": 12.0,
-            "is_active": True,
+            "is_active": False,  # Discontinued
             "rate_limit": None,
             "reasoning": {"effort": "low"},
             "timeout": 180.0,
@@ -127,7 +127,7 @@ class Config:
             "type": "openrouter",
             "input_cost_per_mtok": 2.0,
             "output_cost_per_mtok": 12.0,
-            "is_active": True,
+            "is_active": False,  # Discontinued
             "rate_limit": None,
             "temperature": 0.35,
             "reasoning": {"effort": "low"},
@@ -337,6 +337,18 @@ class Config:
             "base_model": "Gemini 2.5 Flash Lite",
             "temperature": 0.1,
             "preset_name": "Temp 0.1",
+        },
+        # ==================== Gemma 4 26B Instruct ====================
+        "gemma-4-26b": {
+            "name": "google/gemma-4-26b-a4b-it",
+            "display_name": "Gemma 4 26B Instruct (Default)",
+            "type": "openrouter",
+            "input_cost_per_mtok": 0.13,
+            "output_cost_per_mtok": 0.40,
+            "is_active": True,
+            "rate_limit": None,
+            "base_model": "Gemma 4 26B Instruct",
+            "preset_name": "Model Default",
         },
         # ==================== Gemma 4 31B Instruct ====================
         "gemma-4-31b": {
