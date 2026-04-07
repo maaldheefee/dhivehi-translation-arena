@@ -11,6 +11,10 @@ config = get_config()
 
 logger = logging.getLogger(__name__)
 
+# Global cache for client instances to ensure client reuse and TCP keep-alive
+_client_cache: dict[str, "TranslationClient"] = {}
+_client_cache_lock = threading.Lock()
+
 
 class TranslationClient:
     """Base class for translation clients."""
@@ -97,6 +101,12 @@ class OpenRouterClient(TranslationClient):
         self.custom_temperature = model_config.get("temperature")
         self.timeout = model_config.get("timeout", 90.0)  # Thinking models use 180s
 
+        # Initialize the OpenAI client once for reuse
+        self.client = OpenAI(
+            base_url=config.OPENROUTER_BASE_URL,
+            api_key=config.OPENROUTER_API_KEY,
+        )
+
     def translate(self, text: str) -> tuple[str, float]:
         """Translate text using the OpenRouter API."""
         if not config.OPENROUTER_API_KEY:
@@ -109,17 +119,12 @@ class OpenRouterClient(TranslationClient):
             )
 
         try:
-            client = OpenAI(
-                base_url=config.OPENROUTER_BASE_URL,
-                api_key=config.OPENROUTER_API_KEY,
-            )
-
             # Extra body parameters for reasoning models
             extra_body = {}
             if self.reasoning:
                 extra_body["reasoning"] = self.reasoning
 
-            completion = client.chat.completions.create(
+            completion = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},
@@ -183,7 +188,7 @@ class OpenRouterClient(TranslationClient):
 
 def get_translation_client(model_key: str) -> TranslationClient:
     """
-    Create a translation client for the given model key.
+    Create or retrieve a cached translation client for the given model key.
 
     Args:
         model_key: The key of the model in the configuration.
@@ -194,21 +199,27 @@ def get_translation_client(model_key: str) -> TranslationClient:
     Raises:
         ValueError: If the model key is unknown.
     """
-    model_config = config.MODELS.get(model_key)
-    if not model_config:
-        msg = f"Unknown model: {model_key}"
-        raise ValueError(msg)
+    with _client_cache_lock:
+        if model_key in _client_cache:
+            return _client_cache[model_key]
 
-    # All active models use OpenRouter as per requirement.
-    # We use OpenRouterClient for all models since other clients have been removed.
-    model_type = model_config.get("type", "openrouter")
-    if model_type != "openrouter":
-        logger.warning(
-            f"Model {model_key} has type '{model_type}', but only 'openrouter' is supported. "
-            "Using OpenRouterClient."
-        )
+        model_config = config.MODELS.get(model_key)
+        if not model_config:
+            msg = f"Unknown model: {model_key}"
+            raise ValueError(msg)
 
-    return OpenRouterClient(model_key, model_config)
+        # All active models use OpenRouter as per requirement.
+        # We use OpenRouterClient for all models since other clients have been removed.
+        model_type = model_config.get("type", "openrouter")
+        if model_type != "openrouter":
+            logger.warning(
+                f"Model {model_key} has type '{model_type}', but only 'openrouter' is supported. "
+                "Using OpenRouterClient."
+            )
+
+        client = OpenRouterClient(model_key, model_config)
+        _client_cache[model_key] = client
+        return client
 
 
 def get_available_models() -> dict[str, str]:
