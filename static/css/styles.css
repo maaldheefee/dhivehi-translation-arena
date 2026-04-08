@@ -135,12 +135,42 @@ button {
 	gap: 1rem;
 }
 
+.text-btn {
+	background: transparent;
+	border: none;
+	padding: 0.5rem 0.75rem;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+	transition: all var(--transition-fast);
+	border-radius: var(--radius-md);
+}
+
+.text-btn:hover {
+	background-color: var(--border-color);
+	color: var(--text-primary);
+}
+
 /* User Menu Button Fix */
 .user-btn {
 	color: var(--text-primary) !important;
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: var(--radius-md);
+	transition: background-color var(--transition-fast);
+}
+
+.user-btn:hover {
+	background-color: var(--border-color);
+}
+
+.user-btn:active {
+	transform: scale(0.98);
 }
 
 .user-btn .icon {
@@ -580,6 +610,17 @@ button {
 	box-shadow: var(--shadow-md);
 	z-index: 100;
 	min-width: 250px;
+}
+
+/* User Menu Specific Scoping */
+.user-menu-wrapper .dropdown-menu {
+	right: 0;
+	left: auto;
+	box-shadow: var(--shadow-lg);
+}
+
+.user-menu-wrapper .dropdown-content {
+	padding: 1.25rem;
 }
 
 .dropdown-content {
@@ -1165,6 +1206,11 @@ button {
 
 	#current-username {
 		display: none; /* Hide username text on mobile to save space */
+	}
+
+	.user-btn {
+		padding: 0.5rem;
+		justify-content: center;
 	}
 
 	.user-btn .icon {
