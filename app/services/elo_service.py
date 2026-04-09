@@ -9,6 +9,7 @@ import logging
 from itertools import combinations
 from typing import cast
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.database import db_session
@@ -178,15 +179,23 @@ class ELOService:
                 if v1.rating is None or v2.rating is None:
                     continue
 
-                # Check if this comparison already exists
+                # Check if this comparison already exists (in either order)
                 existing = (
                     self.session.query(PairwiseComparison)
                     .filter(
                         PairwiseComparison.query_id == query_id,
                         PairwiseComparison.user_id == uid,
-                        PairwiseComparison.translation_a_id == v1.translation_id,
-                        PairwiseComparison.translation_b_id == v2.translation_id,
                         PairwiseComparison.source == "derived",
+                        or_(
+                            and_(
+                                PairwiseComparison.translation_a_id == v1.translation_id,
+                                PairwiseComparison.translation_b_id == v2.translation_id,
+                            ),
+                            and_(
+                                PairwiseComparison.translation_a_id == v2.translation_id,
+                                PairwiseComparison.translation_b_id == v1.translation_id,
+                            ),
+                        ),
                     )
                     .first()
                 )
