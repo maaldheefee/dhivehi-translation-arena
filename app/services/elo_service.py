@@ -9,6 +9,7 @@ import logging
 from itertools import combinations
 from typing import cast
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.database import db_session
@@ -191,8 +192,11 @@ class ELOService:
                 if v1.rating is None or v2.rating is None:
                     continue
 
-                # Check if this comparison already exists
-                if (query_id, uid, v1.translation_id, v2.translation_id) in existing_set:
+                # Check if this comparison already exists (in either order)
+                if (
+                    (query_id, uid, v1.translation_id, v2.translation_id) in existing_set
+                    or (query_id, uid, v2.translation_id, v1.translation_id) in existing_set
+                ):
                     continue
 
                 # Get model names from translations
