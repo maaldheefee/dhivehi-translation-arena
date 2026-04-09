@@ -144,7 +144,10 @@ class ELOService:
         Returns the number of comparisons derived.
         """
         # Get all votes grouped by query
-        votes = self.session.query(Vote).all()
+        vote_query = self.session.query(Vote)
+        if user_id is not None:
+            vote_query = vote_query.filter(Vote.user_id == user_id)
+        votes = vote_query.all()
 
         # Pre-fetch all translations to avoid N+1 query
         translation_ids = {v.translation_id for v in votes if v.translation_id}
@@ -154,6 +157,20 @@ class ELOService:
             .all()
         )
         translation_map = {t.id: t for t in translations}
+
+        # Pre-fetch existing comparisons to avoid N+1 query
+        comp_query = self.session.query(PairwiseComparison).filter(
+            PairwiseComparison.source == "derived"
+        )
+        if user_id is not None:
+            comp_query = comp_query.filter(PairwiseComparison.user_id == user_id)
+
+        existing_comps = comp_query.all()
+        # Key: (query_id, user_id, translation_a_id, translation_b_id)
+        existing_set = {
+            (c.query_id, c.user_id, c.translation_a_id, c.translation_b_id)
+            for c in existing_comps
+        }
 
         # Group by (query_id, user_id)
         vote_groups: dict[tuple[int, int], list[Vote]] = {}
@@ -169,28 +186,13 @@ class ELOService:
             if len(group_votes) < 2:
                 continue
 
-            # Check if we should filter by user_id
-            if user_id is not None and uid != user_id:
-                continue
-
             # Create pairwise comparisons for all pairs
             for v1, v2 in combinations(group_votes, 2):
                 if v1.rating is None or v2.rating is None:
                     continue
 
                 # Check if this comparison already exists
-                existing = (
-                    self.session.query(PairwiseComparison)
-                    .filter(
-                        PairwiseComparison.query_id == query_id,
-                        PairwiseComparison.user_id == uid,
-                        PairwiseComparison.translation_a_id == v1.translation_id,
-                        PairwiseComparison.translation_b_id == v2.translation_id,
-                        PairwiseComparison.source == "derived",
-                    )
-                    .first()
-                )
-                if existing:
+                if (query_id, uid, v1.translation_id, v2.translation_id) in existing_set:
                     continue
 
                 # Get model names from translations
@@ -227,6 +229,8 @@ class ELOService:
                     else None,
                     source="derived",
                 )
+                # Add to existing_set to avoid duplicate creation if vote pairs repeat
+                existing_set.add((query_id, uid, v1.translation_id, v2.translation_id))
                 comparisons_created += 1
 
         logger.info(f"Derived {comparisons_created} pairwise comparisons from votes")
