@@ -1,5 +1,6 @@
 import datetime
 import math
+import time
 from collections import defaultdict
 from typing import cast
 
@@ -227,10 +228,26 @@ def calculate_model_scores():
     return stats_list
 
 
+# Cache for model usage stats
+_usage_stats_cache: dict[str, int] | None = None
+_usage_stats_cache_time: float = 0
+_USAGE_STATS_TTL = 300  # 5 minutes
+
+
 def get_model_usage_stats() -> dict[str, int]:
     """
     Returns a dictionary mapping model names to their usage count (appearances).
+    Includes a TTL cache to avoid frequent database queries.
     """
+    global _usage_stats_cache, _usage_stats_cache_time
+
+    now = time.time()
+    if (
+        _usage_stats_cache is not None
+        and (now - _usage_stats_cache_time) < _USAGE_STATS_TTL
+    ):
+        return _usage_stats_cache
+
     session = cast(Session, db_session)
 
     results = (
@@ -239,7 +256,9 @@ def get_model_usage_stats() -> dict[str, int]:
         .all()
     )
 
-    return {row.model: row.count for row in results}
+    _usage_stats_cache = {row.model: row.count for row in results}
+    _usage_stats_cache_time = now
+    return _usage_stats_cache
 
 
 def calculate_global_stats():
