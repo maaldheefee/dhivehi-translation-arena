@@ -237,7 +237,7 @@ class ELOService:
                 existing_set.add((query_id, uid, v1.translation_id, v2.translation_id))
                 comparisons_created += 1
 
-        logger.info(f"Derived {comparisons_created} pairwise comparisons from votes")
+        logger.info("Derived %d pairwise comparisons from votes", comparisons_created)
         return comparisons_created
 
 
