@@ -236,7 +236,9 @@ def stream_translation_generator(
             elapsed = time.monotonic() - start_time
             if elapsed >= max_duration:
                 current_app.logger.warning(
-                    f"Stream timed out after {elapsed:.0f}s, cancelling {len(pending_futures)} pending futures"
+                    "Stream timed out after %.0fs, cancelling %d pending futures",
+                    elapsed,
+                    len(pending_futures),
                 )
                 for f in pending_futures:
                     f.cancel()
@@ -265,7 +267,7 @@ def stream_translation_generator(
                         sse_data = f"data: {json.dumps(result)}\n\n"
                         yield sse_data
                 except Exception as e:
-                    current_app.logger.exception(f"Stream error for {model_key}")
+                    current_app.logger.exception("Stream error for %s", model_key)
                     error_data = {"error": str(e), "model": model_key}
                     yield f"data: {json.dumps(error_data)}\n\n"
 
@@ -380,7 +382,7 @@ def retry_single() -> Response | tuple[Response, int]:
             return jsonify(result)
         return jsonify({"error": "No result returned"}), 500
     except Exception as e:
-        current_app.logger.exception(f"Retry failed for {model_key}")
+        current_app.logger.exception("Retry failed for %s", model_key)
         return jsonify({"error": str(e), "model": model_key}), 500
 
 

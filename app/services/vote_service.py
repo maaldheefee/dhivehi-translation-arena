@@ -145,5 +145,7 @@ def _derive_pairwise_from_votes(
             )
         except Exception:
             logger.exception(
-                f"Error recording pairwise comparison for {t1.model} vs {t2.model}"
+                "Error recording pairwise comparison for %s vs %s",
+                t1.model,
+                t2.model,
             )
