@@ -483,9 +483,17 @@ def get_random_comparison() -> Response | tuple[Response, int]:
     top_candidates = candidate_pairs[:5]
     selected_pair_row, _ = random.choice(top_candidates)
 
-    t1 = db_session.query(Translation).get(selected_pair_row.t1_id)
-    t2 = db_session.query(Translation).get(selected_pair_row.t2_id)
-    query = db_session.query(Query).get(selected_pair_row.query_id)
+    # Optimized: Batch fetch translations to reduce roundtrips
+    translations = (
+        db_session.query(Translation)
+        .filter(Translation.id.in_([selected_pair_row.t1_id, selected_pair_row.t2_id]))
+        .all()
+    )
+    t_map = {t.id: t for t in translations}
+    t1 = t_map.get(selected_pair_row.t1_id)
+    t2 = t_map.get(selected_pair_row.t2_id)
+
+    query = db_session.get(Query, selected_pair_row.query_id)
 
     if not t1 or not t2 or not query:
         return jsonify({"error": "Data not found"}), 404
@@ -595,9 +603,13 @@ def submit_comparison() -> Response | tuple[Response, int]:
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Get translations
-    t1 = db_session.query(Translation).get(translation_ids[0])
-    t2 = db_session.query(Translation).get(translation_ids[1])
+    # Get translations - Optimized: Batch fetch to reduce roundtrips
+    translations = (
+        db_session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
+    )
+    t_map = {t.id: t for t in translations}
+    t1 = t_map.get(translation_ids[0])
+    t2 = t_map.get(translation_ids[1])
 
     if not t1 or not t2:
         return jsonify({"error": "Translations not found"}), 404
