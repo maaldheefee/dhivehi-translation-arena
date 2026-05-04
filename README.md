@@ -130,3 +130,4 @@ All translations and votes are stored in a SQLite database located in the `data`
 - **Docker issues:** `just docker-clean` (⚠️ this will remove unused Docker resources)
 
 For detailed deployment instructions and Cloudflare tunnel setup, see [docs/deployment.md](docs/deployment.md).
+
