@@ -298,7 +298,7 @@ gemma-4-31b:
   type: openrouter
   input_cost_per_mtok: 0.14
   output_cost_per_mtok: 0.40
-  is_active: true
+  is_active: false
   base_model: Gemma 4 31B Instruct
   preset_name: Model Default
 
@@ -319,7 +319,7 @@ gemma-4-31b-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.14
   output_cost_per_mtok: 0.40
-  is_active: true
+  is_active: false
   base_model: Gemma 4 31B Instruct
   temperature: 0.1
   preset_name: Temp 0.1
