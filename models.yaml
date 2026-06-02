@@ -448,8 +448,8 @@ deepseek-v4-flash-t0.85:
   name: deepseek/deepseek-v4-flash
   display_name: DeepSeek V4 Flash (T0.85)
   type: openrouter
-  input_cost_per_mtok: 0.15
-  output_cost_per_mtok: 0.60
+  input_cost_per_mtok: 0.0983
+  output_cost_per_mtok: 0.1966
   is_active: true
   base_model: DeepSeek V4 Flash
   temperature: 0.85
@@ -459,8 +459,8 @@ deepseek-v4-flash-t0.1:
   name: deepseek/deepseek-v4-flash
   display_name: DeepSeek V4 Flash (T0.1)
   type: openrouter
-  input_cost_per_mtok: 0.15
-  output_cost_per_mtok: 0.60
+  input_cost_per_mtok: 0.0983
+  output_cost_per_mtok: 0.1966
   is_active: true
   base_model: DeepSeek V4 Flash
   temperature: 0.1
@@ -472,8 +472,8 @@ deepseek-v4-pro-t0.85:
   name: deepseek/deepseek-v4-pro
   display_name: DeepSeek V4 Pro (T0.85)
   type: openrouter
-  input_cost_per_mtok: 1.00
-  output_cost_per_mtok: 4.00
+  input_cost_per_mtok: 0.435
+  output_cost_per_mtok: 0.87
   is_active: true
   base_model: DeepSeek V4 Pro
   temperature: 0.85
@@ -483,8 +483,8 @@ deepseek-v4-pro-t0.1:
   name: deepseek/deepseek-v4-pro
   display_name: DeepSeek V4 Pro (T0.1)
   type: openrouter
-  input_cost_per_mtok: 1.00
-  output_cost_per_mtok: 4.00
+  input_cost_per_mtok: 0.435
+  output_cost_per_mtok: 0.87
   is_active: true
   base_model: DeepSeek V4 Pro
   temperature: 0.1
