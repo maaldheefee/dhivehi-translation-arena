@@ -441,3 +441,51 @@ claude-sonnet-4.6-t0.1:
   base_model: Claude Sonnet 4.6
   temperature: 0.1
   preset_name: Temp 0.1
+
+# ==================== DeepSeek V4 Flash ====================
+
+deepseek-v4-flash-t0.85:
+  name: deepseek/deepseek-v4-flash
+  display_name: DeepSeek V4 Flash (T0.85)
+  type: openrouter
+  input_cost_per_mtok: 0.15
+  output_cost_per_mtok: 0.60
+  is_active: true
+  base_model: DeepSeek V4 Flash
+  temperature: 0.85
+  preset_name: Temp 0.85
+
+deepseek-v4-flash-t0.1:
+  name: deepseek/deepseek-v4-flash
+  display_name: DeepSeek V4 Flash (T0.1)
+  type: openrouter
+  input_cost_per_mtok: 0.15
+  output_cost_per_mtok: 0.60
+  is_active: true
+  base_model: DeepSeek V4 Flash
+  temperature: 0.1
+  preset_name: Temp 0.1
+
+# ==================== DeepSeek V4 Pro ====================
+
+deepseek-v4-pro-t0.85:
+  name: deepseek/deepseek-v4-pro
+  display_name: DeepSeek V4 Pro (T0.85)
+  type: openrouter
+  input_cost_per_mtok: 1.00
+  output_cost_per_mtok: 4.00
+  is_active: true
+  base_model: DeepSeek V4 Pro
+  temperature: 0.85
+  preset_name: Temp 0.85
+
+deepseek-v4-pro-t0.1:
+  name: deepseek/deepseek-v4-pro
+  display_name: DeepSeek V4 Pro (T0.1)
+  type: openrouter
+  input_cost_per_mtok: 1.00
+  output_cost_per_mtok: 4.00
+  is_active: true
+  base_model: DeepSeek V4 Pro
+  temperature: 0.1
+  preset_name: Temp 0.1
