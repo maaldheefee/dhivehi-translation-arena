@@ -367,7 +367,7 @@ claude-sonnet-3.7-t0.85:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: false
+  is_active: false  # Deprecated — no available endpoints on OpenRouter
   base_model: Claude 3.7 Sonnet
   temperature: 0.85
   preset_name: Temp 0.85
@@ -378,7 +378,7 @@ claude-sonnet-3.7-t0.1:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: true
+  is_active: false  # Deprecated — no available endpoints on OpenRouter
   base_model: Claude 3.7 Sonnet
   temperature: 0.1
   preset_name: Temp 0.1
@@ -391,7 +391,7 @@ claude-sonnet-3.5-t0.85:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: true
+  is_active: false  # Deprecated — no available endpoints on OpenRouter
   base_model: Claude 3.5 Sonnet
   temperature: 0.85
   preset_name: Temp 0.85
@@ -402,7 +402,7 @@ claude-sonnet-3.5-t0.1:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: true
+  is_active: false  # Deprecated — no available endpoints on OpenRouter
   base_model: Claude 3.5 Sonnet
   temperature: 0.1
   preset_name: Temp 0.1
