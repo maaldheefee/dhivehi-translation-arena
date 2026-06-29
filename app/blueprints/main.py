@@ -471,12 +471,31 @@ def get_random_comparison() -> Response | tuple[Response, int]:
     elo_service = get_elo_service()
     all_elos = {r["model"]: r["elo_rating"] for r in elo_service.get_all_rankings()}
 
-    candidate_pairs = []
+    # Build set of active model keys for pair classification
+    conf = get_config()
+    active_models = {
+        k for k, m in conf.MODELS.items() if m.get("is_active", True)
+    }
+
+    # Classify pairs: both-active, mixed (one active, one disabled), both-disabled
+    both_active = []
+    mixed = []
     for row in uncompared_batch:
+        t1_active = row.t1_model in active_models
+        t2_active = row.t2_model in active_models
         elo1 = all_elos.get(row.t1_model, 1500.0)
         elo2 = all_elos.get(row.t2_model, 1500.0)
         diff = abs(elo1 - elo2)
-        candidate_pairs.append((row, diff))
+        if t1_active and t2_active:
+            both_active.append((row, diff))
+        elif t1_active or t2_active:
+            mixed.append((row, diff))
+        # Both disabled: skip entirely — no value comparing two discontinued models
+
+    # Two-stage selection: prefer both-active, fall back to mixed
+    candidate_pairs = both_active if both_active else mixed
+    if not candidate_pairs:
+        return jsonify({"error": "No eligible pairs to compare"}), 404
 
     # Sort by ELO difference (ascending) -> compare closest models first
     candidate_pairs.sort(key=lambda x: x[1])
@@ -499,8 +518,6 @@ def get_random_comparison() -> Response | tuple[Response, int]:
 
     if not t1 or not t2 or not query:
         return jsonify({"error": "Data not found"}), 404
-
-    conf = get_config()
 
     stats = _get_user_comparison_stats(int(user.id))  # type: ignore[arg-type]
 
