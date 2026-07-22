@@ -172,6 +172,12 @@ document.addEventListener("DOMContentLoaded", () => {
 			}
 
 			const res = await fetch(url);
+			if (res.status === 401) {
+				showToast(t("auth_required"), "error");
+				const dropdown = document.getElementById("user-menu-dropdown");
+				dropdown?.classList.remove("hidden");
+				return;
+			}
 			if (res.status === 404) {
 				showEmptyState();
 				return;
@@ -270,6 +276,13 @@ document.addEventListener("DOMContentLoaded", () => {
 				body: JSON.stringify(payload),
 			});
 
+			if (res.status === 401) {
+				showToast(t("auth_required"), "error");
+				const dropdown = document.getElementById("user-menu-dropdown");
+				dropdown?.classList.remove("hidden");
+				isSubmitting = false;
+				return;
+			}
 			if (!res.ok) throw new Error("Failed to submit comparison");
 
 			// Success! Load next
