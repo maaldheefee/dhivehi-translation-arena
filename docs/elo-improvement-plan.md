@@ -481,7 +481,7 @@ Write `rebuild_ratings_from_comparisons()` to reconstruct Glicko-2 ratings from 
 
 ### Phase 1: Glicko-2 Migration (Medium Effort, High Impact)
 
-- [ ] **Glicko-2 core**: Implement Glicko-2 update algorithm in `elo_service.py`
+- [x] **Glicko-2 core**: Implement Glicko-2 update algorithm in `elo_service.py`
   - Replace `update_ratings()` and `record_tie()` with Glicko-2 equivalents
   - Add `rating_deviation`, `volatility`, `legacy_elo_rating` columns to `ModelELO`
   - Parameters: tau=0.5, MIN_RD=80, c~48.6/week, initial RD=350, vol=0.06
@@ -492,24 +492,24 @@ Write `rebuild_ratings_from_comparisons()` to reconstruct Glicko-2 ratings from 
   - Test: verify convergence behavior, RD decay, time-based increase
   - Test: regression test — rebuild matches incremental processing
 
-- [ ] **Score column**: Add `score` column to `PairwiseComparison`
+- [x] **Score column**: Add `score` column to `PairwiseComparison`
   - Store fractional score per comparison
   - Backfill existing rows by outcome type: non-null winner/loser -> 1.0, null winner/loser with translations -> 0.5
   - Test: verify scores stored correctly for derived and explicit comparisons
   - Test: verify backfilled ties get 0.5, not 1.0
 
-- [ ] **Fractional scores**: Implement gap-based scoring in `vote_service.py`
+- [x] **Fractional scores**: Implement gap-based scoring in `vote_service.py`
   - Add score calculation: gap=4->1.0 (3 vs -1), gap=3->0.95 (2 vs -1), gap=2->0.85 (3 vs 1, 1 vs -1), gap=1->0.70 (3 vs 2, 2 vs 1)
   - Pass score through to `record_comparison()`
   - Test: verify 3 star vs -1 star produces larger rating shift than 2 star vs 1 star
 
-- [ ] **Tie logic update**: Update tie handling in `vote_service.py`
+- [x] **Tie logic update**: Update tie handling in `vote_service.py`
   - Skip both 3 star (until difficulty tracking)
   - Skip both -1 star
   - Tie (0.5) for both 1 star and both 2 star
   - Test: verify no comparison recorded for both-trash or both-perfect pairs
 
-- [ ] **Rebuild function**: Write `rebuild_ratings_from_comparisons()` in `elo_service.py`
+- [x] **Rebuild function**: Write `rebuild_ratings_from_comparisons()` in `elo_service.py`
   - Wipe `ModelELO`, replay all `PairwiseComparison` records through Glicko-2
   - Process in stable order: `created_at` ascending, then `id` ascending
   - Run inside atomic transaction
@@ -517,20 +517,20 @@ Write `rebuild_ratings_from_comparisons()` to reconstruct Glicko-2 ratings from 
 
 ### Phase 2: Pair Selection Improvements (Medium Effort, High Impact)
 
-- [ ] **Quick Compare filter**: Filter pairs in `get_random_comparison()`
+- [x] **Quick Compare filter**: Filter pairs in `get_random_comparison()`
   - Join with Vote table twice (aliased), constrained to **current user's** ratings only
   - Filter: both ratings >= 2, gap < 2
   - Test: verify only high-quality, close pairs shown
   - Test: verify ratings from other users do not affect pair eligibility
 
-- [ ] **Pair counts**: Track pair-level comparison counts
+- [x] **Pair counts**: Track pair-level comparison counts
   - Count **explicit comparisons only** (source='explicit') per model pair
   - Use translation model names via joins, not winner/loser columns (ties have NULL winner/loser)
   - Cache with TTL
   - Test: verify counts match actual explicit comparison records
   - Test: verify ties are counted correctly (not collapsed into NULL group)
 
-- [ ] **Pair priority**: Replace ELO-diff sort with composite priority score
+- [x] **Pair priority**: Replace ELO-diff sort with composite priority score
   - **Remove the random `limit(100)` batch** — fetch all uncompared pairs for the user, then apply priority scoring to the full set [P2]
   - Incorporate: ELO closeness (30%), RD uncertainty (25%), pair hunger (25%), same-rated bonus (+0.3)
   - Take top 5 by priority, pick one randomly
@@ -539,50 +539,50 @@ Write `rebuild_ratings_from_comparisons()` to reconstruct Glicko-2 ratings from 
 
 ### Phase 3: Query & Cost Optimization (Medium Effort, Medium Impact)
 
-- [ ] **Query difficulty**: Compute model-adjusted residuals per query
+- [x] **Query difficulty**: Compute model-adjusted residuals per query
   - Calculate `residual = actual_rating - model_global_avg` per vote
   - Average residuals per query, categorize: easy/hard/medium/unknown
   - Requires >= 3 votes from >= 2 models for classification
   - Cache with TTL
   - Test: verify categorization matches expected difficulty
 
-- [ ] **Stratified query selection**: Replace random shuffle in `index()`
+- [x] **Stratified query selection**: Replace random shuffle in `index()`
   - Target: 2 easy, 5 medium, 2 hard, 1 unknown per session
   - Backfill from remaining pool if any tier is exhausted (ensure 10 total)
-  - Couple with cost-aware model selection
+  - ~~Couple with cost-aware model selection~~ (deferred — selections are currently independent)
   - Test: verify session includes queries from each tier when available
   - Test: verify 10 queries returned even when some tiers are empty
 
-- [ ] **Cost-aware model selection**: Add cost constraint to `_select_models()`
+- [x] **Cost-aware model selection**: Add cost constraint to `_select_models()`
   - Tier models by output_cost_per_mtok: cheap (<=$3), mid ($3-$10), expensive (>$10)
   - Max 2 expensive base model groups per session
   - Swap if exceeded
   - Test: verify cost distribution across selected models
 
-- [ ] **Usage stats fix**: Count voted translations in `stats_service.py`
+- [x] **Usage stats fix**: Count voted translations in `stats_service.py`
   - Change `get_model_usage_stats()` to join with Votes table
   - Count distinct translations with >= 1 vote per model
   - Test: verify model with 50 translations but 2 votes shows low usage
 
 ### Phase 4: Leaderboard & Polish (Low-Medium Effort, Medium Impact)
 
-- [ ] **Confidence-weighted blend**: Update `calculate_model_scores()`
+- [x] **Confidence-weighted blend**: Update `calculate_model_scores()`
   - Replace fixed 40/60 blend with convex RD-aware weighting
   - `combined = normalized_glicko * confidence + normalized_avg_score * (1 - confidence)` where `confidence = 1 - (rd / 350)`
   - Weights always sum to 1.0 (proper convex blend)
   - Test: verify high-RD models show star-driven scores, low-RD models show Glicko-driven scores
   - Test: verify combined score is always in [0, 1] range
 
-- [ ] **3-star tie refinement**: Once difficulty tracking is live
+- [x] **3-star tie refinement**: Once difficulty tracking is live
   - Skip 3-star/3-star ties only on easy queries (avg residual >= +0.3)
   - Record 3-star/3-star as tie (0.5) on medium/hard queries
   - Test: verify 3-star/3-star on hard queries produces tie, on easy queries produces nothing
 
-- [ ] **Dashboard metrics**
-  - Show model uncertainty (RD) on leaderboard
-  - Show pair coverage heatmap (which model pairs need more comparisons)
-  - Show query difficulty distribution
-  - Show legacy ELO alongside Glicko-2 for comparison
+- [~] **Dashboard metrics** (partially complete)
+  - [x] Show model uncertainty (RD) on leaderboard
+  - [ ] Show pair coverage heatmap (which model pairs need more comparisons)
+  - [ ] Show query difficulty distribution
+  - [ ] Show legacy ELO alongside Glicko-2 for comparison
 
 ---
 
