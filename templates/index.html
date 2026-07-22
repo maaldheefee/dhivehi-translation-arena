@@ -10,9 +10,9 @@
     </div>
 
     <div class="controls-card">
-        <details class="info-details clean-details">
-            <summary class="info-summary clean-summary">
-                <div class="summary-left" style="display:flex; align-items:center;">
+        <details class="clean-details">
+            <summary class="clean-summary">
+                <div class="summary-left">
                     <span class="summary-icon">ℹ️</span>
                     <span>{{ _('instructions_header') }}</span>
                 </div>
@@ -34,9 +34,9 @@
             </div>
         </details>
 
-         <details class="options-details clean-details">
-            <summary class="options-summary clean-summary">
-                <div class="summary-left" style="display:flex; align-items:center;">
+        <details class="clean-details">
+            <summary class="clean-summary">
+                <div class="summary-left">
                     <span class="summary-icon">⚙️</span>
                     <span>{{ _('configure_models') }}</span>
                 </div>
@@ -50,27 +50,27 @@
             </div>
         </details>
 
-         <details class="queries-details clean-details">
-            <summary class="queries-summary clean-summary">
-                <div class="summary-left" style="display:flex; align-items:center;">
+        <details class="clean-details">
+            <summary class="clean-summary">
+                <div class="summary-left">
                     <span class="summary-icon">💬</span>
                     <span>{{ _('predefined_queries_header') }}</span>
                 </div>
                 <span class="chevron">▼</span>
             </summary>
-             <div class="query-chips" style="padding: 1.25rem; border-top: 1px solid var(--border-color);">
+            <div class="query-chips">
                 {% for query in predefined_queries %}
                 <button class="chip" data-query="{{ query }}">{{ query }}</button>
                 {% endfor %}
             </div>
-         </details>
+        </details>
     </div>
 
     <div class="input-area card">
         <div class="textarea-wrapper">
-            <textarea id="query-input" class="form-textarea" placeholder="{{ _('arabic_text_placeholder') }}"></textarea>
+            <textarea id="query-input" class="form-textarea" placeholder="{{ _('arabic_text_placeholder') }}" aria-label="{{ _('arabic_text_placeholder') }}"></textarea>
             <div class="textarea-actions">
-                 <button id="translate-btn" class="btn primary action-btn">{{ _('translate') }}</button>
+                <button id="translate-btn" class="btn primary action-btn">{{ _('translate') }}</button>
             </div>
         </div>
     </div>
@@ -78,14 +78,14 @@
     <div id="results-section" class="results-section hidden">
         <div class="results-header">
             <h3>{{ _('results_header') }}</h3>
-            <div class="header-actions">
+            <div class="results-header-actions">
                 <button id="copy-json-btn" class="btn secondary sm-btn" title="Only copy JSON data">
-                    <span class="icon">{}</span>
-                    <span class="btn-text">JSON</span>
+                    <span>{}</span>
+                    <span>JSON</span>
                 </button>
                 <button id="copy-prompt-btn" class="btn secondary sm-btn" title="Copy results within analysis prompt">
-                    <span class="icon">📋</span>
-                    <span class="btn-text">Analysis Prompt</span>
+                    <span>📋</span>
+                    <span>Analysis Prompt</span>
                 </button>
                 <div class="cost-badge" title="{{ _('total_cost_label') }}">
                     <span class="currency">$</span><span id="total-cost">0.000000</span>

@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: 38 tests covering Glicko-2 algorithm, fractional scoring, tie logic, rebuild idempotency/stable order, re-vote consistency, and partial vote preservation.
 
 ### Changed
+- **UI**: Major CSS refactor — expanded design token system (colors, shadows, radii, transitions, gradients), moved inline styles to semantic CSS classes, removed Tailwind utility classes from templates in favor of stylesheet-driven styling.
+- **UI**: Cleaned up `base.html` header markup — title now links to home, removed inline SVG sizing, fixed indentation in user menu dropdown.
+- **UI**: Refactored `compare.html` — replaced inline styles and utility classes with semantic classes (`compare-source`, `compare-card`, `compare-actions`, `filter-grid`, etc.).
+- **UI**: Simplified `index.html` — consolidated duplicate detail classes, removed inline flex styles, added ARIA label to textarea.
+- **UI**: Updated `compare.js` — replaced Tailwind utility class strings with semantic CSS class names for dynamically created elements.
 - **Models**: `ModelELO` columns migrated to SQLAlchemy 2.0 typed `Mapped`/`mapped_column` style. `wins`, `losses`, `ties` are now non-nullable (`Mapped[int]`), eliminating defensive `or 0` guards across `elo_service.py`, `stats_service.py`, and `rename_model.py`.
 - **API**: Updated `/get_available_models` and backend selection logic to respect user-defined exclusions and counts passed from the frontend.
 - **Models**: Disabled `google/gemini-3-pro-preview` models as they have been discontinued.

@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			console.error("Failed to load models", err);
 			if (elements.modelFiltersGrid) {
 				elements.modelFiltersGrid.innerHTML =
-					'<div class="text-red-500 text-xs">Failed to load models</div>';
+					'<div class="error-msg">Failed to load models</div>';
 			}
 		}
 	}
@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			const div = document.createElement("div");
 			// Increased gap to 3, improved dark mode hover, added padding
 			div.className =
-				"flex items-center gap-3 text-xs p-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded transition-colors";
+				"filter-grid-item";
 
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
@@ -114,13 +114,13 @@ document.addEventListener("DOMContentLoaded", () => {
 			checkbox.value = key;
 			// Added dark mode border and background for checkbox to be visible
 			checkbox.className =
-				"model-filter-checkbox rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-primary";
+				"model-filter-checkbox";
 
 			const label = document.createElement("label");
 			label.htmlFor = `filter-${key}`;
 			// Removed explicit color classes to inherit var(--text-primary) from body
 			label.className =
-				"truncate cursor-pointer select-none flex-1 font-medium";
+				"truncate";
 			label.textContent = model.name;
 			label.title = model.name;
 
@@ -200,10 +200,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		currentComparison = data;
 
 		// Reset selections
-		elements.optionA.className =
-			"compare-card cursor-pointer hover:border-primary transition-all duration-200";
-		elements.optionB.className =
-			"compare-card cursor-pointer hover:border-primary transition-all duration-200";
+		elements.optionA.className = "compare-card";
+		elements.optionB.className = "compare-card";
 
 		// Reset model name visibility
 		elements.optionA.querySelector(".model-name").classList.add("hidden");
@@ -330,16 +328,16 @@ document.addEventListener("DOMContentLoaded", () => {
 		element.innerHTML = "";
 
 		const container = document.createElement("div");
-		container.className = "text-right flex flex-col items-end";
+		container.style.cssText = "text-align: end; display: flex; flex-direction: column; align-items: flex-end;";
 
 		const nameDiv = document.createElement("div");
-		nameDiv.className = "font-bold text-gray-900 dark:text-gray-100 text-sm";
+		nameDiv.style.cssText = "font-weight: 700; font-size: 0.875rem;";
 		nameDiv.textContent = translation.base_model || translation.model;
 		container.appendChild(nameDiv);
 
 		if (translation.preset_name) {
 			const presetDiv = document.createElement("div");
-			presetDiv.className = "text-xs text-gray-500";
+			presetDiv.style.cssText = "font-size: 0.75rem; color: var(--text-secondary);";
 			presetDiv.textContent = translation.preset_name;
 			container.appendChild(presetDiv);
 		}

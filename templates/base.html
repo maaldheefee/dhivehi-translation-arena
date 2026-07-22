@@ -8,7 +8,9 @@
     <title>{% block title %}{{ _('title') }}{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/icon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @font-face {
             font-family: 'Tharujamaanu';
@@ -34,11 +36,11 @@
 
     <header class="app-header">
         <div class="container header-content">
-            <h1 class="app-title">
+            <a href="{{ url_for('main.index') }}" class="app-title">
                 <img src="{{ url_for('static', filename='img/icon.svg') }}" alt="Logo" class="app-logo" width="32" height="32">
                 {{ _('title') }}
-            </h1>
-            
+            </a>
+
             <div class="header-actions">
                 <nav class="main-nav" id="main-nav">
                     <ul>
@@ -49,14 +51,14 @@
                 </nav>
 
                 <div class="controls-group">
-                    <button class="btn icon-btn mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle Menu">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <button class="icon-btn mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                         </svg>
                     </button>
 
-                    <button id="theme-toggle" class="btn icon-btn" aria-label="{{ _('toggle_dark_mode') }}" title="{{ _('toggle_dark_mode') }}">
-                        <svg class="theme-icon light-icon" style="display: none;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <button id="theme-toggle" class="icon-btn" aria-label="{{ _('toggle_dark_mode') }}" title="{{ _('toggle_dark_mode') }}">
+                        <svg class="theme-icon light-icon hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
                         </svg>
                         <svg class="theme-icon dark-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -64,8 +66,8 @@
                         </svg>
                     </button>
 
-                    <button id="open-settings-btn" class="btn icon-btn" aria-label="Settings" title="Settings">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:20px;height:20px;">
+                    <button id="open-settings-btn" class="icon-btn" aria-label="Settings" title="Settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.114-.94h1.086c.554 0 1.024.398 1.114.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.768.768a1.125 1.125 0 01.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.114v1.086c0 .554-.397 1.024-.94 1.114l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738a1.125 1.125 0 01-.12 1.45l-.768.768a1.125 1.125 0 01-1.45.12l-.737-.527c-.35-.25-.806-.272-1.203-.108-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.114.94h-1.086c-.554 0-1.024-.398-1.114-.94l-.149-.894c-.07-.424-.383-.764-.78-.93-.398-.164-.854-.142-1.204.108l-.738.527a1.125 1.125 0 01-1.45-.12l-.768-.768a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.114v-1.086c0-.554.398-1.024.94-1.114l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 01.12-1.45l.767-.768a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.108.397-.165.71-.505.78-.929l.15-.894z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
@@ -81,17 +83,17 @@
                     {% endif %}
 
                     <div class="user-menu-wrapper">
-                        <button id="user-menu-btn" class="btn text-btn user-btn">
+                        <button id="user-menu-btn" class="user-btn">
                             <span id="current-username">{{ username }}</span>
-                             <span class="icon">▼</span>
+                            <span class="icon">▼</span>
                         </button>
                         <div id="user-menu-dropdown" class="dropdown-menu hidden">
-                             <div class="dropdown-content">
+                            <div class="dropdown-content">
                                 <label for="username-input" class="dropdown-label">{{ _('enter_username') }}</label>
                                 <input type="text" id="username-input" placeholder="{{ _('enter_username') }}" class="form-input full-width">
                                 <input type="password" id="user-password" placeholder="{{ _('pin_password') }}" class="form-input full-width mt-2">
                                 <button id="login-btn" class="btn primary full-width mt-2">{{ _('login') }}</button>
-                             </div>
+                            </div>
                         </div>
                     </div>
                 </div>
