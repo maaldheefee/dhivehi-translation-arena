@@ -125,6 +125,7 @@ def calculate_model_scores():
         # Get ELO data if available
         elo_record = elo_records.get(model_name)
         elo_rating = elo_record.elo_rating if elo_record else 1500.0
+        rating_deviation = elo_record.rating_deviation if elo_record else 350.0
         elo_wins = elo_record.wins if elo_record else 0
         elo_losses = elo_record.losses if elo_record else 0
         elo_ties = elo_record.ties if elo_record else 0
@@ -139,13 +140,21 @@ def calculate_model_scores():
         normalized_avg_score = (average_score + 2) / 5
         normalized_avg_score = max(0.0, min(1.0, normalized_avg_score))  # Clamp
 
-        # 2. Normalize ELO: Map [1000, 2000] -> [0, 1]
+        # 2. Normalize ELO (Glicko-2): Map [1000, 2000] -> [0, 1]
         # Center 1500 -> 0.5
         normalized_elo = (elo_rating - 1000) / 1000
         normalized_elo = max(0.0, min(1.0, normalized_elo))  # Clamp
 
-        # 3. Combined Score (40% Rating, 60% ELO - corrects for optimism bias in ratings)
-        combined_score = (normalized_avg_score * 0.4) + (normalized_elo * 0.6)
+        # 3. Confidence-weighted Combined Score
+        # confidence = 1 - (RD / 350) — RD=350 -> 0.0, RD=80 -> 0.77
+        # Convex blend: weights always sum to 1.0
+        # High RD (uncertain) -> star ratings dominate
+        # Low RD (confident) -> Glicko-2 dominates
+        confidence = 1.0 - (rating_deviation / 350.0)
+        confidence = max(0.0, min(1.0, confidence))
+        combined_score = (
+            normalized_elo * confidence + normalized_avg_score * (1.0 - confidence)
+        )
 
         # 4. Bang for Buck: (Combined Score ^ 3) / Cost per Unit
         # User requested stronger filtering for bad/cheap models.
@@ -185,6 +194,7 @@ def calculate_model_scores():
                 "source_word_count": source_word_count,
                 # ELO data
                 "elo_rating": elo_rating,
+                "rating_deviation": rating_deviation,
                 "elo_wins": elo_wins,
                 "elo_losses": elo_losses,
                 "elo_ties": elo_ties,
@@ -228,6 +238,20 @@ def calculate_model_scores():
     return stats_list
 
 
+def invalidate_caches() -> None:
+    """Invalidate all TTL caches after data writes (votes, comparisons)."""
+    global _usage_stats_cache, _usage_stats_cache_time  # noqa: PLW0603
+    global _pair_counts_cache, _pair_counts_cache_time  # noqa: PLW0603
+    global _query_difficulty_cache, _query_difficulty_cache_time  # noqa: PLW0603
+
+    _usage_stats_cache = None
+    _usage_stats_cache_time = 0
+    _pair_counts_cache = None
+    _pair_counts_cache_time = 0
+    _query_difficulty_cache = None
+    _query_difficulty_cache_time = 0
+
+
 # Cache for model usage stats to avoid expensive grouping queries on every dashboard load
 _usage_stats_cache: dict[str, int] | None = None
 _usage_stats_cache_time: float = 0
@@ -251,7 +275,11 @@ def get_model_usage_stats() -> dict[str, int]:
     session = cast(Session, db_session)
 
     results = (
-        session.query(Translation.model, func.count(Translation.id).label("count"))
+        session.query(
+            Translation.model,
+            func.count(func.distinct(Vote.translation_id)).label("count"),
+        )
+        .join(Vote, Vote.translation_id == Translation.id)
         .group_by(Translation.model)
         .all()
     )
@@ -260,6 +288,170 @@ def get_model_usage_stats() -> dict[str, int]:
     _usage_stats_cache_time = now
 
     return _usage_stats_cache
+
+
+_pair_counts_cache: dict[tuple[str, str], int] | None = None
+_pair_counts_cache_time: float = 0
+PAIR_COUNTS_CACHE_TTL = 300  # 5 minutes
+
+
+def get_pair_comparison_counts() -> dict[tuple[str, str], int]:
+    """Count explicit comparisons per model pair.
+
+    Uses translation model name joins (not winner/loser columns which are
+    NULL for ties). Counts explicit comparisons only — derived comparisons
+    are abundant and would swamp pair hunger.
+
+    Returns a dict mapping (model_a, model_b) sorted alphabetically to count.
+    Uses a TTL cache to avoid expensive grouping queries.
+    """
+    global _pair_counts_cache, _pair_counts_cache_time  # noqa: PLW0603
+
+    now = time.time()
+    if (
+        _pair_counts_cache is not None
+        and (now - _pair_counts_cache_time) < PAIR_COUNTS_CACHE_TTL
+    ):
+        return _pair_counts_cache
+
+    from sqlalchemy import case, func as sql_func
+    from sqlalchemy.orm import aliased
+
+    from app.models import PairwiseComparison, Translation
+
+    session = cast(Session, db_session)
+
+    t_a = aliased(Translation)
+    t_b = aliased(Translation)
+
+    # Use case expressions for least/greatest to stay PostgreSQL-compatible
+    # (func.min/max are aggregates that take a single column, not two args)
+    results = (
+        session.query(
+            case(
+                (t_a.model <= t_b.model, t_a.model),
+                else_=t_b.model,
+            ).label("m1"),
+            case(
+                (t_a.model <= t_b.model, t_b.model),
+                else_=t_a.model,
+            ).label("m2"),
+            sql_func.count().label("count"),
+        )
+        .join(t_a, t_a.id == PairwiseComparison.translation_a_id)
+        .join(t_b, t_b.id == PairwiseComparison.translation_b_id)
+        .filter(
+            PairwiseComparison.source == "explicit",
+            PairwiseComparison.translation_a_id.isnot(None),
+            PairwiseComparison.translation_b_id.isnot(None),
+        )
+        .group_by("m1", "m2")
+        .all()
+    )
+
+    _pair_counts_cache = {}
+    for row in results:
+        key = (row.m1, row.m2)
+        _pair_counts_cache[key] = row.count
+
+    _pair_counts_cache_time = now
+    return _pair_counts_cache
+
+
+_query_difficulty_cache: dict[int, str] | None = None
+_query_difficulty_cache_time: float = 0
+QUERY_DIFFICULTY_CACHE_TTL = 300  # 5 minutes
+
+
+def get_query_difficulty() -> dict[int, str]:
+    """Classify queries by difficulty using model-adjusted residuals.
+
+    residual = actual_rating - model_global_avg_rating
+    query_difficulty = -mean(residuals for all votes on this query)
+
+    Tiers:
+    - easy: avg residual >= +0.3 (models consistently beat their baseline)
+    - hard: avg residual <= -0.3 (models consistently underperform)
+    - medium: in between
+    - unknown: < 3 votes or < 2 different models
+
+    Returns a dict mapping query_id to difficulty tier string.
+    Uses a TTL cache.
+    """
+    global _query_difficulty_cache, _query_difficulty_cache_time  # noqa: PLW0603
+
+    now = time.time()
+    if (
+        _query_difficulty_cache is not None
+        and (now - _query_difficulty_cache_time) < QUERY_DIFFICULTY_CACHE_TTL
+    ):
+        return _query_difficulty_cache
+
+    from app.config import Config
+    from app.models import Query as QueryModel
+
+    session = cast(Session, db_session)
+
+    # Step 1: Compute global average rating per model
+    model_avg_ratings = (
+        session.query(
+            Translation.model,
+            func.avg(Vote.rating).label("avg_rating"),
+        )
+        .join(Vote, Vote.translation_id == Translation.id)
+        .group_by(Translation.model)
+        .all()
+    )
+    model_avg_map = {row.model: float(row.avg_rating) for row in model_avg_ratings}
+
+    # Step 2: Compute residuals per vote and aggregate per query
+    vote_data = (
+        session.query(
+            Vote.query_id,
+            Translation.model,
+            Vote.rating,
+        )
+        .join(Translation, Vote.translation_id == Translation.id)
+        .filter(Vote.rating.isnot(None))
+        .all()
+    )
+
+    # Group residuals by query_id
+    query_residuals: dict[int, list[float]] = defaultdict(list)
+    query_models: dict[int, set[str]] = defaultdict(set)
+    for v in vote_data:
+        model_avg = model_avg_map.get(v.model, 0.0)
+        residual = float(v.rating) - model_avg
+        query_residuals[int(v.query_id)].append(residual)
+        query_models[int(v.query_id)].add(v.model)
+
+    # Step 3: Classify each query
+    difficulty_map: dict[int, str] = {}
+    for query_id, residuals in query_residuals.items():
+        if len(residuals) < Config.DIFFICULTY_MIN_VOTES or len(query_models[query_id]) < Config.DIFFICULTY_MIN_MODELS:
+            difficulty_map[query_id] = "unknown"
+            continue
+
+        avg_residual = sum(residuals) / len(residuals)
+        # Positive residual means models beat their baseline -> easy query
+        # Negative residual means models underperformed -> hard query
+
+        if avg_residual >= Config.DIFFICULTY_EASY_THRESHOLD:
+            difficulty_map[query_id] = "easy"
+        elif avg_residual <= Config.DIFFICULTY_HARD_THRESHOLD:
+            difficulty_map[query_id] = "hard"
+        else:
+            difficulty_map[query_id] = "medium"
+
+    # Any queries with no votes at all are unknown
+    all_query_ids = {int(q.id) for q in session.query(QueryModel).all()}  # type: ignore[arg-type]
+    for qid in all_query_ids:
+        if qid not in difficulty_map:
+            difficulty_map[qid] = "unknown"
+
+    _query_difficulty_cache = difficulty_map
+    _query_difficulty_cache_time = now
+    return _query_difficulty_cache
 
 
 def calculate_global_stats():

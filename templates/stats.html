@@ -4,69 +4,6 @@
 
 {% block head_extra %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-/* Modern Toggle Switch styling for stats page */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-  margin-inline-end: 8px;
-}
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--border-color);
-  transition: .3s;
-  border-radius: 20px;
-}
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 14px;
-  width: 14px;
-  inset-inline-start: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .3s;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-input:checked + .toggle-slider {
-  background-color: var(--primary-color);
-}
-input:focus + .toggle-slider {
-  box-shadow: 0 0 1px var(--primary-color);
-}
-input:checked + .toggle-slider:before {
-  transform: translateX(16px);
-}
-[dir="rtl"] input:checked + .toggle-slider:before {
-  transform: translateX(-16px);
-}
-.inactive-toggle-wrapper {
-  margin-inline-end: 15px; 
-  display: inline-flex; 
-  align-items: center; 
-  cursor: pointer; 
-  font-size: 0.9em;
-  color: var(--text-secondary);
-  font-weight: 500;
-  transition: color var(--transition-fast);
-}
-.inactive-toggle-wrapper:hover {
-  color: var(--text-primary);
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -86,7 +23,7 @@ input:checked + .toggle-slider:before {
             <div class="stat-label">{{ _('total_translations') }}</div>
         </div>
         <div class="stat-card">
-             <div class="stat-value">${{ "%.2f"|format(global_stats.total_cost) }}</div>
+            <div class="stat-value">${{ "%.2f"|format(global_stats.total_cost) }}</div>
             <div class="stat-label">{{ _('total_cost') }}</div>
         </div>
     </div>
@@ -96,9 +33,9 @@ input:checked + .toggle-slider:before {
     </div>
 
     <div class="stats-details">
-        <div class="results-header" style="justify-content: space-between; display: flex; align-items: center; margin-bottom: 1rem;">
+        <div class="results-header">
             <h3>{{ _('stats_table_header') }}</h3>
-            <div class="header-actions">
+            <div class="results-header-actions">
                 <label class="inactive-toggle-wrapper">
                     <div class="toggle-switch">
                         <input type="checkbox" id="show-inactive-toggle">
@@ -107,15 +44,16 @@ input:checked + .toggle-slider:before {
                     {{ _('show_inactive_models') }}
                 </label>
                 <button id="stats-copy-json" class="btn secondary sm-btn" title="Only copy JSON data">
-                    <span class="icon">{}</span>
-                    <span class="btn-text">JSON</span>
+                    <span>{}</span>
+                    <span>JSON</span>
                 </button>
                 <button id="stats-copy-prompt" class="btn secondary sm-btn" title="Copy stats within analysis prompt">
-                    <span class="icon">📋</span>
-                    <span class="btn-text">Analysis Prompt</span>
+                    <span>📋</span>
+                    <span>Analysis Prompt</span>
                 </button>
             </div>
         </div>
+        <div class="stats-table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -125,7 +63,7 @@ input:checked + .toggle-slider:before {
                     <th data-sort="number">{{ _('avg_score') }}</th>
                     <th data-sort="number">{{ _('elo_rating') }}</th>
                     <th data-sort="number">{{ _('combined_score') }}
-                    <div style="font-size: 0.75em; color: #6b7280; margin-top: 2px;">Avg + ELO</div></th>
+                    <div class="text-secondary" style="font-size: 0.75em;">Avg + ELO</div></th>
                     <th data-sort="number">{{ _('projected_cost_100k') }}</th>
                     <th data-sort="number">{{ _('bang_for_buck_score') }}</th>
                 </tr>
@@ -137,11 +75,11 @@ input:checked + .toggle-slider:before {
                     <td class="latin-content">
                         <strong>{{ model.base_model }}</strong>
                         {% if model.preset_name %}
-                        <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">{{ model.preset_name }}</div>
+                        <div class="text-secondary" style="font-size: 0.85em; margin-top: 2px;">{{ model.preset_name }}</div>
                         {% endif %}
                         {% if not model.is_active %}<span class="deprecated-tag">({{ _('inactive', default='Inactive') }})</span>{% endif %}
                     </td>
-                    <td style="text-align: start;">
+                    <td>
                         <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
                             {% if model.votes_cast > 0 %}
                                 {% if model.excellent_count > 0 %}
@@ -173,12 +111,9 @@ input:checked + .toggle-slider:before {
                         <span class="score-badge {{ score_class }}">{{ "%.2f"|format(score) }}</span>
                     </td>
                     <td data-sort-value="{{ model.elo_rating }}">
-                        <div class="elo-badge" style="font-weight: bold; color: var(--primary);">
-                            {{ "%.0f"|format(model.elo_rating) }}
-                        </div>
-                        <div class="win-rate" style="font-size: 0.8em; color: var(--text-secondary);">
-                            {{ "%.1f"|format(model.elo_win_rate) }}% WR
-                        </div>
+                        <div class="elo-badge">{{ "%.0f"|format(model.elo_rating) }}</div>
+                        <div class="win-rate">{{ "%.1f"|format(model.elo_win_rate) }}% WR</div>
+                        <div class="rd-badge" title="Rating Deviation (uncertainty)">RD: {{ "%.0f"|format(model.rating_deviation) }}</div>
                     </td>
                     <td>
                         {% set combined_val = (model.combined_score * 100) | round | int %}
@@ -189,7 +124,7 @@ input:checked + .toggle-slider:before {
                         {% else %}
                             {% set combined_class = 'medium-score' %}
                         {% endif %}
-                         <span class="score-badge {{ combined_class }}">{{ combined_val }}</span>
+                        <span class="score-badge {{ combined_class }}">{{ combined_val }}</span>
                     </td>
                     <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
                     <td data-sort-value="{{ model.bang_for_buck }}">
@@ -201,10 +136,12 @@ input:checked + .toggle-slider:before {
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 
-    <div class="stats-details" style="margin-top: 2rem;">
+    <div class="stats-details">
         <h3>{{ _('cost_breakdown_header') }}</h3>
+        <div class="stats-table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -217,7 +154,7 @@ input:checked + .toggle-slider:before {
             <tbody>
                 {% for item in cost_breakdown %}
                 <tr>
-                    <td><strong>{{ item.base_model }}</strong></td>
+                    <td class="latin-content"><strong>{{ item.base_model }}</strong></td>
                     <td>${{ "%.2f"|format(item.total_cost) }}</td>
                     <td>{{ item.total_generations }}</td>
                     <td>${{ "%.2f"|format(item.projected_cost_100k) }}</td>
@@ -225,6 +162,7 @@ input:checked + .toggle-slider:before {
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </section>
 {% endblock %}
@@ -427,7 +365,7 @@ input:checked + .toggle-slider:before {
             }, 4000);
         }
 
-        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for ELO-style comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated with a 40% weight from the star rating and 60% from the ELO rating (to correct for optimism bias in user ratings). Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
+        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for Glicko-2 comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated as a convex blend of the normalized Glicko-2 rating and the normalized average star rating, weighted by a confidence factor derived from the Glicko-2 rating deviation (RD). When RD is low (high confidence), the Glicko-2 rating dominates; when RD is high (low confidence, e.g. new or under-tested models), star ratings dominate. Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
 
         function getStatsExportData() {
             return {

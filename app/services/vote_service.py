@@ -10,6 +10,7 @@ from app.database import db_session
 from app.models import PairwiseComparison, Translation, Vote
 from app.repositories.vote_repository import VoteRepository
 from app.services.elo_service import get_elo_service
+from app.services.stats_service import get_query_difficulty, invalidate_caches
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +34,18 @@ def _gap_to_score(gap: int) -> float:
         return 0.70
 
 
-def _should_skip_pair(r1: int, r2: int) -> bool:
+def _should_skip_pair(r1: int, r2: int, query_difficulty: str = "unknown") -> bool:
     """Determine if a pair of ratings should be skipped (no comparison recorded).
 
     Skip rules:
-    - Both 3-star: perfection on a trivial query, not comparative skill
+    - Both 3-star on easy/unknown queries: perfection on trivial query, not comparative skill
+    - Both 3-star on medium/hard queries: tie (both models nailed a challenging translation)
     - Both -1-star: both trash, no meaningful comparison
     """
     if r1 == 3 and r2 == 3:
-        return True
+        # On easy or unknown queries, skip 3★/3★ (perfection signal, not skill)
+        # On medium/hard queries, record as tie (both models succeeded on something hard)
+        return query_difficulty in ("easy", "unknown")
     if r1 == -1 and r2 == -1:
         return True
     return False
@@ -115,18 +119,27 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
                 if v.rating is not None
             ]
             if len(all_votes_data) >= 2:
-                _derive_pairwise_from_votes(session, user_id, query_id, all_votes_data)
+                difficulty_map = get_query_difficulty()
+                query_difficulty = difficulty_map.get(query_id, "unknown")
+                _derive_pairwise_from_votes(
+                    session, user_id, query_id, all_votes_data, query_difficulty
+                )
 
     except Exception:
         logger.exception("Error processing votes")
         return {"success": False, "error": "An error occurred while processing votes"}
 
     else:
+        invalidate_caches()
         return {"success": True, "message": "Votes processed successfully"}
 
 
 def _derive_pairwise_from_votes(
-    session: Session, user_id: int, query_id: int, votes_data
+    session: Session,
+    user_id: int,
+    query_id: int,
+    votes_data,
+    query_difficulty: str = "unknown",
 ) -> None:
     """Derive pairwise comparisons from star rating votes.
 
@@ -165,8 +178,8 @@ def _derive_pairwise_from_votes(
 
         r1, r2 = v1["rating"], v2["rating"]
 
-        # Check tie-skip logic
-        if _should_skip_pair(r1, r2):
+        # Check tie-skip logic (difficulty-aware: 3★/3★ skipped on easy/unknown, tied on medium/hard)
+        if _should_skip_pair(r1, r2, query_difficulty):
             continue
 
         if r1 > r2:

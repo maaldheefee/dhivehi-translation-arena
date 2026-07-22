@@ -24,11 +24,16 @@ from app.config import Config, get_config
 from app.database import db_session
 from app.decorators import login_required
 from app.llm_clients import get_available_models
-from app.models import PairwiseComparison, Query, Translation, User
+from app.models import PairwiseComparison, Query, Translation, User, Vote
 from app.predefined_queries import PREDEFINED_QUERIES
 from app.services.cost_service import check_user_budget
 from app.services.elo_service import get_elo_service
-from app.services.stats_service import get_model_usage_stats
+from app.services.stats_service import (
+    get_model_usage_stats,
+    get_pair_comparison_counts,
+    get_query_difficulty,
+    invalidate_caches,
+)
 from app.services.translation_service import get_translation_for_model
 from app.services.vote_service import process_votes
 
@@ -124,16 +129,84 @@ def _select_models(
             # Already at capacity
             break
 
+    # Cost-aware constraint: max MAX_EXPENSIVE_GROUPS expensive base model groups
+    expensive_groups = []
+    for key in selected_keys:
+        base = config.MODELS.get(key, {}).get("base_model", key)
+        output_cost = config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0)
+        if output_cost > config.COST_MID_MAX:
+            if base not in expensive_groups:
+                expensive_groups.append(base)
+
+    if len(expensive_groups) > config.MAX_EXPENSIVE_GROUPS:
+        # Keep only the first MAX_EXPENSIVE_GROUPS expensive groups (highest priority = lowest usage)
+        allowed_expensive = set(expensive_groups[: config.MAX_EXPENSIVE_GROUPS])
+        # Remove keys from disallowed expensive groups
+        removed_keys = []
+        for key in list(selected_keys):
+            base = config.MODELS.get(key, {}).get("base_model", key)
+            output_cost = config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0)
+            if output_cost > config.COST_MID_MAX and base not in allowed_expensive:
+                selected_keys.remove(key)
+                removed_keys.append(key)
+
+        # Backfill with cheap/mid models from remaining pool
+        # (exclude all expensive models to avoid re-adding disallowed groups)
+        remaining_pool = [
+            k for k in available_models_map
+            if k not in selected_keys and k not in excluded_models
+            and config.MODELS.get(k, {}).get("output_cost_per_mtok", 0.0) <= config.COST_MID_MAX
+        ]
+        # Sort by usage (low first) and add back
+        remaining_pool.sort(key=lambda k: usage_stats.get(k, 0))
+        for key in remaining_pool:
+            if len(selected_keys) >= max_models:
+                break
+            selected_keys.append(key)
+
     return selected_keys
 
 
 @main_bp.route("/")
 def index() -> str:
-    """Renders the main page with a shuffled list of predefined queries."""
+    """Renders the main page with stratified query selection and cost-aware model selection."""
     username = session.get("username", "Guest")
-    shuffled_queries = PREDEFINED_QUERIES.copy()
-    random.shuffle(shuffled_queries)
-    shuffled_queries = shuffled_queries[:10]
+    conf = get_config()
+
+    # Stratified query selection based on difficulty
+    difficulty_map = get_query_difficulty()
+
+    # Build query -> difficulty mapping (using source_text as key since PREDEFINED_QUERIES are strings)
+    # Fetch Query IDs for predefined query texts
+    query_rows = db_session.query(Query).filter(Query.source_text.in_(PREDEFINED_QUERIES)).all()
+    text_to_id = {str(q.source_text): int(q.id) for q in query_rows}  # ty:ignore[invalid-argument-type]
+
+    # Categorize predefined queries by difficulty tier
+    tier_pools: dict[str, list[str]] = {"easy": [], "medium": [], "hard": [], "unknown": []}
+    for q_text in PREDEFINED_QUERIES:
+        qid = text_to_id.get(q_text)
+        tier = difficulty_map.get(qid, "unknown") if qid is not None else "unknown"
+        tier_pools[tier].append(q_text)
+
+    # Select queries per tier with backfill
+    selected_queries: list[str] = []
+    remaining: list[str] = []
+
+    for tier, target_count in conf.STRATIFIED_TARGETS.items():
+        pool = tier_pools.get(tier, [])
+        random.shuffle(pool)
+        take = min(target_count, len(pool))
+        selected_queries.extend(pool[:take])
+        remaining.extend(pool[take:])
+
+    # Backfill to reach STRATIFIED_TOTAL from remaining pool
+    shortfall = conf.STRATIFIED_TOTAL - len(selected_queries)
+    if shortfall > 0 and remaining:
+        random.shuffle(remaining)
+        selected_queries.extend(remaining[:shortfall])
+
+    # Shuffle final selection for display
+    random.shuffle(selected_queries)
 
     available_models = get_available_models()
     usage_stats = get_model_usage_stats()
@@ -141,8 +214,8 @@ def index() -> str:
     # Get user budget info
     is_allowed, user_monthly_cost = check_user_budget(username)
 
-    # Select models with smart grouping
-    selected_model_keys = _select_models(available_models, usage_stats, get_config())
+    # Select models with smart grouping and cost-aware constraint
+    selected_model_keys = _select_models(available_models, usage_stats, conf)
 
     # Create the dictionary for only the selected models
     final_models = {k: available_models[k] for k in selected_model_keys}
@@ -154,7 +227,7 @@ def index() -> str:
 
     return render_template(
         "index.html",
-        predefined_queries=shuffled_queries,
+        predefined_queries=selected_queries,
         username=username,
         available_models=final_models_shuffled,
         user_monthly_cost=user_monthly_cost,
@@ -402,12 +475,43 @@ def compare_ui() -> str:
     return render_template("compare.html", username=username)
 
 
+def _compute_pair_priority(
+    elo_a: float,
+    rd_a: float,
+    elo_b: float,
+    rd_b: float,
+    pair_count: int,
+    same_rating: bool,
+) -> float:
+    """Compute composite pair priority score.
+
+    Weights: ELO closeness 30%, RD uncertainty 25%, pair hunger 25%,
+    same-rated bonus +0.3 additive.
+    """
+    elo_diff = abs(elo_a - elo_b)
+    elo_closeness = 1.0 / (1.0 + elo_diff / 100.0)
+
+    avg_rd = (rd_a + rd_b) / 2.0
+    uncertainty = min(1.0, avg_rd / 350.0)
+
+    pair_hunger = 1.0 / (1.0 + pair_count)
+
+    same_rated_bonus = 0.3 if same_rating else 0.0
+
+    return elo_closeness * 0.30 + uncertainty * 0.25 + pair_hunger * 0.25 + same_rated_bonus
+
+
 @main_bp.route("/compare/random")
 @login_required
 def get_random_comparison() -> Response | tuple[Response, int]:
     """
     Get 2 translations from the same query for pairwise comparison.
     Returns translations that haven't been compared yet or need more comparisons.
+
+    Filters: only shows pairs where both translations have >= 2-star rating
+    and gap < 2, based on the current user's votes.
+    Priority: composite score using ELO closeness, RD uncertainty, pair hunger,
+    and same-rated bonus.
     """
 
     username = session.get("username", "Guest")
@@ -420,17 +524,38 @@ def get_random_comparison() -> Response | tuple[Response, int]:
 
     t1_alias = aliased(Translation)
     t2_alias = aliased(Translation)
+    v1_alias = aliased(Vote)
+    v2_alias = aliased(Vote)
 
     # Base query for all relevant pairs (same query_id, different translations)
-    base_query = db_session.query(
-        t1_alias.id.label("t1_id"),
-        t2_alias.id.label("t2_id"),
-        t1_alias.model.label("t1_model"),
-        t2_alias.model.label("t2_model"),
-        t1_alias.query_id,
-    ).join(
-        t2_alias,
-        and_(t1_alias.query_id == t2_alias.query_id, t1_alias.id < t2_alias.id),
+    # with vote-based filtering: both >= 2-star and gap < 2, constrained to current user
+    base_query = (
+        db_session.query(
+            t1_alias.id.label("t1_id"),
+            t2_alias.id.label("t2_id"),
+            t1_alias.model.label("t1_model"),
+            t2_alias.model.label("t2_model"),
+            t1_alias.query_id,
+            v1_alias.rating.label("t1_rating"),
+            v2_alias.rating.label("t2_rating"),
+        )
+        .join(
+            t2_alias,
+            and_(t1_alias.query_id == t2_alias.query_id, t1_alias.id < t2_alias.id),
+        )
+        .join(
+            v1_alias,
+            and_(v1_alias.translation_id == t1_alias.id, v1_alias.user_id == user.id),
+        )
+        .join(
+            v2_alias,
+            and_(v2_alias.translation_id == t2_alias.id, v2_alias.user_id == user.id),
+        )
+        .filter(
+            v1_alias.rating >= 2,
+            v2_alias.rating >= 2,
+            func.abs(v1_alias.rating - v2_alias.rating) < 2,
+        )
     )
 
     if target_models:
@@ -463,13 +588,16 @@ def get_random_comparison() -> Response | tuple[Response, int]:
         ),
     ).filter(compared_subq.c.id.is_(None))
 
-    # Fetch a random batch of up to 100 uncompared pairs
-    uncompared_batch = uncompared_query.order_by(func.random()).limit(100).all()
+    # Fetch ALL uncompared pairs (no random limit(100) batch)
+    uncompared_batch = uncompared_query.all()
     if not uncompared_batch:
         return jsonify({"error": "All pairs have been compared"}), 404
 
     elo_service = get_elo_service()
-    all_elos = {r["model"]: r["elo_rating"] for r in elo_service.get_all_rankings()}
+    all_rankings = {r["model"]: r for r in elo_service.get_all_rankings()}
+
+    # Get pair-level explicit comparison counts for pair hunger
+    pair_counts = get_pair_comparison_counts()
 
     # Build set of active model keys for pair classification
     conf = get_config()
@@ -483,13 +611,27 @@ def get_random_comparison() -> Response | tuple[Response, int]:
     for row in uncompared_batch:
         t1_active = row.t1_model in active_models
         t2_active = row.t2_model in active_models
-        elo1 = all_elos.get(row.t1_model, 1500.0)
-        elo2 = all_elos.get(row.t2_model, 1500.0)
-        diff = abs(elo1 - elo2)
+
+        ranking_a = all_rankings.get(row.t1_model, {})
+        ranking_b = all_rankings.get(row.t2_model, {})
+        elo_a = ranking_a.get("elo_rating", 1500.0)
+        rd_a = ranking_a.get("rating_deviation", 350.0)
+        elo_b = ranking_b.get("elo_rating", 1500.0)
+        rd_b = ranking_b.get("rating_deviation", 350.0)
+
+        pair_key = (min(row.t1_model, row.t2_model), max(row.t1_model, row.t2_model))
+        pair_count = pair_counts.get(pair_key, 0)
+
+        same_rating = row.t1_rating == row.t2_rating
+
+        priority = _compute_pair_priority(
+            elo_a, rd_a, elo_b, rd_b, pair_count, same_rating
+        )
+
         if t1_active and t2_active:
-            both_active.append((row, diff))
+            both_active.append((row, priority))
         elif t1_active or t2_active:
-            mixed.append((row, diff))
+            mixed.append((row, priority))
         # Both disabled: skip entirely — no value comparing two discontinued models
 
     # Two-stage selection: prefer both-active, fall back to mixed
@@ -497,10 +639,10 @@ def get_random_comparison() -> Response | tuple[Response, int]:
     if not candidate_pairs:
         return jsonify({"error": "No eligible pairs to compare"}), 404
 
-    # Sort by ELO difference (ascending) -> compare closest models first
-    candidate_pairs.sort(key=lambda x: x[1])
+    # Sort by composite priority (descending) -> highest priority first
+    candidate_pairs.sort(key=lambda x: x[1], reverse=True)
 
-    # Take top 5 candidates with closest ELO and pick one randomly
+    # Take top 5 candidates with highest priority and pick one randomly
     top_candidates = candidate_pairs[:5]
     selected_pair_row, _ = random.choice(top_candidates)
 
@@ -657,6 +799,7 @@ def submit_comparison() -> Response | tuple[Response, int]:
             translation_b_id=int(t2.id),  # type: ignore
             source="explicit",
         )
+        invalidate_caches()
         return jsonify({"status": "success"})
     except Exception as e:
         current_app.logger.exception("Error recording comparison")

@@ -152,15 +152,33 @@ class TestGapToScore:
 
 
 class TestShouldSkipPair:
-    """Tests for _should_skip_pair function."""
+    """Tests for _should_skip_pair function with difficulty-aware logic."""
 
-    def test_both_3_star_skipped(self):
-        """Both 3-star should be skipped."""
+    def test_both_3_star_skipped_easy(self):
+        """Both 3-star on easy query should be skipped."""
+        assert _should_skip_pair(3, 3, "easy") is True
+
+    def test_both_3_star_skipped_unknown(self):
+        """Both 3-star on unknown query should be skipped (default behavior)."""
+        assert _should_skip_pair(3, 3, "unknown") is True
+
+    def test_both_3_star_skipped_default(self):
+        """Both 3-star with no difficulty arg should be skipped (defaults to unknown)."""
         assert _should_skip_pair(3, 3) is True
 
+    def test_both_3_star_tied_medium(self):
+        """Both 3-star on medium query should NOT be skipped (tie)."""
+        assert _should_skip_pair(3, 3, "medium") is False
+
+    def test_both_3_star_tied_hard(self):
+        """Both 3-star on hard query should NOT be skipped (tie)."""
+        assert _should_skip_pair(3, 3, "hard") is False
+
     def test_both_neg1_star_skipped(self):
-        """Both -1-star should be skipped."""
-        assert _should_skip_pair(-1, -1) is True
+        """Both -1-star should be skipped regardless of difficulty."""
+        assert _should_skip_pair(-1, -1, "easy") is True
+        assert _should_skip_pair(-1, -1, "medium") is True
+        assert _should_skip_pair(-1, -1, "hard") is True
 
     def test_both_1_star_not_skipped(self):
         """Both 1-star should NOT be skipped (tie)."""
@@ -706,3 +724,453 @@ class TestVoteDerivation:
             PairwiseComparison.query_id == query.id,
         ).count()
         assert final_count == 3
+
+
+# --- Pair priority tests ---
+
+
+class TestPairPriority:
+    """Tests for _compute_pair_priority composite scoring."""
+
+    def test_close_elo_higher_priority(self):
+        """Closer ELO should yield higher elo_closeness component."""
+        from app.blueprints.main import _compute_pair_priority
+
+        close = _compute_pair_priority(1500, 200, 1510, 200, 0, False)
+        far = _compute_pair_priority(1500, 200, 1600, 200, 0, False)
+        assert close > far
+
+    def test_high_rd_higher_uncertainty(self):
+        """Higher RD should yield higher uncertainty component."""
+        from app.blueprints.main import _compute_pair_priority
+
+        high_rd = _compute_pair_priority(1500, 300, 1500, 300, 0, False)
+        low_rd = _compute_pair_priority(1500, 80, 1500, 80, 0, False)
+        assert high_rd > low_rd
+
+    def test_hungry_pair_higher_priority(self):
+        """Fewer comparisons should yield higher pair_hunger."""
+        from app.blueprints.main import _compute_pair_priority
+
+        hungry = _compute_pair_priority(1500, 200, 1500, 200, 0, False)
+        sated = _compute_pair_priority(1500, 200, 1500, 200, 10, False)
+        assert hungry > sated
+
+    def test_same_rating_bonus(self):
+        """Same-rated pairs should get +0.3 bonus."""
+        from app.blueprints.main import _compute_pair_priority
+
+        same = _compute_pair_priority(1500, 200, 1500, 200, 0, True)
+        diff = _compute_pair_priority(1500, 200, 1500, 200, 0, False)
+        assert same - diff == pytest.approx(0.3, abs=0.001)
+
+    def test_weights_sum_correctly(self):
+        """Composite score should be sum of weighted components + bonus."""
+        from app.blueprints.main import _compute_pair_priority
+
+        elo_a, rd_a, elo_b, rd_b = 1500, 200, 1500, 200
+        score = _compute_pair_priority(elo_a, rd_a, elo_b, rd_b, 5, True)
+        # Manually compute
+        elo_closeness = 1.0 / (1.0 + abs(elo_a - elo_b) / 100.0)  # 1.0
+        uncertainty = min(1.0, 200 / 350.0)  # ~0.571
+        pair_hunger = 1.0 / 6.0  # ~0.167
+        expected = elo_closeness * 0.30 + uncertainty * 0.25 + pair_hunger * 0.25 + 0.3
+        assert score == pytest.approx(expected, abs=0.001)
+
+
+# --- Difficulty-aware tie tests ---
+
+
+class TestDifficultyAwareTie:
+    """Tests for 3★/3★ tie behavior with query difficulty."""
+
+    def _create_test_data(self, session):
+        """Helper to create user, query, and two translations."""
+        user = User(username="testuser", password_hash="x")
+        session.add(user)
+        session.flush()
+        query = Query(source_text="test")
+        session.add(query)
+        session.flush()
+        t1 = Translation(
+            query_id=query.id, model="model-a", translation="A",
+            system_prompt="sp", position=1, user_id=user.id,
+        )
+        t2 = Translation(
+            query_id=query.id, model="model-b", translation="B",
+            system_prompt="sp", position=2, user_id=user.id,
+        )
+        session.add_all([t1, t2])
+        session.flush()
+        return user, query, t1, t2
+
+    def test_3_star_tied_on_hard_query(self, session):
+        """Both 3-star on a hard query should produce a tie (not skipped)."""
+        from app.services.vote_service import _derive_pairwise_from_votes
+
+        user, query, t1, t2 = self._create_test_data(session)
+        votes_data = [
+            {"translation_id": t1.id, "rating": 3},
+            {"translation_id": t2.id, "rating": 3},
+        ]
+        _derive_pairwise_from_votes(
+            session, int(user.id), int(query.id), votes_data, "hard"
+        )
+        session.commit()
+
+        comp = session.query(PairwiseComparison).filter(
+            PairwiseComparison.source == "derived"
+        ).first()
+        assert comp is not None
+        assert comp.winner_model is None
+        assert comp.score == 0.5
+
+    def test_3_star_skipped_on_easy_query(self, session):
+        """Both 3-star on an easy query should be skipped (no comparison)."""
+        from app.services.vote_service import _derive_pairwise_from_votes
+
+        user, query, t1, t2 = self._create_test_data(session)
+        votes_data = [
+            {"translation_id": t1.id, "rating": 3},
+            {"translation_id": t2.id, "rating": 3},
+        ]
+        _derive_pairwise_from_votes(
+            session, int(user.id), int(query.id), votes_data, "easy"
+        )
+        session.commit()
+
+        count = session.query(PairwiseComparison).filter(
+            PairwiseComparison.source == "derived"
+        ).count()
+        assert count == 0
+
+
+# --- Confidence-weighted leaderboard tests ---
+
+
+class TestConfidenceWeightedBlend:
+    """Tests for RD-aware confidence weighting in calculate_model_scores."""
+
+    def test_high_confidence_glicko_dominates(self, session):
+        """With low RD (high confidence), Glicko-2 should dominate the blend."""
+        from unittest.mock import patch
+
+        from app.services.stats_service import calculate_model_scores
+
+        # Create model with low RD (confident)
+        elo = ModelELO(model="confident-model", elo_rating=1800, rating_deviation=80)
+        session.add(elo)
+
+        # Create translation and vote with mediocre star rating
+        user = User(username="testuser", password_hash="x")
+        session.add(user)
+        session.flush()
+        query = Query(source_text="test")
+        session.add(query)
+        session.flush()
+        t = Translation(
+            query_id=query.id, model="confident-model", translation="A",
+            system_prompt="sp", position=1, user_id=user.id,
+        )
+        session.add(t)
+        session.flush()
+        vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=1)
+        session.add(vote)
+        session.commit()
+
+        with patch("app.services.stats_service.db_session", session):
+            scores = calculate_model_scores()
+        model_score = next(s for s in scores if s["model_name"] == "confident-model")
+
+        # Score mapping: rating=1 -> score=0, so average_score=0
+        # normalized_avg = (0+2)/5 = 0.4
+        # With RD=80, confidence = 1 - 80/350 ≈ 0.77
+        # normalized_elo = (1800-1000)/1000 = 0.8
+        # combined ≈ 0.8*0.77 + 0.4*0.23 ≈ 0.709
+        assert model_score["combined_score"] > 0.65
+        assert model_score["rating_deviation"] == 80
+
+    def test_low_confidence_stars_dominate(self, session):
+        """With high RD (low confidence), star ratings should dominate."""
+        from unittest.mock import patch
+
+        from app.services.stats_service import calculate_model_scores
+
+        # Create model with high RD (uncertain)
+        elo = ModelELO(model="uncertain-model", elo_rating=1800, rating_deviation=340)
+        session.add(elo)
+
+        user = User(username="testuser2", password_hash="x")
+        session.add(user)
+        session.flush()
+        query = Query(source_text="test2")
+        session.add(query)
+        session.flush()
+        t = Translation(
+            query_id=query.id, model="uncertain-model", translation="A",
+            system_prompt="sp", position=1, user_id=user.id,
+        )
+        session.add(t)
+        session.flush()
+        vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=1)
+        session.add(vote)
+        session.commit()
+
+        with patch("app.services.stats_service.db_session", session):
+            scores = calculate_model_scores()
+        model_score = next(s for s in scores if s["model_name"] == "uncertain-model")
+
+        # Score mapping: rating=1 -> score=0, so average_score=0
+        # normalized_avg = (0+2)/5 = 0.4
+        # With RD=340, confidence = 1 - 340/350 ≈ 0.029
+        # normalized_elo = 0.8, normalized_avg = 0.4
+        # combined ≈ 0.8*0.03 + 0.4*0.97 ≈ 0.411
+        # Star rating should dominate over Glicko
+        assert model_score["combined_score"] < 0.5
+        assert model_score["combined_score"] > 0.35
+
+    def test_weights_sum_to_one(self, session):
+        """Confidence + (1 - confidence) should always equal 1.0."""
+        from unittest.mock import patch
+
+        from app.services.stats_service import calculate_model_scores
+
+        for rd in [80, 150, 250, 350]:
+            model_name = f"rd-test-{rd}"
+            elo = ModelELO(model=model_name, elo_rating=1500, rating_deviation=rd)
+            session.add(elo)
+
+            user = User(username=f"user-{rd}", password_hash="x")
+            session.add(user)
+            session.flush()
+            query = Query(source_text=f"q-{rd}")
+            session.add(query)
+            session.flush()
+            t = Translation(
+                query_id=query.id, model=model_name, translation="A",
+                system_prompt="sp", position=1, user_id=user.id,
+            )
+            session.add(t)
+            session.flush()
+            vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=2)
+            session.add(vote)
+        session.commit()
+
+        with patch("app.services.stats_service.db_session", session):
+            scores = calculate_model_scores()
+        for rd in [80, 150, 250, 350]:
+            model_name = f"rd-test-{rd}"
+            ms = next(s for s in scores if s["model_name"] == model_name)
+            confidence = 1.0 - (rd / 350.0)
+            # Score mapping: rating=2 -> score=1, so average_score=1.0
+            # normalized_avg = (1+2)/5 = 0.6
+            # normalized_elo = (1500-1000)/1000 = 0.5
+            normalized_elo = max(0.0, min(1.0, (1500 - 1000) / 1000))
+            normalized_avg = max(0.0, min(1.0, (1.0 + 2) / 5))
+            expected = normalized_elo * confidence + normalized_avg * (1 - confidence)
+            assert ms["combined_score"] == pytest.approx(expected, abs=0.01), (
+                f"RD={rd}: expected {expected}, got {ms['combined_score']}"
+            )
+
+
+# --- Cost-aware model selection tests ---
+
+
+class TestCostAwareModelSelection:
+    """Tests for max expensive groups constraint in _select_models."""
+
+    def test_max_two_expensive_groups(self):
+        """Should limit to MAX_EXPENSIVE_GROUPS expensive base model groups."""
+        from app.blueprints.main import _select_models
+        from app.config import Config
+
+        # Create config with 3 expensive base model groups, each with 1 model
+        config = Config()
+        # Override models dict for testing
+        config.MODELS = {
+            "cheap-1": {"base_model": "cheap-a", "output_cost_per_mtok": 1.0, "is_active": True},
+            "cheap-2": {"base_model": "cheap-b", "output_cost_per_mtok": 2.0, "is_active": True},
+            "exp-1": {"base_model": "exp-a", "output_cost_per_mtok": 15.0, "is_active": True},
+            "exp-2": {"base_model": "exp-b", "output_cost_per_mtok": 20.0, "is_active": True},
+            "exp-3": {"base_model": "exp-c", "output_cost_per_mtok": 25.0, "is_active": True},
+        }
+
+        available = {k: v["base_model"] for k, v in config.MODELS.items()}
+        usage_stats = {k: 0 for k in config.MODELS}
+
+        selected = _select_models(available, usage_stats, config, max_models=5)
+
+        # Count expensive groups in selection
+        expensive_bases = set()
+        for key in selected:
+            base = config.MODELS[key]["base_model"]
+            cost = config.MODELS[key]["output_cost_per_mtok"]
+            if cost > config.COST_MID_MAX:
+                expensive_bases.add(base)
+
+        assert len(expensive_bases) <= config.MAX_EXPENSIVE_GROUPS
+
+    def test_cheap_models_not_constrained(self):
+        """Cheap and mid-cost models should not be affected by the constraint."""
+        from app.blueprints.main import _select_models
+        from app.config import Config
+
+        config = Config()
+        config.MODELS = {
+            "cheap-1": {"base_model": "cheap-a", "output_cost_per_mtok": 1.0, "is_active": True},
+            "cheap-2": {"base_model": "cheap-b", "output_cost_per_mtok": 2.0, "is_active": True},
+            "mid-1": {"base_model": "mid-a", "output_cost_per_mtok": 5.0, "is_active": True},
+            "mid-2": {"base_model": "mid-b", "output_cost_per_mtok": 8.0, "is_active": True},
+        }
+
+        available = {k: v["base_model"] for k, v in config.MODELS.items()}
+        usage_stats = {k: 0 for k in config.MODELS}
+
+        selected = _select_models(available, usage_stats, config, max_models=4)
+        assert len(selected) == 4  # All should be selected, no expensive models
+
+    def test_backfill_excludes_expensive_models(self):
+        """Backfill after removing expensive groups must not re-add expensive models."""
+        from app.blueprints.main import _select_models
+        from app.config import Config
+
+        config = Config()
+        config.MODELS = {
+            "cheap-1": {"base_model": "cheap-a", "output_cost_per_mtok": 1.0, "is_active": True},
+            "exp-1": {"base_model": "exp-a", "output_cost_per_mtok": 15.0, "is_active": True},
+            "exp-2": {"base_model": "exp-b", "output_cost_per_mtok": 20.0, "is_active": True},
+            "exp-3": {"base_model": "exp-c", "output_cost_per_mtok": 25.0, "is_active": True},
+        }
+
+        available = {k: v["base_model"] for k, v in config.MODELS.items()}
+        # Give cheap-1 high usage so it's selected last
+        usage_stats = {"cheap-1": 100, "exp-1": 0, "exp-2": 0, "exp-3": 0}
+
+        selected = _select_models(available, usage_stats, config, max_models=3)
+
+        # Count expensive groups in result
+        expensive_bases = set()
+        for key in selected:
+            base = config.MODELS[key]["base_model"]
+            cost = config.MODELS[key]["output_cost_per_mtok"]
+            if cost > config.COST_MID_MAX:
+                expensive_bases.add(base)
+
+        assert len(expensive_bases) <= config.MAX_EXPENSIVE_GROUPS
+        # cheap-1 must be in the result (backfilled from cheap pool)
+        assert "cheap-1" in selected
+
+
+# --- Query difficulty classification tests ---
+
+
+class TestQueryDifficulty:
+    """Tests for difficulty tier classification correctness."""
+
+    def test_high_residuals_classified_easy(self, session):
+        """Models beating their baseline → easy query."""
+        from unittest.mock import patch
+
+        from app.services.stats_service import get_query_difficulty, invalidate_caches
+
+        invalidate_caches()
+
+        # Create 3 models with low global averages (usually get 1-star)
+        for model_name in ["weak-a", "weak-b", "weak-c"]:
+            elo = ModelELO(model=model_name, elo_rating=1500, rating_deviation=350)
+            session.add(elo)
+
+        user = User(username="diff-test-user", password_hash="x")
+        session.add(user)
+        session.flush()
+
+        # Baseline query: models get 1-star (sets low global average)
+        baseline = Query(source_text="baseline-easy")
+        session.add(baseline)
+        session.flush()
+        for i, model in enumerate(["weak-a", "weak-b", "weak-c"]):
+            t = Translation(
+                query_id=baseline.id, model=model, translation="T",
+                system_prompt="sp", position=i + 1, user_id=user.id,
+            )
+            session.add(t)
+        session.flush()
+        for t in session.query(Translation).filter(Translation.query_id == baseline.id).all():
+            vote = Vote(user_id=user.id, query_id=baseline.id, translation_id=t.id, rating=1)
+            session.add(vote)
+
+        # Test query: same models get 3-star (above baseline → positive residual)
+        query = Query(source_text="easy-query")
+        session.add(query)
+        session.flush()
+        for i, model in enumerate(["weak-a", "weak-b", "weak-c"]):
+            t = Translation(
+                query_id=query.id, model=model, translation="T",
+                system_prompt="sp", position=i + 1, user_id=user.id,
+            )
+            session.add(t)
+        session.flush()
+        for t in session.query(Translation).filter(Translation.query_id == query.id).all():
+            vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=3)
+            session.add(vote)
+        session.commit()
+
+        with patch("app.services.stats_service.db_session", session):
+            difficulty = get_query_difficulty()
+
+        # residual = 3 - 1 = 2.0, well above EASY_THRESHOLD (0.3)
+        assert difficulty.get(int(query.id)) == "easy"
+
+    def test_low_residuals_classified_hard(self, session):
+        """Models underperforming their baseline → hard query."""
+        from unittest.mock import patch
+
+        from app.services.stats_service import get_query_difficulty, invalidate_caches
+
+        invalidate_caches()
+
+        # Create 3 models with high global averages (usually get 3-star)
+        for model_name in ["strong-a", "strong-b", "strong-c"]:
+            elo = ModelELO(model=model_name, elo_rating=1500, rating_deviation=350)
+            session.add(elo)
+
+        user = User(username="diff-test-user2", password_hash="x")
+        session.add(user)
+        session.flush()
+
+        # Baseline query: models get 3-star (sets high global average)
+        baseline = Query(source_text="baseline-hard")
+        session.add(baseline)
+        session.flush()
+        for i, model in enumerate(["strong-a", "strong-b", "strong-c"]):
+            t = Translation(
+                query_id=baseline.id, model=model, translation="T",
+                system_prompt="sp", position=i + 1, user_id=user.id,
+            )
+            session.add(t)
+        session.flush()
+        for t in session.query(Translation).filter(Translation.query_id == baseline.id).all():
+            vote = Vote(user_id=user.id, query_id=baseline.id, translation_id=t.id, rating=3)
+            session.add(vote)
+
+        # Test query: same models get -1 (below baseline → negative residual)
+        query = Query(source_text="hard-query")
+        session.add(query)
+        session.flush()
+        for i, model in enumerate(["strong-a", "strong-b", "strong-c"]):
+            t = Translation(
+                query_id=query.id, model=model, translation="T",
+                system_prompt="sp", position=i + 1, user_id=user.id,
+            )
+            session.add(t)
+        session.flush()
+        for t in session.query(Translation).filter(Translation.query_id == query.id).all():
+            vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=-1)
+            session.add(vote)
+        session.commit()
+
+        with patch("app.services.stats_service.db_session", session):
+            difficulty = get_query_difficulty()
+
+        # residual = -1 - 3 = -4.0, well below HARD_THRESHOLD (-0.3)
+        assert difficulty.get(int(query.id)) == "hard"
