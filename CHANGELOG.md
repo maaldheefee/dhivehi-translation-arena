@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: 38 tests covering Glicko-2 algorithm, fractional scoring, tie logic, rebuild idempotency/stable order, re-vote consistency, and partial vote preservation.
 
 ### Changed
+- **Models**: `ModelELO` columns migrated to SQLAlchemy 2.0 typed `Mapped`/`mapped_column` style. `wins`, `losses`, `ties` are now non-nullable (`Mapped[int]`), eliminating defensive `or 0` guards across `elo_service.py`, `stats_service.py`, and `rename_model.py`.
 - **API**: Updated `/get_available_models` and backend selection logic to respect user-defined exclusions and counts passed from the frontend.
 - **Models**: Disabled `google/gemini-3-pro-preview` models as they have been discontinued.
 - **Stats**: Leaderboard table and performance charts now dynamically respect user-hidden model settings.
@@ -35,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rating System**: Rebuild now applies time decay between consecutive comparisons per model using `created_at` timestamps, matching incremental processing.
 - **Rating System**: Migration backfill for tie scores requires non-null `translation_a_id` and `translation_b_id` — corrupt/incomplete rows are left untouched.
 - **Rating System**: Migration backfill runs unconditionally every startup, not gated on whether columns were just added — ensures resumability after partial failure.
+- **CLI**: `init-db` command now raises `RuntimeError` instead of `assert` for uninitialized engine (assert is stripped in optimized mode).
+- **Migration**: Added backfill for NULL `wins`/`losses`/`ties` in `init_db.py` to support non-nullable column upgrade on existing databases.
+- **Scripts**: `analyze_data.py` now guards against NULL `wins`/`losses`/`ties` with `or 0`.
 
 
 ## [0.3.0] - 2026-03-10

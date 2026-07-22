@@ -108,6 +108,11 @@ def _migrate_glicko2_columns(engine) -> None:
             "UPDATE model_elo SET volatility = 0.06 "
             "WHERE volatility IS NULL"
         ))
+    # Backfill NULL win/loss/tie counters (columns existed before but were nullable)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE model_elo SET wins = 0 WHERE wins IS NULL"))
+        conn.execute(text("UPDATE model_elo SET losses = 0 WHERE losses IS NULL"))
+        conn.execute(text("UPDATE model_elo SET ties = 0 WHERE ties IS NULL"))
     print("  Backfilled Glicko-2 columns on model_elo.")
 
     # --- PairwiseComparison: add score column ---

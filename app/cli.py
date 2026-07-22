@@ -16,6 +16,9 @@ def init_db_command() -> None:
     Path(Config.DATA_DIR).mkdir(parents=True, exist_ok=True)
 
     print("Initializing database...")
+    if engine is None:
+        msg = "Database engine is not initialized. Ensure init_db(app) was called."
+        raise RuntimeError(msg)
     Base.metadata.create_all(bind=engine, checkfirst=True)
     print("Database schema checked/created successfully.")
 

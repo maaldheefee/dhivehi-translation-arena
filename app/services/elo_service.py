@@ -212,14 +212,14 @@ class ELOService:
 
         # Update win/loss/tie counters
         if score_a > 0.5:
-            rec_a.wins = (rec_a.wins or 0) + 1
-            rec_b.losses = (rec_b.losses or 0) + 1
+            rec_a.wins += 1
+            rec_b.losses += 1
         elif score_a < 0.5:
-            rec_a.losses = (rec_a.losses or 0) + 1
-            rec_b.wins = (rec_b.wins or 0) + 1
+            rec_a.losses += 1
+            rec_b.wins += 1
         else:
-            rec_a.ties = (rec_a.ties or 0) + 1
-            rec_b.ties = (rec_b.ties or 0) + 1
+            rec_a.ties += 1
+            rec_b.ties += 1
 
         self.session.commit()
 
@@ -293,9 +293,9 @@ class ELOService:
                 "elo_rating": r.elo_rating,
                 "rating_deviation": r.rating_deviation or Config.GLICKO_INITIAL_RD,
                 "volatility": r.volatility or Config.GLICKO_INITIAL_VOLATILITY,
-                "wins": r.wins or 0,
-                "losses": r.losses or 0,
-                "ties": r.ties or 0,
+                "wins": r.wins,
+                "losses": r.losses,
+                "ties": r.ties,
                 "total_matches": r.total_matches,
                 "win_rate": r.win_rate,
             }
@@ -399,14 +399,14 @@ class ELOService:
             rec_b.last_comparison_at = comp_time
 
             if score_a > 0.5:
-                rec_a.wins = (rec_a.wins or 0) + 1
-                rec_b.losses = (rec_b.losses or 0) + 1
+                rec_a.wins += 1
+                rec_b.losses += 1
             elif score_a < 0.5:
-                rec_a.losses = (rec_a.losses or 0) + 1
-                rec_b.wins = (rec_b.wins or 0) + 1
+                rec_a.losses += 1
+                rec_b.wins += 1
             else:
-                rec_a.ties = (rec_a.ties or 0) + 1
-                rec_b.ties = (rec_b.ties or 0) + 1
+                rec_a.ties += 1
+                rec_b.ties += 1
 
             count += 1
 

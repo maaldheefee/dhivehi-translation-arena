@@ -30,9 +30,9 @@ def analyze_elo(session: Session):
         {
             "model": elo.model,
             "elo": elo.elo_rating,
-            "wins": elo.wins,
-            "losses": elo.losses,
-            "ties": elo.ties,
+            "wins": elo.wins or 0,
+            "losses": elo.losses or 0,
+            "ties": elo.ties or 0,
             "win_rate": elo.win_rate,
         }
         for elo in elos

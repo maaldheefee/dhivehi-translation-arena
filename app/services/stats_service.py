@@ -125,9 +125,9 @@ def calculate_model_scores():
         # Get ELO data if available
         elo_record = elo_records.get(model_name)
         elo_rating = elo_record.elo_rating if elo_record else 1500.0
-        elo_wins = (elo_record.wins or 0) if elo_record else 0
-        elo_losses = (elo_record.losses or 0) if elo_record else 0
-        elo_ties = (elo_record.ties or 0) if elo_record else 0
+        elo_wins = elo_record.wins if elo_record else 0
+        elo_losses = elo_record.losses if elo_record else 0
+        elo_ties = elo_record.ties if elo_record else 0
         elo_total = elo_wins + elo_losses + elo_ties
         elo_win_rate = (elo_wins / elo_total * 100) if elo_total > 0 else 0.0
 

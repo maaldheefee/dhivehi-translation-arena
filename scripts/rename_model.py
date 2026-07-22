@@ -203,9 +203,9 @@ def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
                     )
 
                     # Combine statistics
-                    new_elo.wins = (new_elo.wins or 0) + (old_elo.wins or 0)
-                    new_elo.losses = (new_elo.losses or 0) + (old_elo.losses or 0)
-                    new_elo.ties = (new_elo.ties or 0) + (old_elo.ties or 0)
+                    new_elo.wins += old_elo.wins
+                    new_elo.losses += old_elo.losses
+                    new_elo.ties += old_elo.ties
 
                     # Average the ELO ratings weighted by total matches
                     old_matches = old_elo.total_matches
