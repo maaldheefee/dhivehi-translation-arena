@@ -1174,3 +1174,54 @@ class TestQueryDifficulty:
 
         # residual = -1 - 3 = -4.0, well below HARD_THRESHOLD (-0.3)
         assert difficulty.get(int(query.id)) == "hard"
+
+
+class TestPairComparisonCounts:
+    """Tests for get_pair_comparison_counts — regression test for SQLite
+    ambiguous column name error when using string labels in group_by."""
+
+    def test_pair_counts_with_explicit_comparisons(self, session):
+        """Verify pair counts are computed correctly without SQL errors."""
+        from unittest.mock import patch
+
+        from app.services.stats_service import get_pair_comparison_counts
+
+        user = User(username="testuser", password_hash="x")
+        session.add(user)
+        session.flush()
+
+        query = Query(source_text="test")
+        session.add(query)
+        session.flush()
+
+        t1 = Translation(
+            query_id=query.id, model="model-a", translation="A",
+            system_prompt="sp", position=1, user_id=user.id,
+        )
+        t2 = Translation(
+            query_id=query.id, model="model-b", translation="B",
+            system_prompt="sp", position=2, user_id=user.id,
+        )
+        session.add_all([t1, t2])
+        session.flush()
+
+        # Add explicit comparison
+        comp = PairwiseComparison(
+            user_id=user.id,
+            query_id=query.id,
+            translation_a_id=t1.id,
+            translation_b_id=t2.id,
+            winner_model="model-a",
+            loser_model="model-b",
+            source="explicit",
+            score=1.0,
+        )
+        session.add(comp)
+        session.commit()
+
+        with patch("app.services.stats_service.db_session", session):
+            counts = get_pair_comparison_counts()
+
+        key = ("model-a", "model-b")
+        assert key in counts
+        assert counts[key] == 1

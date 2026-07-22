@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **UI**: Fixed RTL layout issues for toggle switches and table alignment in the stats dashboard.
 - **Compare**: Handle 401 auth errors gracefully in compare page — shows toast notification and opens login dropdown instead of cryptic "Failed to fetch comparison" error.
+- **Stats**: Fix SQLite ambiguous column error in `get_pair_comparison_counts()` — string labels in `group_by` caused FROM clause duplication with aliased joins. Switched to column expression references and explicit `select_from`.
 - **Rating System**: Re-votes now rebuild all ratings from stored comparisons, ensuring live `ModelELO` matches the source of truth (previously stale ratings were stacked on top of deleted comparisons' effects).
 - **Rating System**: Partial vote submissions no longer discard comparisons from omitted stored votes — derivation uses the complete persisted vote set.
 - **Rating System**: Rebuild now applies time decay between consecutive comparisons per model using `created_at` timestamps, matching incremental processing.

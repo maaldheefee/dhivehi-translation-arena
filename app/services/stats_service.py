@@ -326,18 +326,22 @@ def get_pair_comparison_counts() -> dict[tuple[str, str], int]:
 
     # Use case expressions for least/greatest to stay PostgreSQL-compatible
     # (func.min/max are aggregates that take a single column, not two args)
+    m1_expr = case(
+        (t_a.model <= t_b.model, t_a.model),
+        else_=t_b.model,
+    ).label("m1")
+    m2_expr = case(
+        (t_a.model <= t_b.model, t_b.model),
+        else_=t_a.model,
+    ).label("m2")
+
     results = (
         session.query(
-            case(
-                (t_a.model <= t_b.model, t_a.model),
-                else_=t_b.model,
-            ).label("m1"),
-            case(
-                (t_a.model <= t_b.model, t_b.model),
-                else_=t_a.model,
-            ).label("m2"),
+            m1_expr,
+            m2_expr,
             sql_func.count().label("count"),
         )
+        .select_from(PairwiseComparison)
         .join(t_a, t_a.id == PairwiseComparison.translation_a_id)
         .join(t_b, t_b.id == PairwiseComparison.translation_b_id)
         .filter(
@@ -345,7 +349,7 @@ def get_pair_comparison_counts() -> dict[tuple[str, str], int]:
             PairwiseComparison.translation_a_id.isnot(None),
             PairwiseComparison.translation_b_id.isnot(None),
         )
-        .group_by("m1", "m2")
+        .group_by(m1_expr, m2_expr)
         .all()
     )
 
@@ -522,7 +526,7 @@ def get_monthly_spending_stats() -> dict[str, list[float] | list[str]]:
         .filter(
             Translation.cost.isnot(None), Translation.created_at >= twelve_months_ago
         )
-        .group_by("month")
+        .group_by(month_str)
         .all()
     )
 
