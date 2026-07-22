@@ -226,9 +226,9 @@
             const scores = data.map(m => m.average_score);
             currentElos = data.map(m => m.elo_rating);
             
-            // Normalize ELO to be comparable to 3-point scale for visualization (rough mapping)
-            // 1300 -> 0, 1700 -> 3
-            const normalizedElos = currentElos.map(e => Math.max(0, (e - 1300) / (1700 - 1300) * 3));
+            // Normalize ELO to be comparable to 3-point scale for visualization
+            // Actual ELO range is ~1185-1805, so map 1100-1900 -> 0-3 for headroom
+            const normalizedElos = currentElos.map(e => Math.max(0, (e - 1100) / (1900 - 1100) * 3));
 
             if (chartInstance) {
                 chartInstance.data.labels = labels;
@@ -266,7 +266,7 @@
                         maintainAspectRatio: false,
                         scales: {
                             y: {
-                                beginAtZero: true,
+                                min: -2.5,
                                 max: 3.5,
                                 grid: { color: 'rgba(0, 0, 0, 0.05)' }
                             }
