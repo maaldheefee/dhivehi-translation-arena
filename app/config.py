@@ -122,7 +122,7 @@ class Config:
             )
 
     MAX_MODELS_SELECTION: ClassVar[int] = int(
-        os.environ.get("MAX_MODELS_SELECTION", "6")
+        os.environ.get("MAX_MODELS_SELECTION", "10")
     )
 
     # Translation settings
