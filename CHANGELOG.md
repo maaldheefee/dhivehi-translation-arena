@@ -14,14 +14,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration**: New frontend settings system to hide specific models/presets from the UI and stats page, persisted in `localStorage`.
 - **Configuration**: Added "Auto-select N models" setting to customize the number of models automatically picked for comparison.
 - **UI**: Added a "Settings" gear icon and modal to manage visibility and auto-selection preferences.
+- **Rating System**: Glicko-2 rating system replacing legacy ELO. New columns on `ModelELO` (`rating_deviation`, `volatility`, `legacy_elo_rating`, `last_comparison_at`) and `PairwiseComparison` (`score`). Config constants for tau, MIN_RD, c/week, initial RD/volatility, cost tiers, difficulty thresholds, and stratified selection targets.
+- **Rating System**: Fractional scoring for derived comparisons based on star rating gap (1.0/0.95/0.85/0.70). Tie-skip logic for both-3-star and both-(-1)-star pairs.
+- **Rating System**: `rebuild-ratings` CLI command to replay all comparisons from scratch in stable order (created_at asc, id asc) with time decay.
+- **Rating System**: Idempotent startup migration in `init_db.py` — adds missing Glicko-2 columns via ALTER TABLE and backfills data. Always runs backfill for NULL values to ensure resumability.
+- **Rating System**: ADRs 0001-0003 documenting Glicko-2 replacement, fractional scores, and single-user design constraints.
+- **Tests**: 38 tests covering Glicko-2 algorithm, fractional scoring, tie logic, rebuild idempotency/stable order, re-vote consistency, and partial vote preservation.
 
 ### Changed
 - **API**: Updated `/get_available_models` and backend selection logic to respect user-defined exclusions and counts passed from the frontend.
 - **Models**: Disabled `google/gemini-3-pro-preview` models as they have been discontinued.
 - **Stats**: Leaderboard table and performance charts now dynamically respect user-hidden model settings.
+- **Rating System**: `elo_service.py` completely rewritten — core `_glicko2_update()` algorithm, `ELOService` with single-comparison processing, time-based RD decay, `rebuild_ratings_from_comparisons()` with inter-comparison time decay.
+- **Rating System**: `vote_service.py` — `_derive_pairwise_from_votes` now stores comparisons directly (no incremental rating updates) and triggers full rebuild after re-derivation. `process_votes` fetches ALL persisted votes for user+query after upserts, not just the current request subset.
 
 ### Fixed
 - **UI**: Fixed RTL layout issues for toggle switches and table alignment in the stats dashboard.
+- **Rating System**: Re-votes now rebuild all ratings from stored comparisons, ensuring live `ModelELO` matches the source of truth (previously stale ratings were stacked on top of deleted comparisons' effects).
+- **Rating System**: Partial vote submissions no longer discard comparisons from omitted stored votes — derivation uses the complete persisted vote set.
+- **Rating System**: Rebuild now applies time decay between consecutive comparisons per model using `created_at` timestamps, matching incremental processing.
+- **Rating System**: Migration backfill for tie scores requires non-null `translation_a_id` and `translation_b_id` — corrupt/incomplete rows are left untouched.
+- **Rating System**: Migration backfill runs unconditionally every startup, not gated on whether columns were just added — ensures resumability after partial failure.
 
 
 ## [0.3.0] - 2026-03-10

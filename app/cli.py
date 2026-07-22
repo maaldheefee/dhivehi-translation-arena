@@ -98,9 +98,33 @@ def derive_elo_command(user_id) -> None:
         print(f"Error deriving ELO comparisons: {e}")
 
 
+@click.command("rebuild-ratings")
+@with_appcontext
+def rebuild_ratings_command() -> None:
+    """Rebuild all Glicko-2 ratings from stored comparisons."""
+    from app.services.elo_service import get_elo_service  # noqa: PLC0415
+
+    try:
+        elo_service = get_elo_service()
+        print("Rebuilding Glicko-2 ratings from comparisons...")
+        count = elo_service.rebuild_ratings_from_comparisons()
+        print(f"Replayed {count} comparisons.")
+        rankings = elo_service.get_all_rankings()
+        print("\nUpdated Rankings:")
+        for i, r in enumerate(rankings, 1):
+            print(
+                f"  {i}. {r['model']}: {r['elo_rating']:.1f} "
+                f"(RD={r['rating_deviation']:.1f}, "
+                f"{r['wins']}W/{r['losses']}L/{r['ties']}T)"
+            )
+    except Exception as e:
+        print(f"Error rebuilding ratings: {e}")
+
+
 def register_commands(app) -> None:
     app.cli.add_command(init_db_command)
     app.cli.add_command(add_user_command)
     app.cli.add_command(remove_user_command)
     app.cli.add_command(list_users_command)
     app.cli.add_command(derive_elo_command)
+    app.cli.add_command(rebuild_ratings_command)

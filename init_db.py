@@ -4,6 +4,8 @@
 import os
 from pathlib import Path
 
+from sqlalchemy import inspect, text
+
 # Note: In Docker, environment variables are already loaded
 # Import Flask app and database components
 from app import create_app, database
@@ -32,6 +34,9 @@ def main() -> None:
         Base.metadata.create_all(bind=database.engine, checkfirst=True)
         print("Database schema created successfully.")
 
+        # Run idempotent schema migration for Glicko-2 columns
+        _migrate_glicko2_columns(database.engine)
+
         # Create default users if none exist
         default_users = [
             # Default admin - set INIT_ADMIN_PASSWORD env var or change password immediately after first login
@@ -59,6 +64,80 @@ def main() -> None:
         _migrate_elo_data()
 
         print("Database initialization completed successfully!")
+
+
+def _migrate_glicko2_columns(engine) -> None:
+    """Idempotent migration: add Glicko-2 columns to existing tables if missing.
+
+    Checks for column existence via inspect() and adds missing columns
+    with ALTER TABLE. Always runs backfill for NULL values to ensure
+    resumability — a failed previous run can leave columns added but
+    values unpopulated.
+    """
+    inspector = inspect(engine)
+
+    # --- ModelELO: add rating_deviation, volatility, legacy_elo_rating, last_comparison_at ---
+    elo_columns = {col["name"] for col in inspector.get_columns("model_elo")}
+
+    new_elo_columns = [
+        ("rating_deviation", "FLOAT DEFAULT 350.0"),
+        ("volatility", "FLOAT DEFAULT 0.06"),
+        ("legacy_elo_rating", "FLOAT"),
+        ("last_comparison_at", "DATETIME"),
+    ]
+
+    for col_name, col_def in new_elo_columns:
+        if col_name not in elo_columns:
+            print(f"  Adding column '{col_name}' to model_elo...")
+            with engine.begin() as conn:
+                conn.execute(
+                    text(f"ALTER TABLE model_elo ADD COLUMN {col_name} {col_def}")
+                )
+
+    # Always backfill NULL values (idempotent — safe to run every startup)
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE model_elo SET legacy_elo_rating = elo_rating "
+            "WHERE legacy_elo_rating IS NULL"
+        ))
+        conn.execute(text(
+            "UPDATE model_elo SET rating_deviation = 350.0 "
+            "WHERE rating_deviation IS NULL"
+        ))
+        conn.execute(text(
+            "UPDATE model_elo SET volatility = 0.06 "
+            "WHERE volatility IS NULL"
+        ))
+    print("  Backfilled Glicko-2 columns on model_elo.")
+
+    # --- PairwiseComparison: add score column ---
+    comp_columns = {col["name"] for col in inspector.get_columns("pairwise_comparisons")}
+
+    if "score" not in comp_columns:
+        print("  Adding column 'score' to pairwise_comparisons...")
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE pairwise_comparisons ADD COLUMN score FLOAT"
+            ))
+
+    # Always backfill NULL scores (idempotent — safe to run every startup)
+    # - Non-null winner/loser -> 1.0 (decisive win)
+    # - Null winner/loser with both translation IDs -> 0.5 (tie)
+    # - Rows missing translation IDs are left untouched (incomplete/corrupt)
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE pairwise_comparisons SET score = 1.0 "
+            "WHERE winner_model IS NOT NULL AND loser_model IS NOT NULL "
+            "AND score IS NULL"
+        ))
+        conn.execute(text(
+            "UPDATE pairwise_comparisons SET score = 0.5 "
+            "WHERE winner_model IS NULL AND loser_model IS NULL "
+            "AND translation_a_id IS NOT NULL "
+            "AND translation_b_id IS NOT NULL "
+            "AND score IS NULL"
+        ))
+    print("  Backfilled score column on pairwise_comparisons.")
 
 
 def _migrate_elo_data() -> None:

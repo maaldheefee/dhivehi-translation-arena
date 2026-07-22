@@ -125,6 +125,34 @@ class Config:
         os.environ.get("MAX_MODELS_SELECTION", "10")
     )
 
+    # Glicko-2 parameters
+    GLICKO_TAU: ClassVar[float] = 0.5
+    GLICKO_MIN_RD: ClassVar[float] = 80.0
+    GLICKO_C_PER_WEEK: ClassVar[float] = 48.6
+    GLICKO_INITIAL_RD: ClassVar[float] = 350.0
+    GLICKO_INITIAL_VOLATILITY: ClassVar[float] = 0.06
+    DEFAULT_RATING: ClassVar[float] = 1500.0
+
+    # Cost tiers (based on output_cost_per_mtok)
+    COST_CHEAP_MAX: ClassVar[float] = 3.0
+    COST_MID_MAX: ClassVar[float] = 10.0
+    MAX_EXPENSIVE_GROUPS: ClassVar[int] = 2
+
+    # Query difficulty thresholds
+    DIFFICULTY_EASY_THRESHOLD: ClassVar[float] = 0.3
+    DIFFICULTY_HARD_THRESHOLD: ClassVar[float] = -0.3
+    DIFFICULTY_MIN_VOTES: ClassVar[int] = 3
+    DIFFICULTY_MIN_MODELS: ClassVar[int] = 2
+
+    # Stratified query selection targets per session
+    STRATIFIED_TARGETS: ClassVar[dict[str, int]] = {
+        "easy": 2,
+        "medium": 5,
+        "hard": 2,
+        "unknown": 1,
+    }
+    STRATIFIED_TOTAL: ClassVar[int] = 10
+
     # Translation settings
     SYSTEM_PROMPT: ClassVar[str] = (
         "Translate to Dhivehi. Don't explain. Only return the translated text."
