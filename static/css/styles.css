@@ -1431,6 +1431,16 @@ select {
 	margin-inline-end: 0.25rem;
 }
 
+.deprecated-tag[title] {
+	cursor: help;
+	border-style: dashed;
+}
+
+.preset-name[title] {
+	cursor: help;
+	text-decoration: underline dotted;
+}
+
 .bang-for-buck-bar-container {
 	display: flex;
 	align-items: center;

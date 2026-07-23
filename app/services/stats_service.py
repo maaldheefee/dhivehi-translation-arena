@@ -156,19 +156,21 @@ def calculate_model_scores():
             normalized_elo * confidence + normalized_avg_score * (1.0 - confidence)
         )
 
-        # 4. Bang for Buck: Soft floor + cubic quality / log(cost)
-        # Soft floor: subtract 0.3 from combined_score so models below 0.3 get
-        # zero, and models just above 0.3 start with very low value.
-        # Logarithmic cost denominator compresses the ~200x cost range so
-        # quality can compete with cheapness.
+        # 4. Bang for Buck: (Combined Score ^ 3) / Cost per Unit
+        # User requested stronger filtering for bad/cheap models.
+        # 1. Threshold: If score is below 0.4 (approx 2.0 star rating equivalent mixed with low ELO),
+        #    it is considered unusable, so Value = 0.
+        # 2. Cubic Power: Cubing the score rewards high quality much more than squaring.
+
         if projected_cost_100k == 0:
+            # For free models or zero cost, treated as very high value.
+            # Use a small epsilon for cost ~ $0.01 per 100k words
             projected_cost_100k = 0.01
 
-        quality = max(0.0, combined_score - 0.3)
-        if quality <= 0:
+        if combined_score < 0.4:
             raw_bang_for_buck = 0.0
         else:
-            raw_bang_for_buck = (quality ** 3) / math.log(projected_cost_100k + 1)
+            raw_bang_for_buck = (combined_score ** 3) / projected_cost_100k
 
         # Get model config
         model_config = get_config().MODELS.get(model_name, {})

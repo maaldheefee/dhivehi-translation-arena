@@ -183,6 +183,32 @@ def test_production_models_yaml_loads():
         assert model["output_cost_per_mtok"] >= 0
 
 
+def test_inactive_models_have_deactivation_reason():
+    """All inactive models in production yaml should have a deactivation_reason."""
+    models = _load_models_from_yaml()
+
+    inactive = {k: v for k, v in models.items() if not v["is_active"]}
+    assert len(inactive) > 0
+
+    missing = [
+        k for k, v in inactive.items()
+        if not v.get("deactivation_reason")
+    ]
+    assert not missing, f"Inactive models missing deactivation_reason: {', '.join(sorted(missing))}"
+
+
+def test_active_models_do_not_need_deactivation_reason():
+    """Active models should not have a deactivation_reason set."""
+    models = _load_models_from_yaml()
+
+    active = {k: v for k, v in models.items() if v["is_active"]}
+    with_reason = [
+        k for k, v in active.items()
+        if v.get("deactivation_reason")
+    ]
+    assert not with_reason, f"Active models should not have deactivation_reason: {', '.join(sorted(with_reason))}"
+
+
 def test_multiple_validation_errors(tmp_path):
     yaml_content = """
 model-a:

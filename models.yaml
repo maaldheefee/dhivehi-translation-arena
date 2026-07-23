@@ -13,7 +13,7 @@
 #
 # Optional fields:
 #   is_hidden, rate_limit, thinking_budget, temperature, reasoning,
-#   preset_name, base_model, timeout
+#   preset_name, base_model, timeout, deactivation_reason
 
 # ==================== Gemini 2.0 Flash ====================
 
@@ -23,7 +23,8 @@ gemini-2.0-flash-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.1
   output_cost_per_mtok: 0.4
-  is_active: false  # Deprecated — model removed from OpenRouter
+  is_active: false
+  deactivation_reason: "Model removed from OpenRouter. Performance was poor: 27% win rate, avg 0.55/3."
   base_model: Gemini 2.0 Flash
   temperature: 0.85
   preset_name: Temp 0.85
@@ -34,7 +35,8 @@ gemini-2.0-flash-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.1
   output_cost_per_mtok: 0.4
-  is_active: false  # Deprecated — model removed from OpenRouter
+  is_active: false
+  deactivation_reason: "Model removed from OpenRouter. Performance was poor: 33% win rate, avg 0.67/3."
   base_model: Gemini 2.0 Flash
   temperature: 0.1
   preset_name: Temp 0.1
@@ -47,7 +49,8 @@ gemini-3-pro-t1.0:
   type: openrouter
   input_cost_per_mtok: 2.0
   output_cost_per_mtok: 12.0
-  is_active: false  # Deprecated — model removed from OpenRouter
+  is_active: false
+  deactivation_reason: "Model removed from OpenRouter. Was a strong performer: 50% win rate, avg 2.17/3."
   timeout: 180.0
   base_model: Gemini 3 Pro Preview
   temperature: 1.0
@@ -59,7 +62,8 @@ gemini-3-pro-low-t1.0:
   type: openrouter
   input_cost_per_mtok: 2.0
   output_cost_per_mtok: 12.0
-  is_active: false  # Deprecated — model removed from OpenRouter
+  is_active: false
+  deactivation_reason: "Model removed from OpenRouter. Was a strong performer: 52% win rate, avg 2.33/3."
   reasoning:
     effort: low
   timeout: 180.0
@@ -73,7 +77,8 @@ gemini-3-pro-low-t0.35:
   type: openrouter
   input_cost_per_mtok: 2.0
   output_cost_per_mtok: 12.0
-  is_active: false  # Deprecated — model removed from OpenRouter
+  is_active: false
+  deactivation_reason: "Model removed from OpenRouter. Was the best Gemini 3 Pro variant: 56% win rate, avg 2.71/3."
   temperature: 0.35
   reasoning:
     effort: low
@@ -87,7 +92,8 @@ gemini-3.1-pro-low-t1.0:
   type: openrouter
   input_cost_per_mtok: 2.0
   output_cost_per_mtok: 12.0
-  is_active: false  # Deactivated — t0.35 variant has better avg score
+  is_active: false
+  deactivation_reason: "Superseded by T0.35 variant — lower avg score (2.12 vs 2.27) and no ELO advantage."
   reasoning:
     effort: low
   timeout: 180.0
@@ -117,7 +123,8 @@ gemini-3-flash-t1.0:
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
-  is_active: false  # Deactivated — outperformed by low-t1.0 variant
+  is_active: false
+  deactivation_reason: "Outperformed by the low-reasoning T1.0 variant (ELO 1630 vs 1558, 37% vs 29% win rate)."
   timeout: 180.0
   base_model: Gemini 3 Flash Preview
   temperature: 1.0
@@ -143,7 +150,8 @@ gemini-3-flash-t0.3:
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
-  is_active: false  # Deactivated — redundant, low-t1.0 is better
+  is_active: false
+  deactivation_reason: "Redundant — the low-reasoning T1.0 variant is better (ELO 1630 vs 1535)."
   timeout: 180.0
   base_model: Gemini 3 Flash Preview
   temperature: 0.3
@@ -155,7 +163,8 @@ gemini-3-flash-low-t0.3:
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
-  is_active: false  # Deactivated — worst of the 4 Gemini 3 Flash presets
+  is_active: false
+  deactivation_reason: "Worst of the 4 Gemini 3 Flash presets: 25% win rate, avg 1.69/3."
   reasoning:
     effort: minimal
   timeout: 180.0
@@ -172,6 +181,7 @@ gemini-3.1-flash-lite-t0.85:
   input_cost_per_mtok: 0.25
   output_cost_per_mtok: 1.5
   is_active: false
+  deactivation_reason: "No votes collected. Superseded by T0.1 variant."
   base_model: Gemini 3.1 Flash Lite Preview
   temperature: 0.85
   preset_name: Temp 0.85
@@ -207,7 +217,8 @@ gemini-3.5-flash-t0.3:
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 9.0
-  is_active: false  # Deactivated — T1.0 variant dominates on both ELO and avg
+  is_active: false
+  deactivation_reason: "T1.0 variant dominates on both metrics (avg 2.55 vs 1.90, ELO 1981 vs 1917)."
   timeout: 180.0
   base_model: Gemini 3.5 Flash
   temperature: 0.3
@@ -222,6 +233,7 @@ gemini-2.5-pro-min-t0.85:
   input_cost_per_mtok: 1.25
   output_cost_per_mtok: 10.0
   is_active: false
+  deactivation_reason: "Old generation with 37% rejection rate. Avg 0.41/3, outclassed by 3.x models."
   reasoning:
     max_tokens: 128
   timeout: 180.0
@@ -235,7 +247,8 @@ gemini-2.5-pro-min-t0.1:
   type: openrouter
   input_cost_per_mtok: 1.25
   output_cost_per_mtok: 10.0
-  is_active: false  # Deactivated — old gen, 37% rejection rate, outclassed
+  is_active: false
+  deactivation_reason: "Old generation with 24% rejection rate. Avg 0.86/3, outclassed by 3.x models."
   reasoning:
     max_tokens: 128
   timeout: 180.0
@@ -251,7 +264,8 @@ gemini-2.5-flash-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: false  # Deprecated — superseded by reasoning variant
+  is_active: false
+  deactivation_reason: "Superseded by reasoning variant (avg 1.21 vs 0.55). Also old generation."
   reasoning:
     max_tokens: 0
   base_model: Gemini 2.5 Flash
@@ -264,7 +278,8 @@ gemini-2.5-flash-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: false  # Deactivated — old gen, well-tested, outclassed by 3.x Flash
+  is_active: false
+  deactivation_reason: "Old generation, outclassed by 3.x Flash models. Avg 0.94/3, 36% win rate."
   reasoning:
     max_tokens: 0
   base_model: Gemini 2.5 Flash
@@ -277,7 +292,8 @@ gemini-2.5-flash-reasoning-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: false  # Deactivated — old gen, 250 comparisons, 36% win rate
+  is_active: false
+  deactivation_reason: "Old generation with 250 comparisons and only 36% win rate. Avg 1.21/3."
   reasoning:
     enabled: true
   timeout: 180.0
@@ -294,6 +310,7 @@ gemini-2.5-flash-lite-t0.85:
   input_cost_per_mtok: 0.10
   output_cost_per_mtok: 0.40
   is_active: false
+  deactivation_reason: "Very poor quality: 11% win rate, avg -0.11/3."
   base_model: Gemini 2.5 Flash Lite
   temperature: 0.85
   preset_name: Temp 0.85
@@ -305,6 +322,7 @@ gemini-2.5-flash-lite-t0.1:
   input_cost_per_mtok: 0.10
   output_cost_per_mtok: 0.40
   is_active: false
+  deactivation_reason: "No votes collected. Base model family performed very poorly."
   base_model: Gemini 2.5 Flash Lite
   temperature: 0.1
   preset_name: Temp 0.1
@@ -317,7 +335,8 @@ gemma-4-26b:
   type: openrouter
   input_cost_per_mtok: 0.13
   output_cost_per_mtok: 0.40
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemma 4 26B Instruct
   preset_name: Model Default
 
@@ -330,6 +349,7 @@ gemma-4-31b:
   input_cost_per_mtok: 0.14
   output_cost_per_mtok: 0.40
   is_active: false
+  deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemma 4 31B Instruct
   preset_name: Model Default
 
@@ -340,6 +360,7 @@ gemma-4-31b-t0.85:
   input_cost_per_mtok: 0.14
   output_cost_per_mtok: 0.40
   is_active: false
+  deactivation_reason: "No votes collected. Base model had 0% win rate with all rejections."
   base_model: Gemma 4 31B Instruct
   temperature: 0.85
   preset_name: Temp 0.85
@@ -351,6 +372,7 @@ gemma-4-31b-t0.1:
   input_cost_per_mtok: 0.14
   output_cost_per_mtok: 0.40
   is_active: false
+  deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemma 4 31B Instruct
   temperature: 0.1
   preset_name: Temp 0.1
@@ -364,6 +386,7 @@ claude-opus-4.5-t0.85:
   input_cost_per_mtok: 5.0
   output_cost_per_mtok: 25.0
   is_active: false
+  deactivation_reason: "T0.1 variant is significantly better (avg 1.82 vs 1.24, ELO 1946 vs 1354)."
   base_model: Claude Opus 4.5
   temperature: 0.85
   preset_name: Temp 0.85
@@ -398,7 +421,8 @@ claude-sonnet-3.7-t0.85:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: false  # Deprecated — no available endpoints on OpenRouter
+  is_active: false
+  deactivation_reason: "No available endpoints on OpenRouter. Performance was mediocre: 35% win rate, avg 0.93/3."
   base_model: Claude 3.7 Sonnet
   temperature: 0.85
   preset_name: Temp 0.85
@@ -409,7 +433,8 @@ claude-sonnet-3.7-t0.1:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: false  # Deprecated — no available endpoints on OpenRouter
+  is_active: false
+  deactivation_reason: "No available endpoints on OpenRouter. Performance was mediocre: 33% win rate, avg 1.06/3."
   base_model: Claude 3.7 Sonnet
   temperature: 0.1
   preset_name: Temp 0.1
@@ -422,7 +447,8 @@ claude-sonnet-3.5-t0.85:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: false  # Deprecated — no available endpoints on OpenRouter
+  is_active: false
+  deactivation_reason: "No available endpoints on OpenRouter. Performance was poor: 37% win rate, avg 1.12/3."
   base_model: Claude 3.5 Sonnet
   temperature: 0.85
   preset_name: Temp 0.85
@@ -433,7 +459,8 @@ claude-sonnet-3.5-t0.1:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: false  # Deprecated — no available endpoints on OpenRouter
+  is_active: false
+  deactivation_reason: "No available endpoints on OpenRouter. Performance was poor: 30% win rate, avg 1.27/3."
   base_model: Claude 3.5 Sonnet
   temperature: 0.1
   preset_name: Temp 0.1
@@ -447,6 +474,7 @@ claude-sonnet-4-t0.85:
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
   is_active: false
+  deactivation_reason: "No votes collected. Superseded by Claude Sonnet 4.6."
   base_model: Claude Sonnet 4
   temperature: 0.85
   preset_name: Temp 0.85
@@ -458,6 +486,7 @@ claude-sonnet-4-t0.1:
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
   is_active: false
+  deactivation_reason: "No votes collected. Superseded by Claude Sonnet 4.6."
   base_model: Claude Sonnet 4.6
   temperature: 0.1
   preset_name: Temp 0.1
@@ -468,7 +497,8 @@ claude-sonnet-4.6-t0.1:
   type: openrouter
   input_cost_per_mtok: 3.0
   output_cost_per_mtok: 15.0
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality: 14% win rate, avg -0.43/3, 43% of votes were rejections."
   base_model: Claude Sonnet 4.6
   temperature: 0.1
   preset_name: Temp 0.1
@@ -481,7 +511,8 @@ deepseek-v4-flash-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.0983
   output_cost_per_mtok: 0.1966
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality: 20% win rate, avg -0.71/3, 43% of votes were rejections."
   base_model: DeepSeek V4 Flash
   temperature: 0.85
   preset_name: Temp 0.85
@@ -492,7 +523,8 @@ deepseek-v4-flash-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.0983
   output_cost_per_mtok: 0.1966
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality: 21% win rate, avg -0.29/3, 43% of votes were rejections."
   base_model: DeepSeek V4 Flash
   temperature: 0.1
   preset_name: Temp 0.1
@@ -516,7 +548,8 @@ deepseek-v4-pro-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.435
   output_cost_per_mtok: 0.87
-  is_active: false  # Deactivated — T0.85 variant is better on both metrics
+  is_active: false
+  deactivation_reason: "T0.85 variant is better on both metrics (avg 1.0 vs 0.86, ELO 1590 vs 1507)."
   base_model: DeepSeek V4 Pro
   temperature: 0.1
   preset_name: Temp 0.1
@@ -529,7 +562,8 @@ gpt-5.6-luna-t0.85:
   type: openrouter
   input_cost_per_mtok: 1.0
   output_cost_per_mtok: 6.0
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality: 8% win rate, avg -1.2/3, 60% of votes were rejections."
   reasoning:
     effort: none
   base_model: GPT-5.6 Luna
@@ -542,7 +576,8 @@ gpt-5.6-luna-t0.1:
   type: openrouter
   input_cost_per_mtok: 1.0
   output_cost_per_mtok: 6.0
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality: 15% win rate, avg -0.4/3."
   reasoning:
     effort: none
   base_model: GPT-5.6 Luna
@@ -557,7 +592,8 @@ gpt-5.6-sol-t0.85:
   type: openrouter
   input_cost_per_mtok: 5.0
   output_cost_per_mtok: 30.0
-  is_active: false  # Deactivated — poor quality at premium price
+  is_active: false
+  deactivation_reason: "Poor quality at premium price ($60/100k words). Avg 0.4/3, 34% win rate."
   reasoning:
     effort: none
   base_model: GPT-5.6 Sol
@@ -570,7 +606,8 @@ gpt-5.6-sol-t0.1:
   type: openrouter
   input_cost_per_mtok: 5.0
   output_cost_per_mtok: 30.0
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality at premium price. Avg -0.25/3, 22% win rate."
   reasoning:
     effort: none
   base_model: GPT-5.6 Sol
@@ -585,7 +622,8 @@ gpt-5.6-terra-t0.85:
   type: openrouter
   input_cost_per_mtok: 2.5
   output_cost_per_mtok: 15.0
-  is_active: false  # Deactivated — poor quality at premium price
+  is_active: false
+  deactivation_reason: "Poor quality at premium price ($29/100k words). Avg 1.2/3, 37% win rate."
   reasoning:
     effort: none
   base_model: GPT-5.6 Terra
@@ -598,7 +636,8 @@ gpt-5.6-terra-t0.1:
   type: openrouter
   input_cost_per_mtok: 2.5
   output_cost_per_mtok: 15.0
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality at premium price. Avg -0.33/3, 25% win rate."
   reasoning:
     effort: none
   base_model: GPT-5.6 Terra
@@ -613,7 +652,8 @@ gemini-3.6-flash-t1.0:
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 7.5
-  is_active: false  # Deactivated — T0.3 variant is better on both metrics
+  is_active: false
+  deactivation_reason: "T0.3 variant is better on both metrics (avg 2.33 vs 2.00, ELO 1954 vs 1792)."
   timeout: 180.0
   base_model: Gemini 3.6 Flash
   temperature: 1.0
@@ -639,7 +679,8 @@ gemini-3.5-flash-lite-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemini 3.5 Flash Lite
   temperature: 0.85
   preset_name: Temp 0.85
@@ -650,7 +691,8 @@ gemini-3.5-flash-lite-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: false  # Deprecated — consistently poor translation quality
+  is_active: false
+  deactivation_reason: "Very poor quality: 12% win rate, avg -1.0/3, 50% of votes were rejections."
   base_model: Gemini 3.5 Flash Lite
   temperature: 0.1
   preset_name: Temp 0.1

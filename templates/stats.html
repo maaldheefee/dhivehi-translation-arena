@@ -81,7 +81,7 @@
                         {% if model.preset_name %}
                         <div class="text-secondary" style="font-size: 0.85em; margin-top: 2px;">{{ model.preset_name }}</div>
                         {% endif %}
-                        {% if not model.is_active %}<span class="deprecated-tag">({{ _('inactive', default='Inactive') }})</span>{% endif %}
+                        {% if not model.is_active %}<span class="deprecated-tag" {% if model.deactivation_reason %}title="{{ model.deactivation_reason }}" data-tooltip="{{ model.deactivation_reason }}"{% endif %}>({{ _('inactive', default='Inactive') }})</span>{% endif %}
                     </td>
                     <td>
                         <div class="rating-dist-bar" title="Excellent: {{model.excellent_count}}, Good: {{model.good_count}}, Okay: {{model.okay_count}}, Rejected: {{model.rejected_count}}">
@@ -201,7 +201,7 @@
                         <div class="preset-list">
                             {% for preset in group.presets %}
                             <div class="preset-item {% if loop.first and preset.votes_cast > 0 %}best-preset{% endif %} {% if not preset.is_active %}deprecated-model{% endif %}">
-                                <span class="preset-name">{{ preset.preset_name or preset.display_name }}</span>
+                                <span class="preset-name" {% if not preset.is_active and preset.deactivation_reason %}title="{{ preset.deactivation_reason }}"{% endif %}>{{ preset.preset_name or preset.display_name }}</span>
                                 {% if preset.votes_cast > 0 %}
                                 <span class="preset-score score-badge {% if preset.average_score > 1.5 %}high-score{% elif preset.average_score >= 0.5 %}medium-score{% else %}low-score{% endif %}">{{ "%.2f"|format(preset.average_score) }}</span>
                                 {% else %}
@@ -500,6 +500,7 @@
                     cost_per_100k: m.projected_cost_100k,
                     bang_for_buck: m.bang_for_buck,
                     is_active: m.is_active,
+                    deactivation_reason: m.deactivation_reason,
                     config: m.config
                 }))
             };

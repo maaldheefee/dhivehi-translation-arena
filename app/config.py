@@ -25,6 +25,7 @@ class ModelConfig(TypedDict):
     preset_name: NotRequired[str | None]
     base_model: NotRequired[str | None]
     timeout: NotRequired[float]  # API timeout in seconds, default 90
+    deactivation_reason: NotRequired[str | None]  # Shown as tooltip for inactive models
 
 
 _REQUIRED_MODEL_FIELDS = frozenset({

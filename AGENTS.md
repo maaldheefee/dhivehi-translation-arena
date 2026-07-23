@@ -86,6 +86,7 @@ Temperature is always explicit in the key so the identifier is self-documenting.
 | `timeout`         | float   | API timeout in seconds (default 90)           |
 | `thinking_budget` | int     | For thinking models                           |
 | `reasoning`       | dict    | OpenRouter reasoning config (effort, max_tokens) |
+| `deactivation_reason` | str | Shown as tooltip on Inactive tag in UI (required for inactive models) |
 
 ### 6. Temperature Convention
 
@@ -104,7 +105,7 @@ Then restart the application.
 
 ### 8. Deprecating a Model
 
-Set `is_active: false` in `models.yaml`. Historical data is preserved in stats. To fully hide, also set `is_hidden: true`.
+Set `is_active: false` in `models.yaml` and add a `deactivation_reason` field explaining why (shown as tooltip in the UI). Historical data is preserved in stats. To fully hide, also set `is_hidden: true`.
 
 For renaming, see `docs/dev_notes/model_renaming.md`.
 
