@@ -87,7 +87,7 @@ gemini-3.1-pro-low-t1.0:
   type: openrouter
   input_cost_per_mtok: 2.0
   output_cost_per_mtok: 12.0
-  is_active: true
+  is_active: false  # Deactivated — t0.35 variant has better avg score
   reasoning:
     effort: low
   timeout: 180.0
@@ -117,7 +117,7 @@ gemini-3-flash-t1.0:
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
-  is_active: true
+  is_active: false  # Deactivated — outperformed by low-t1.0 variant
   timeout: 180.0
   base_model: Gemini 3 Flash Preview
   temperature: 1.0
@@ -143,7 +143,7 @@ gemini-3-flash-t0.3:
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
-  is_active: true
+  is_active: false  # Deactivated — redundant, low-t1.0 is better
   timeout: 180.0
   base_model: Gemini 3 Flash Preview
   temperature: 0.3
@@ -155,7 +155,7 @@ gemini-3-flash-low-t0.3:
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
-  is_active: true
+  is_active: false  # Deactivated — worst of the 4 Gemini 3 Flash presets
   reasoning:
     effort: minimal
   timeout: 180.0
@@ -207,7 +207,7 @@ gemini-3.5-flash-t0.3:
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 9.0
-  is_active: true
+  is_active: false  # Deactivated — T1.0 variant dominates on both ELO and avg
   timeout: 180.0
   base_model: Gemini 3.5 Flash
   temperature: 0.3
@@ -235,7 +235,7 @@ gemini-2.5-pro-min-t0.1:
   type: openrouter
   input_cost_per_mtok: 1.25
   output_cost_per_mtok: 10.0
-  is_active: true
+  is_active: false  # Deactivated — old gen, 37% rejection rate, outclassed
   reasoning:
     max_tokens: 128
   timeout: 180.0
@@ -264,7 +264,7 @@ gemini-2.5-flash-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: true
+  is_active: false  # Deactivated — old gen, well-tested, outclassed by 3.x Flash
   reasoning:
     max_tokens: 0
   base_model: Gemini 2.5 Flash
@@ -277,7 +277,7 @@ gemini-2.5-flash-reasoning-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: true
+  is_active: false  # Deactivated — old gen, 250 comparisons, 36% win rate
   reasoning:
     enabled: true
   timeout: 180.0
@@ -516,7 +516,7 @@ deepseek-v4-pro-t0.1:
   type: openrouter
   input_cost_per_mtok: 0.435
   output_cost_per_mtok: 0.87
-  is_active: true
+  is_active: false  # Deactivated — T0.85 variant is better on both metrics
   base_model: DeepSeek V4 Pro
   temperature: 0.1
   preset_name: Temp 0.1
@@ -557,7 +557,7 @@ gpt-5.6-sol-t0.85:
   type: openrouter
   input_cost_per_mtok: 5.0
   output_cost_per_mtok: 30.0
-  is_active: true
+  is_active: false  # Deactivated — poor quality at premium price
   reasoning:
     effort: none
   base_model: GPT-5.6 Sol
@@ -585,7 +585,7 @@ gpt-5.6-terra-t0.85:
   type: openrouter
   input_cost_per_mtok: 2.5
   output_cost_per_mtok: 15.0
-  is_active: true
+  is_active: false  # Deactivated — poor quality at premium price
   reasoning:
     effort: none
   base_model: GPT-5.6 Terra
@@ -613,7 +613,7 @@ gemini-3.6-flash-t1.0:
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 7.5
-  is_active: true
+  is_active: false  # Deactivated — T0.3 variant is better on both metrics
   timeout: 180.0
   base_model: Gemini 3.6 Flash
   temperature: 1.0
