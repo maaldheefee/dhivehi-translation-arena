@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Reports**: Added Gemini 3.1 Pro Deep Research report (2026-07-23) — comprehensive analysis of 37 LLM configurations for Arabic-to-Dhivehi translation covering performance ranking, longitudinal model evolution, temperature/reasoning configuration impact, cost-effectiveness, and qualitative syntactic evaluation.
 - **Models**: Added Google Gemma 4 31B Instruct and Gemini 3.1 Flash Lite Preview models with T0.1 and T0.85 variants, plus a Gemma 4 "Default" variant with no explicit temperature or reasoning.
 - **Models**: Added `google/gemma-4-26b-a4b-it` (Gemma 4 26B Instruct) with its default configuration.
 - **UI/Footer**: Updated copyright year to a range (2025&ndash;2026) using proper typography.
