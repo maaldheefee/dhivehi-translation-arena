@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rating System**: Re-votes now rebuild all ratings from stored comparisons, ensuring live `ModelELO` matches the source of truth (previously stale ratings were stacked on top of deleted comparisons' effects).
 - **Rating System**: Partial vote submissions no longer discard comparisons from omitted stored votes — derivation uses the complete persisted vote set.
 - **Rating System**: Rebuild now applies time decay between consecutive comparisons per model using `created_at` timestamps, matching incremental processing.
+- **Compare**: "Pairs remaining" counter in Quick Compare now only counts translations from active (non-deprecated) models, matching the actual pair selection logic.
+- **Stats**: Bang-for-buck formula updated — models below 0.4 combined score now get 0, and the exponent reduced from 4 to 3 for a less extreme cost sensitivity curve.
+- **Scripts**: Rewrote `analyze_data.py` to export structured JSON (leaderboard, temperature analysis, reasoning analysis, qualitative examples) using `stats_service` functions directly instead of raw ELO queries.
 - **Rating System**: Migration backfill for tie scores requires non-null `translation_a_id` and `translation_b_id` — corrupt/incomplete rows are left untouched.
 - **Rating System**: Migration backfill runs unconditionally every startup, not gated on whether columns were just added — ensures resumability after partial failure.
 - **CLI**: `init-db` command now raises `RuntimeError` instead of `assert` for uninitialized engine (assert is stripped in optimized mode).

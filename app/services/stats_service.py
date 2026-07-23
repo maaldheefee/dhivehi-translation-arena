@@ -167,7 +167,10 @@ def calculate_model_scores():
             # Use a small epsilon for cost ~ $0.01 per 100k words
             projected_cost_100k = 0.01
 
-        raw_bang_for_buck = ((10 * combined_score) ** 4) / projected_cost_100k
+        if combined_score < 0.4:
+            raw_bang_for_buck = 0.0
+        else:
+            raw_bang_for_buck = (combined_score ** 3) / projected_cost_100k
 
         # Get model config
         model_config = get_config().MODELS.get(model_name, {})

@@ -701,24 +701,32 @@ def get_random_comparison() -> Response | tuple[Response, int]:
 
 
 def _get_user_comparison_stats(user_id: int):
-    """Helper to calculate user comparison stats efficiently."""
-    # 1. Count user's explicit comparisons
+    """Helper to calculate user comparison stats efficiently.
+
+    Only counts translations from active (non-deprecated) models to match
+    the pair selection logic in get_random_comparison.
+    """
+    conf = get_config()
+    active_model_keys = {
+        k for k, m in conf.MODELS.items() if m.get("is_active", True)
+    }
+
+    # 1. Count user's explicit comparisons (only for active models)
     comparisons_count = (
         db_session.query(func.count(PairwiseComparison.id))
         .filter(
             PairwiseComparison.user_id == user_id,
             PairwiseComparison.source == "explicit",
+            PairwiseComparison.winner_model.in_(active_model_keys)
+            | PairwiseComparison.loser_model.in_(active_model_keys),
         )
         .scalar()
     ) or 0
 
-    # 2. Estimate total pairs
-    # OPTIMIZATION: This aggregation is heavy.
-    # In a real app, we might cache this value or update it incrementally.
-    # For now, we'll keep it but ensure we use indices.
-    # Note: query(Translation.query_id, count(*)) is still a full table scan usually unless indexed on query_id
+    # 2. Estimate total pairs (only translations from active models)
     translation_counts = (
         db_session.query(func.count(Translation.id))
+        .filter(Translation.model.in_(active_model_keys))
         .group_by(Translation.query_id)
         .having(func.count(Translation.id) >= 2)
         .all()
