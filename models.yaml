@@ -3,6 +3,11 @@
 # Naming convention: {base-model}[-{reasoning}]-t{temp}
 # Temperature is always explicit for stability and future-proofing.
 #
+# Temperature convention:
+#   - New models should use 1.0 as the default (recommended) temperature.
+#   - Always add a low-temp variant (0.1 or 0.3) alongside the default.
+#   - See AGENTS.md for the full model addition workflow.
+#
 # Required fields per model:
 #   name, display_name, type, input_cost_per_mtok, output_cost_per_mtok, is_active
 #
@@ -246,7 +251,7 @@ gemini-2.5-flash-t0.85:
   type: openrouter
   input_cost_per_mtok: 0.3
   output_cost_per_mtok: 2.5
-  is_active: true
+  is_active: false  # Deprecated — superseded by reasoning variant
   reasoning:
     max_tokens: 0
   base_model: Gemini 2.5 Flash

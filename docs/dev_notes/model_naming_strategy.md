@@ -56,9 +56,14 @@ model-key:
 
 ## Adding a New Model
 
-1. Add the entry to `models.yaml`
-2. Run `uv run pytest tests/test_config.py` to validate
-3. Restart the application
+1. **Research recommended parameters**: Look up the model's official documentation or API docs for the recommended temperature and any reasoning/thinking settings.
+2. **Add entries to `models.yaml`**: Always add at least two variants:
+   - **Recommended temp**: Use the model's recommended temperature (default 1.0 for most modern models).
+   - **Low temp**: Add a low-temperature variant (0.1 or 0.3) for comparison.
+3. Run `uv run pytest tests/test_config.py` to validate
+4. Restart the application
+
+See `AGENTS.md` for the full agent workflow including online research steps.
 
 ## Deprecating a Model
 

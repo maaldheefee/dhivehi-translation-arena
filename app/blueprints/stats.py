@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, session
 
 from app.decorators import login_required
 from app.services.stats_service import (
+    calculate_base_model_groups,
     calculate_global_stats,
     calculate_model_scores,
     get_cost_breakdown,
@@ -17,6 +18,7 @@ def stats() -> str:
     """Renders the statistics page with model performance data."""
     username = session.get("username", "Guest")
     model_scores = calculate_model_scores()
+    base_model_groups = calculate_base_model_groups()
     global_stats = calculate_global_stats()
     spending_stats = get_monthly_spending_stats()
     cost_breakdown = get_cost_breakdown()
@@ -30,6 +32,7 @@ def stats() -> str:
     return render_template(
         "stats.html",
         model_scores=model_scores,
+        base_model_groups=base_model_groups,
         global_stats=global_stats,
         spending_stats=spending_stats,
         cost_breakdown=cost_breakdown,

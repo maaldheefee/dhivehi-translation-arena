@@ -238,6 +238,53 @@ def calculate_model_scores():
     return stats_list
 
 
+def calculate_base_model_groups():
+    """Group model scores by base_model, showing average scores and sub-presets.
+
+    Returns a list of dicts sorted by group average score (descending):
+        {
+            "base_model": str,
+            "avg_score": float,          # mean of individual average_score
+            "avg_combined_score": float,  # mean of individual combined_score
+            "total_votes": int,
+            "total_cost": float,
+            "best_preset": str,           # display_name of highest-scoring preset
+            "presets": [                  # sorted by average_score descending
+                {model_score dict}, ...
+            ],
+        }
+    """
+    model_scores = calculate_model_scores()
+    groups: dict[str, list] = defaultdict(list)
+
+    for ms in model_scores:
+        base = ms.get("base_model") or ms["model_name"]
+        groups[base].append(ms)
+
+    result = []
+    for base_model, presets in groups.items():
+        total_votes = sum(p["votes_cast"] for p in presets)
+        total_cost = sum(p["total_cost"] for p in presets)
+        scored = [p for p in presets if p["votes_cast"] > 0]
+        avg_score = sum(p["average_score"] for p in scored) / len(scored) if scored else 0.0
+        avg_combined = sum(p["combined_score"] for p in scored) / len(scored) if scored else 0.0
+        best = max(scored, key=lambda x: x["average_score"]) if scored else None
+
+        result.append({
+            "base_model": base_model,
+            "avg_score": avg_score,
+            "avg_combined_score": avg_combined,
+            "total_votes": total_votes,
+            "total_cost": total_cost,
+            "best_preset": best["display_name"] if best else None,
+            "best_preset_score": best["average_score"] if best else 0.0,
+            "presets": sorted(presets, key=lambda x: x["average_score"], reverse=True),
+        })
+
+    result.sort(key=lambda x: x["avg_combined_score"], reverse=True)
+    return result
+
+
 def invalidate_caches() -> None:
     """Invalidate all TTL caches after data writes (votes, comparisons)."""
     global _usage_stats_cache, _usage_stats_cache_time  # noqa: PLW0603
