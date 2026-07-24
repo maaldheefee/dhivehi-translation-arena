@@ -703,8 +703,9 @@ def get_random_comparison() -> Response | tuple[Response, int]:
 def _get_user_comparison_stats(user_id: int):
     """Helper to calculate user comparison stats efficiently.
 
-    Only counts translations from active (non-deprecated) models to match
-    the pair selection logic in get_random_comparison.
+    Counts eligible pairs using the same criteria as get_random_comparison:
+    both translations must be from active models, have >= 2-star rating
+    from this user, and have a rating gap < 2.
     """
     conf = get_config()
     active_model_keys = {
@@ -723,22 +724,53 @@ def _get_user_comparison_stats(user_id: int):
         .scalar()
     ) or 0
 
-    # 2. Estimate total pairs (only translations from active models)
-    translation_counts = (
-        db_session.query(func.count(Translation.id))
-        .filter(Translation.model.in_(active_model_keys))
-        .group_by(Translation.query_id)
-        .having(func.count(Translation.id) >= 2)
-        .all()
-    )
+    # 2. Count eligible pairs: same query, both active models, both voted
+    #    >= 2-star by this user, with rating gap < 2
+    t1_alias = aliased(Translation)
+    t2_alias = aliased(Translation)
+    v1_alias = aliased(Vote)
+    v2_alias = aliased(Vote)
 
-    total_pairs = sum((c[0] * (c[0] - 1)) // 2 for c in translation_counts)
-    pairs_remaining = max(0, total_pairs - comparisons_count)
+    eligible_pairs_count = (
+        db_session.query(func.count())
+        .select_from(t1_alias)
+        .join(
+            t2_alias,
+            and_(
+                t1_alias.query_id == t2_alias.query_id,
+                t1_alias.id < t2_alias.id,
+            ),
+        )
+        .join(
+            v1_alias,
+            and_(
+                v1_alias.translation_id == t1_alias.id,
+                v1_alias.user_id == user_id,
+            ),
+        )
+        .join(
+            v2_alias,
+            and_(
+                v2_alias.translation_id == t2_alias.id,
+                v2_alias.user_id == user_id,
+            ),
+        )
+        .filter(
+            t1_alias.model.in_(active_model_keys),
+            t2_alias.model.in_(active_model_keys),
+            v1_alias.rating >= 2,
+            v2_alias.rating >= 2,
+            func.abs(v1_alias.rating - v2_alias.rating) < 2,
+        )
+        .scalar()
+    ) or 0
+
+    pairs_remaining = max(0, eligible_pairs_count - comparisons_count)
 
     return {
         "comparisons_done": comparisons_count,
         "pairs_remaining": pairs_remaining,
-        "total_pairs": total_pairs,
+        "total_pairs": eligible_pairs_count,
     }
 
 
