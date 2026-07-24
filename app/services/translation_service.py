@@ -9,9 +9,7 @@ from app.repositories.query_repository import QueryRepository
 from app.repositories.translation_repository import TranslationRepository
 
 
-def get_translation_for_model(
-    source_text: str, model: str, position: int, user_id: int | None = None
-) -> dict:
+def get_translation_for_model(source_text: str, model: str, position: int, user_id: int | None = None) -> dict:
     """
     Retrieves or creates a translation for a given source text and model.
 
@@ -45,7 +43,7 @@ def get_translation_for_model(
                 query = Query(source_text=source_text)
                 query = query_repo.add(query)
 
-        existing = translation_repo.get_by_query_and_model(query.id, model)  # ty: ignore [invalid-argument-type]
+        existing = translation_repo.get_by_query_and_model(query.id, model)
         if existing:
             return {
                 "query_id": existing.query_id,
@@ -60,8 +58,6 @@ def get_translation_for_model(
         client = get_translation_client(model)
         try:
             result_text, cost = client.translate(source_text)
-            if "Error:" in result_text or "Rate limit" in result_text:
-                raise ConnectionError(result_text)
         except Exception as e:
             msg = f"API call failed for {model}: {e!s}"
             raise ConnectionError(msg) from e

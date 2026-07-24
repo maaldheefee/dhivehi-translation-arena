@@ -25,8 +25,8 @@ def get_user_monthly_cost(user_id: int) -> float:
     session = cast(Session, db_session)
 
     # Get start of current month
-    now = datetime.datetime.now()
-    month_start = datetime.datetime(now.year, now.month, 1)
+    now = datetime.datetime.now(datetime.UTC)
+    month_start = datetime.datetime(now.year, now.month, 1, tzinfo=datetime.UTC)
 
     total_cost = (
         session.query(func.sum(Translation.cost))
@@ -60,7 +60,7 @@ def check_user_budget(username: str) -> tuple[bool, float]:
     if not user:
         return (False, 0.0)
 
-    current_spend = get_user_monthly_cost(int(user.id))  # type: ignore
+    current_spend = get_user_monthly_cost(int(user.id))
     is_allowed = current_spend < MONTHLY_LIMIT_USD
 
     return (is_allowed, current_spend)

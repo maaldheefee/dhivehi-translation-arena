@@ -134,9 +134,8 @@ def _select_models(
     for key in selected_keys:
         base = config.MODELS.get(key, {}).get("base_model", key)
         output_cost = config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0)
-        if output_cost > config.COST_MID_MAX:
-            if base not in expensive_groups:
-                expensive_groups.append(base)
+        if output_cost > config.COST_MID_MAX and base not in expensive_groups:
+            expensive_groups.append(base)
 
     if len(expensive_groups) > config.MAX_EXPENSIVE_GROUPS:
         # Keep only the first MAX_EXPENSIVE_GROUPS expensive groups (highest priority = lowest usage)
@@ -153,8 +152,10 @@ def _select_models(
         # Backfill with cheap/mid models from remaining pool
         # (exclude all expensive models to avoid re-adding disallowed groups)
         remaining_pool = [
-            k for k in available_models_map
-            if k not in selected_keys and k not in excluded_models
+            k
+            for k in available_models_map
+            if k not in selected_keys
+            and k not in excluded_models
             and config.MODELS.get(k, {}).get("output_cost_per_mtok", 0.0) <= config.COST_MID_MAX
         ]
         # Sort by usage (low first) and add back
@@ -179,10 +180,15 @@ def index() -> str:
     # Build query -> difficulty mapping (using source_text as key since PREDEFINED_QUERIES are strings)
     # Fetch Query IDs for predefined query texts
     query_rows = db_session.query(Query).filter(Query.source_text.in_(PREDEFINED_QUERIES)).all()
-    text_to_id = {str(q.source_text): int(q.id) for q in query_rows}  # ty:ignore[invalid-argument-type]
+    text_to_id = {str(q.source_text): int(q.id) for q in query_rows}
 
     # Categorize predefined queries by difficulty tier
-    tier_pools: dict[str, list[str]] = {"easy": [], "medium": [], "hard": [], "unknown": []}
+    tier_pools: dict[str, list[str]] = {
+        "easy": [],
+        "medium": [],
+        "hard": [],
+        "unknown": [],
+    }
     for q_text in PREDEFINED_QUERIES:
         qid = text_to_id.get(q_text)
         tier = difficulty_map.get(qid, "unknown") if qid is not None else "unknown"
@@ -266,9 +272,7 @@ def available_models() -> Response:
     )
 
     # Still sort the returned list by usage to show least used first
-    sorted_model_keys = sorted(
-        available_models_map.keys(), key=lambda m: usage_stats.get(m, 0)
-    )
+    sorted_model_keys = sorted(available_models_map.keys(), key=lambda m: usage_stats.get(m, 0))
 
     # Return models object with details
     models_data = {}
@@ -285,9 +289,7 @@ def available_models() -> Response:
     return jsonify({"models": models_data})
 
 
-def stream_translation_generator(
-    query_text: str, selected_models: list[str], user_id: int | None = None
-):
+def stream_translation_generator(query_text: str, selected_models: list[str], user_id: int | None = None):
     """
     A generator function that yields translation results as they are completed.
     This function will be used with stream_with_context.
@@ -299,9 +301,7 @@ def stream_translation_generator(
 
     with ThreadPoolExecutor(max_workers=len(shuffled_models)) as executor:
         for i, model_key in enumerate(shuffled_models):
-            future = executor.submit(
-                get_translation_for_model, query_text, model_key, i + 1, user_id
-            )
+            future = executor.submit(get_translation_for_model, query_text, model_key, i + 1, user_id)
             futures[future] = model_key
 
         pending_futures = set(futures.keys())
@@ -356,7 +356,9 @@ def stream_translate() -> Response:
     selected_models = request.args.getlist("models")
 
     if not query_text or not selected_models or len(selected_models) < 2:
-        error_event = f"event: error\ndata: {json.dumps({'message': 'Query and at least two models are required.'})}\n\n"
+        error_event = (
+            f"event: error\ndata: {json.dumps({'message': 'Query and at least two models are required.'})}\n\n"
+        )
         return Response(error_event, mimetype="text/event-stream")
 
     username = session.get("username", "Guest")
@@ -377,12 +379,10 @@ def stream_translate() -> Response:
 
     # Get user ID for cost tracking
     user = db_session.query(User).filter(User.username == username).first()
-    user_id = int(user.id) if user else None  # type: ignore[arg-type]
+    user_id = int(user.id) if user else None
 
     return Response(
-        stream_with_context(
-            stream_translation_generator(query_text, selected_models, user_id)
-        ),
+        stream_with_context(stream_translation_generator(query_text, selected_models, user_id)),
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -409,7 +409,7 @@ def vote() -> Response | tuple[Response, int]:
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    result = process_votes(int(user.id), query_id, votes)  # type: ignore[arg-type]
+    result = process_votes(int(user.id), query_id, votes)
 
     if result["success"]:
         return jsonify({"status": "success"})
@@ -426,9 +426,7 @@ def retry_single() -> Response | tuple[Response, int]:
     # Check budget
     is_allowed, current_spend = check_user_budget(username)
     if not is_allowed:
-        return jsonify(
-            {"error": f"Monthly budget exceeded (${current_spend:.2f}/$1.00)"}
-        ), 403
+        return jsonify({"error": f"Monthly budget exceeded (${current_spend:.2f}/$1.00)"}), 403
 
     data = request.json
     if data is None:
@@ -449,7 +447,7 @@ def retry_single() -> Response | tuple[Response, int]:
             query_text,
             model_key,
             position=0,
-            user_id=int(user_id) if user_id is not None else None,  # type: ignore
+            user_id=int(user_id) if user_id is not None else None,
         )
         if result:
             return jsonify(result)
@@ -559,9 +557,7 @@ def get_random_comparison() -> Response | tuple[Response, int]:
     )
 
     if target_models:
-        base_query = base_query.filter(
-            or_(t1_alias.model.in_(target_models), t2_alias.model.in_(target_models))
-        )
+        base_query = base_query.filter(or_(t1_alias.model.in_(target_models), t2_alias.model.in_(target_models)))
 
     # Subquery to find already compared pairs for this user in explicit UI mode
     compared_subq = (
@@ -601,9 +597,7 @@ def get_random_comparison() -> Response | tuple[Response, int]:
 
     # Build set of active model keys for pair classification
     conf = get_config()
-    active_models = {
-        k for k, m in conf.MODELS.items() if m.get("is_active", True)
-    }
+    active_models = {k for k, m in conf.MODELS.items() if m.get("is_active", True)}
 
     # Classify pairs: both-active, mixed (one active, one disabled), both-disabled
     both_active = []
@@ -624,9 +618,7 @@ def get_random_comparison() -> Response | tuple[Response, int]:
 
         same_rating = row.t1_rating == row.t2_rating
 
-        priority = _compute_pair_priority(
-            elo_a, rd_a, elo_b, rd_b, pair_count, same_rating
-        )
+        priority = _compute_pair_priority(elo_a, rd_a, elo_b, rd_b, pair_count, same_rating)
 
         if t1_active and t2_active:
             both_active.append((row, priority))
@@ -661,7 +653,7 @@ def get_random_comparison() -> Response | tuple[Response, int]:
     if not t1 or not t2 or not query:
         return jsonify({"error": "Data not found"}), 404
 
-    stats = _get_user_comparison_stats(int(user.id))  # type: ignore[arg-type]
+    stats = _get_user_comparison_stats(int(user.id))
 
     # Shuffle t1 and t2 for display to eliminate position bias
     if random.choice([True, False]):
@@ -676,23 +668,15 @@ def get_random_comparison() -> Response | tuple[Response, int]:
                     "id": t1.id,
                     "text": t1.translation,
                     "model": t1.model,
-                    "base_model": conf.MODELS.get(str(t1.model), {}).get(
-                        "base_model", t1.model
-                    ),
-                    "preset_name": conf.MODELS.get(str(t1.model), {}).get(
-                        "preset_name"
-                    ),
+                    "base_model": conf.MODELS.get(str(t1.model), {}).get("base_model", t1.model),
+                    "preset_name": conf.MODELS.get(str(t1.model), {}).get("preset_name"),
                 },
                 {
                     "id": t2.id,
                     "text": t2.translation,
                     "model": t2.model,
-                    "base_model": conf.MODELS.get(str(t2.model), {}).get(
-                        "base_model", t2.model
-                    ),
-                    "preset_name": conf.MODELS.get(str(t2.model), {}).get(
-                        "preset_name"
-                    ),
+                    "base_model": conf.MODELS.get(str(t2.model), {}).get("base_model", t2.model),
+                    "preset_name": conf.MODELS.get(str(t2.model), {}).get("preset_name"),
                 },
             ],
             "stats": stats,
@@ -708,9 +692,7 @@ def _get_user_comparison_stats(user_id: int):
     from this user, and have a rating gap < 2.
     """
     conf = get_config()
-    active_model_keys = {
-        k for k, m in conf.MODELS.items() if m.get("is_active", True)
-    }
+    active_model_keys = {k for k, m in conf.MODELS.items() if m.get("is_active", True)}
 
     # 1. Count user's explicit comparisons (only for active models)
     comparisons_count = (
@@ -805,9 +787,7 @@ def submit_comparison() -> Response | tuple[Response, int]:
         return jsonify({"error": "User not found"}), 404
 
     # Get translations - Optimized: Batch fetch to reduce roundtrips
-    translations = (
-        db_session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
-    )
+    translations = db_session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
     t_map = {t.id: t for t in translations}
     t1 = t_map.get(translation_ids[0])
     t2 = t_map.get(translation_ids[1])
@@ -832,11 +812,11 @@ def submit_comparison() -> Response | tuple[Response, int]:
         elo_service = get_elo_service()
         elo_service.record_comparison(
             query_id=int(query_id),
-            user_id=int(user.id),  # type: ignore
+            user_id=int(user.id),
             winner_model=str(winner_model) if winner_model else None,
             loser_model=str(loser_model) if loser_model else None,
-            translation_a_id=int(t1.id),  # type: ignore
-            translation_b_id=int(t2.id),  # type: ignore
+            translation_a_id=int(t1.id),
+            translation_b_id=int(t2.id),
             source="explicit",
         )
         invalidate_caches()

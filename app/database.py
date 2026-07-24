@@ -12,7 +12,7 @@ db_session = scoped_session(SessionFactory)
 
 
 def init_db(app) -> None:
-    global engine  # noqa: PLW0603
+    global engine
     engine = create_engine(app.config["DATABASE_URI"])
 
     if app.config["DATABASE_URI"].startswith("sqlite"):

@@ -31,15 +31,9 @@ class VoteRepository:
 
     def get_by_user_and_query(self, user_id: int, query_id: int) -> list[Vote]:
         """Get all votes by user for a specific query."""
-        return (
-            self.db_session.query(Vote)
-            .filter(and_(Vote.user_id == user_id, Vote.query_id == query_id))
-            .all()
-        )
+        return self.db_session.query(Vote).filter(and_(Vote.user_id == user_id, Vote.query_id == query_id)).all()
 
-    def get_by_user_query_and_translation(
-        self, user_id: int, query_id: int, translation_id: int
-    ) -> Vote | None:
+    def get_by_user_query_and_translation(self, user_id: int, query_id: int, translation_id: int) -> Vote | None:
         """Get vote by user, query, and translation."""
         return (
             self.db_session.query(Vote)

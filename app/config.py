@@ -28,14 +28,16 @@ class ModelConfig(TypedDict):
     deactivation_reason: NotRequired[str | None]  # Shown as tooltip for inactive models
 
 
-_REQUIRED_MODEL_FIELDS = frozenset({
-    "name",
-    "display_name",
-    "type",
-    "input_cost_per_mtok",
-    "output_cost_per_mtok",
-    "is_active",
-})
+_REQUIRED_MODEL_FIELDS = frozenset(
+    {
+        "name",
+        "display_name",
+        "type",
+        "input_cost_per_mtok",
+        "output_cost_per_mtok",
+        "is_active",
+    }
+)
 
 
 def _resolve_models_path() -> Path:
@@ -100,31 +102,22 @@ class Config:
 
     # Database
     DATA_DIR: ClassVar[str] = os.environ.get("DATA_DIR", "data")
-    DATABASE_URI: ClassVar[str] = os.environ.get(
-        "DATABASE_URI", f"sqlite:///{DATA_DIR}/dhivehi_translation_arena.db"
-    )
+    DATABASE_URI: ClassVar[str] = os.environ.get("DATABASE_URI", f"sqlite:///{DATA_DIR}/dhivehi_translation_arena.db")
 
     # Application settings
-    SECRET_KEY: ClassVar[str] = os.environ.get(
-        "SECRET_KEY", "dev-secret-key-change-in-production"
-    )
+    SECRET_KEY: ClassVar[str] = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 
     @classmethod
     def check_configuration(cls) -> None:
         """Check for critical configuration issues."""
-        if (
-            os.environ.get("FLASK_ENV") == "production"
-            and cls.SECRET_KEY == "dev-secret-key-change-in-production"
-        ):
+        if os.environ.get("FLASK_ENV") == "production" and cls.SECRET_KEY == "dev-secret-key-change-in-production":
             warnings.warn(
                 "SECRET_KEY is set to default value in production! This is a security risk.",
                 UserWarning,
                 stacklevel=2,
             )
 
-    MAX_MODELS_SELECTION: ClassVar[int] = int(
-        os.environ.get("MAX_MODELS_SELECTION", "10")
-    )
+    MAX_MODELS_SELECTION: ClassVar[int] = int(os.environ.get("MAX_MODELS_SELECTION", "10"))
 
     # Glicko-2 parameters
     GLICKO_TAU: ClassVar[float] = 0.5
@@ -155,9 +148,7 @@ class Config:
     STRATIFIED_TOTAL: ClassVar[int] = 10
 
     # Translation settings
-    SYSTEM_PROMPT: ClassVar[str] = (
-        "Translate to Dhivehi. Don't explain. Only return the translated text."
-    )
+    SYSTEM_PROMPT: ClassVar[str] = "Translate to Dhivehi. Don't explain. Only return the translated text."
 
     # Model configurations loaded from models.yaml
     MODELS: ClassVar[dict[str, ModelConfig]] = _load_models_from_yaml()
@@ -207,7 +198,7 @@ _config_instance: Config | None = None
 
 def get_config(config_name: str | None = None) -> Config:
     """Get configuration instance (cached)."""
-    global _config_instance  # noqa: PLW0603
+    global _config_instance
     if _config_instance is not None:
         return _config_instance
     if config_name is None:

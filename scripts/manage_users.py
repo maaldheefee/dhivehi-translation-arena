@@ -13,7 +13,7 @@ def run_command(command: str) -> None:
 
 
 def clear_screen() -> None:
-    os.system("cls" if os.name == "nt" else "clear")
+    subprocess.run(["cls" if os.name == "nt" else "clear"], shell=True, check=False)
 
 
 def main() -> None:
@@ -64,11 +64,7 @@ def main() -> None:
                 input("\nPress Enter to continue...")
                 continue
 
-            confirm = (
-                input(f"Are you sure you want to remove user '{username}'? (y/n): ")
-                .lower()
-                .strip()
-            )
+            confirm = input(f"Are you sure you want to remove user '{username}'? (y/n): ").lower().strip()
             if confirm == "y":
                 run_command(f"uv run --python 3.13 flask remove-user {username}")
             else:

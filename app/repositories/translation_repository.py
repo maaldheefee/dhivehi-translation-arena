@@ -20,11 +20,7 @@ class TranslationRepository:
 
     def get_by_id(self, translation_id: int) -> Translation | None:
         """Get translation by ID."""
-        return (
-            self.db_session.query(Translation)
-            .filter(Translation.id == translation_id)
-            .first()
-        )
+        return self.db_session.query(Translation).filter(Translation.id == translation_id).first()
 
     def get_by_query_and_model(self, query_id: int, model: str) -> Translation | None:
         """Get translation by query ID and model."""
@@ -36,11 +32,7 @@ class TranslationRepository:
 
     def get_by_query_id(self, query_id: int) -> list[Translation]:
         """Get all translations for a query."""
-        return (
-            self.db_session.query(Translation)
-            .filter(Translation.query_id == query_id)
-            .all()
-        )
+        return self.db_session.query(Translation).filter(Translation.query_id == query_id).all()
 
     def get_all(self) -> list[Translation]:
         """Get all translations."""

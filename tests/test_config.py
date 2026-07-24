@@ -104,7 +104,7 @@ test-model:
 
 
 def test_file_not_found(tmp_path):
-    with pytest.raises(FileNotFoundError, match="models.yaml not found"):
+    with pytest.raises(FileNotFoundError, match=r"models\.yaml not found"):
         _load_models_from_yaml(tmp_path / "nonexistent.yaml")
 
 
@@ -190,10 +190,7 @@ def test_inactive_models_have_deactivation_reason():
     inactive = {k: v for k, v in models.items() if not v["is_active"]}
     assert len(inactive) > 0
 
-    missing = [
-        k for k, v in inactive.items()
-        if not v.get("deactivation_reason")
-    ]
+    missing = [k for k, v in inactive.items() if not v.get("deactivation_reason")]
     assert not missing, f"Inactive models missing deactivation_reason: {', '.join(sorted(missing))}"
 
 
@@ -202,10 +199,7 @@ def test_active_models_do_not_need_deactivation_reason():
     models = _load_models_from_yaml()
 
     active = {k: v for k, v in models.items() if v["is_active"]}
-    with_reason = [
-        k for k, v in active.items()
-        if v.get("deactivation_reason")
-    ]
+    with_reason = [k for k, v in active.items() if v.get("deactivation_reason")]
     assert not with_reason, f"Active models should not have deactivation_reason: {', '.join(sorted(with_reason))}"
 
 

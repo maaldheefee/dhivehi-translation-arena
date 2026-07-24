@@ -39,9 +39,7 @@ class TestGlicko2Update:
     def test_no_games_only_rd_decay(self):
         """With no games, only RD time decay should apply."""
         rating, rd, vol = 1500.0, 200.0, 0.06
-        new_r, new_rd, new_vol = _glicko2_update(
-            rating, rd, vol, [], [], [], weeks_inactive=1.0
-        )
+        new_r, new_rd, new_vol = _glicko2_update(rating, rd, vol, [], [], [], weeks_inactive=1.0)
         # Rating unchanged
         assert new_r == pytest.approx(1500.0, abs=0.01)
         # RD should increase due to time decay
@@ -52,25 +50,37 @@ class TestGlicko2Update:
 
     def test_win_increases_rating(self):
         """A win should increase the winner's rating."""
-        new_r, new_rd, _ = _glicko2_update(
-            1500.0, 200.0, 0.06,
-            [1400.0], [30.0], [1.0],
+        new_r, _, _ = _glicko2_update(
+            1500.0,
+            200.0,
+            0.06,
+            [1400.0],
+            [30.0],
+            [1.0],
         )
         assert new_r > 1500.0
 
     def test_loss_decreases_rating(self):
         """A loss should decrease the loser's rating."""
-        new_r, new_rd, _ = _glicko2_update(
-            1500.0, 200.0, 0.06,
-            [1400.0], [30.0], [0.0],
+        new_r, _, _ = _glicko2_update(
+            1500.0,
+            200.0,
+            0.06,
+            [1400.0],
+            [30.0],
+            [0.0],
         )
         assert new_r < 1500.0
 
     def test_rd_decreases_after_game(self):
         """RD should decrease after a game (more certainty)."""
         _, new_rd, _ = _glicko2_update(
-            1500.0, 200.0, 0.06,
-            [1400.0], [30.0], [1.0],
+            1500.0,
+            200.0,
+            0.06,
+            [1400.0],
+            [30.0],
+            [1.0],
         )
         assert new_rd < 200.0
 
@@ -80,20 +90,32 @@ class TestGlicko2Update:
         rating, rd, vol = 1500.0, 80.0, 0.06
         for _ in range(20):
             rating, rd, vol = _glicko2_update(
-                rating, rd, vol,
-                [1500.0], [80.0], [0.5],
+                rating,
+                rd,
+                vol,
+                [1500.0],
+                [80.0],
+                [0.5],
             )
         assert rd >= Config.GLICKO_MIN_RD - 0.01
 
     def test_fractional_score(self):
         """A fractional score (0.7) should produce less rating change than 1.0."""
         new_r_win, _, _ = _glicko2_update(
-            1500.0, 200.0, 0.06,
-            [1500.0], [200.0], [1.0],
+            1500.0,
+            200.0,
+            0.06,
+            [1500.0],
+            [200.0],
+            [1.0],
         )
         new_r_frac, _, _ = _glicko2_update(
-            1500.0, 200.0, 0.06,
-            [1500.0], [200.0], [0.7],
+            1500.0,
+            200.0,
+            0.06,
+            [1500.0],
+            [200.0],
+            [0.7],
         )
         # Full win should move rating more than fractional win
         assert abs(new_r_win - 1500.0) > abs(new_r_frac - 1500.0)
@@ -101,20 +123,32 @@ class TestGlicko2Update:
     def test_tie_against_equal(self):
         """A tie (0.5) against equal opponent should barely change rating."""
         new_r, _, _ = _glicko2_update(
-            1500.0, 200.0, 0.06,
-            [1500.0], [200.0], [0.5],
+            1500.0,
+            200.0,
+            0.06,
+            [1500.0],
+            [200.0],
+            [0.5],
         )
         assert new_r == pytest.approx(1500.0, abs=1.0)
 
     def test_upset_win_more_impact(self):
         """Winning against a higher-rated opponent should give more rating gain."""
         new_r_low, _, _ = _glicko2_update(
-            1400.0, 200.0, 0.06,
-            [1600.0], [200.0], [1.0],
+            1400.0,
+            200.0,
+            0.06,
+            [1600.0],
+            [200.0],
+            [1.0],
         )
         new_r_high, _, _ = _glicko2_update(
-            1600.0, 200.0, 0.06,
-            [1400.0], [200.0], [1.0],
+            1600.0,
+            200.0,
+            0.06,
+            [1400.0],
+            [200.0],
+            [1.0],
         )
         # Upset win (1400 beating 1600) should gain more than expected win
         assert (new_r_low - 1400.0) > (new_r_high - 1600.0)
@@ -227,9 +261,12 @@ class TestELOService:
     def test_record_comparison_with_score(self, elo_service, session):
         """record_comparison should store the score in the comparison."""
         comp = elo_service.record_comparison(
-            query_id=1, user_id=1,
-            winner_model="winner", loser_model="loser",
-            source="derived", score=0.85,
+            query_id=1,
+            user_id=1,
+            winner_model="winner",
+            loser_model="loser",
+            source="derived",
+            score=0.85,
         )
         assert comp.score == 0.85
         # Check the comparison was persisted
@@ -241,8 +278,10 @@ class TestELOService:
     def test_record_comparison_explicit_defaults_binary(self, elo_service, session):
         """Explicit comparison without score should default to 1.0."""
         comp = elo_service.record_comparison(
-            query_id=1, user_id=1,
-            winner_model="winner", loser_model="loser",
+            query_id=1,
+            user_id=1,
+            winner_model="winner",
+            loser_model="loser",
             source="explicit",
         )
         assert comp.score == 1.0
@@ -250,9 +289,12 @@ class TestELOService:
     def test_record_comparison_tie_defaults_half(self, elo_service, session):
         """Tie comparison without score should default to 0.5."""
         comp = elo_service.record_comparison(
-            query_id=1, user_id=1,
-            winner_model=None, loser_model=None,
-            translation_a_id=1, translation_b_id=2,
+            query_id=1,
+            user_id=1,
+            winner_model=None,
+            loser_model=None,
+            translation_a_id=1,
+            translation_b_id=2,
             source="explicit",
         )
         assert comp.score == 0.5
@@ -298,9 +340,9 @@ class TestRebuildRatings:
         Both paths apply time decay between consecutive comparisons for the
         same model. We use controlled timestamps to ensure identical decay.
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import UTC, datetime, timedelta
 
-        base_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        base_time = datetime(2025, 1, 1, tzinfo=UTC)
 
         comparisons_data = [
             ("model-a", "model-b", 1.0, base_time),
@@ -313,9 +355,12 @@ class TestRebuildRatings:
         # Insert comparisons with explicit timestamps
         for winner, loser, score, ts in comparisons_data:
             comp = PairwiseComparison(
-                query_id=1, user_id=1,
-                winner_model=winner, loser_model=loser,
-                source="derived", score=score,
+                query_id=1,
+                user_id=1,
+                winner_model=winner,
+                loser_model=loser,
+                source="derived",
+                score=score,
                 created_at=ts,
             )
             session.add(comp)
@@ -330,7 +375,9 @@ class TestRebuildRatings:
         for model_name in ["model-a", "model-b", "model-c"]:
             rec = elo_service.get_or_create(model_name)
             rebuilt_ratings[model_name] = (
-                rec.elo_rating, rec.rating_deviation, rec.volatility,
+                rec.elo_rating,
+                rec.rating_deviation,
+                rec.volatility,
             )
 
         # Now simulate incremental processing with the same timestamps
@@ -344,47 +391,60 @@ class TestRebuildRatings:
         # Re-insert comparisons
         for winner, loser, score, ts in comparisons_data:
             comp = PairwiseComparison(
-                query_id=1, user_id=1,
-                winner_model=winner, loser_model=loser,
-                source="derived", score=score,
+                query_id=1,
+                user_id=1,
+                winner_model=winner,
+                loser_model=loser,
+                source="derived",
+                score=score,
                 created_at=ts,
             )
             session.add(comp)
         session.flush()
 
         # Manually replay with time decay (mimics incremental with known timestamps)
-        for c in session.query(PairwiseComparison).order_by(
-            PairwiseComparison.created_at.asc(), PairwiseComparison.id.asc()
-        ).all():
+        for c in (
+            session.query(PairwiseComparison)
+            .order_by(PairwiseComparison.created_at.asc(), PairwiseComparison.id.asc())
+            .all()
+        ):
             rec_a = elo_service.get_or_create(c.winner_model)
             rec_b = elo_service.get_or_create(c.loser_model)
 
             comp_time = c.created_at
             if comp_time.tzinfo is None:
-                comp_time = comp_time.replace(tzinfo=timezone.utc)
+                comp_time = comp_time.replace(tzinfo=UTC)
 
             weeks_a = 0.0
             weeks_b = 0.0
             if rec_a.last_comparison_at is not None:
                 last_a = rec_a.last_comparison_at
                 if last_a.tzinfo is None:
-                    last_a = last_a.replace(tzinfo=timezone.utc)
+                    last_a = last_a.replace(tzinfo=UTC)
                 weeks_a = max(0.0, (comp_time - last_a).total_seconds() / (7 * 24 * 3600))
             if rec_b.last_comparison_at is not None:
                 last_b = rec_b.last_comparison_at
                 if last_b.tzinfo is None:
-                    last_b = last_b.replace(tzinfo=timezone.utc)
+                    last_b = last_b.replace(tzinfo=UTC)
                 weeks_b = max(0.0, (comp_time - last_b).total_seconds() / (7 * 24 * 3600))
 
             score = c.score if c.score is not None else 1.0
             new_r_a, new_rd_a, new_vol_a = _glicko2_update(
-                rec_a.elo_rating, rec_a.rating_deviation, rec_a.volatility,
-                [rec_b.elo_rating], [rec_b.rating_deviation], [score],
+                rec_a.elo_rating,
+                rec_a.rating_deviation,
+                rec_a.volatility,
+                [rec_b.elo_rating],
+                [rec_b.rating_deviation],
+                [score],
                 weeks_inactive=weeks_a,
             )
             new_r_b, new_rd_b, new_vol_b = _glicko2_update(
-                rec_b.elo_rating, rec_b.rating_deviation, rec_b.volatility,
-                [rec_a.elo_rating], [rec_a.rating_deviation], [1.0 - score],
+                rec_b.elo_rating,
+                rec_b.rating_deviation,
+                rec_b.volatility,
+                [rec_a.elo_rating],
+                [rec_a.rating_deviation],
+                [1.0 - score],
                 weeks_inactive=weeks_b,
             )
             rec_a.elo_rating = new_r_a
@@ -413,11 +473,14 @@ class TestRebuildRatings:
     def test_rebuild_idempotent(self, elo_service, session):
         """Running rebuild twice should produce the same results."""
         # Add some comparisons
-        for i in range(5):
+        for _ in range(5):
             elo_service.record_comparison(
-                query_id=1, user_id=1,
-                winner_model="model-a", loser_model="model-b",
-                source="derived", score=0.85,
+                query_id=1,
+                user_id=1,
+                winner_model="model-a",
+                loser_model="model-b",
+                source="derived",
+                score=0.85,
             )
 
         # First rebuild
@@ -437,15 +500,18 @@ class TestRebuildRatings:
     def test_rebuild_stable_order(self, elo_service, session):
         """Rebuild should process comparisons in created_at asc, id asc order."""
         # Create comparisons with different timestamps
-        from datetime import datetime, timedelta, timezone
+        from datetime import UTC, datetime, timedelta
 
-        base_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        base_time = datetime(2025, 1, 1, tzinfo=UTC)
 
         for i in range(3):
             comp = PairwiseComparison(
-                query_id=1, user_id=1,
-                winner_model="model-a", loser_model="model-b",
-                source="derived", score=1.0,
+                query_id=1,
+                user_id=1,
+                winner_model="model-a",
+                loser_model="model-b",
+                source="derived",
+                score=1.0,
                 created_at=base_time + timedelta(hours=i),
             )
             session.add(comp)
@@ -478,12 +544,20 @@ class TestVoteDerivation:
         session.flush()
 
         t1 = Translation(
-            query_id=query.id, model="model-a", translation="A",
-            system_prompt="sp", position=1, user_id=user.id,
+            query_id=query.id,
+            model="model-a",
+            translation="A",
+            system_prompt="sp",
+            position=1,
+            user_id=user.id,
         )
         t2 = Translation(
-            query_id=query.id, model="model-b", translation="B",
-            system_prompt="sp", position=2, user_id=user.id,
+            query_id=query.id,
+            model="model-b",
+            translation="B",
+            system_prompt="sp",
+            position=2,
+            user_id=user.id,
         )
         session.add_all([t1, t2])
         session.flush()
@@ -503,9 +577,7 @@ class TestVoteDerivation:
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
         session.commit()
 
-        comp = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        ).first()
+        comp = session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").first()
         assert comp is not None
         assert comp.score == 0.85
 
@@ -522,9 +594,7 @@ class TestVoteDerivation:
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
         session.commit()
 
-        count = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        ).count()
+        count = session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").count()
         assert count == 0
 
     def test_both_neg1_star_skipped(self, session):
@@ -540,9 +610,7 @@ class TestVoteDerivation:
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
         session.commit()
 
-        count = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        ).count()
+        count = session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").count()
         assert count == 0
 
     def test_equal_1_star_tie(self, session):
@@ -558,9 +626,7 @@ class TestVoteDerivation:
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
         session.commit()
 
-        comp = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        ).first()
+        comp = session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").first()
         assert comp is not None
         assert comp.winner_model is None
         assert comp.loser_model is None
@@ -580,10 +646,14 @@ class TestVoteDerivation:
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
         session.commit()
 
-        initial_count = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived",
-            PairwiseComparison.query_id == query.id,
-        ).count()
+        initial_count = (
+            session.query(PairwiseComparison)
+            .filter(
+                PairwiseComparison.source == "derived",
+                PairwiseComparison.query_id == query.id,
+            )
+            .count()
+        )
         assert initial_count == 1
 
         # Re-vote: 1 vs 3 (reversed)
@@ -595,10 +665,14 @@ class TestVoteDerivation:
         session.commit()
 
         # Should still have only 1 comparison (old one deleted, new one created)
-        comps = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived",
-            PairwiseComparison.query_id == query.id,
-        ).all()
+        comps = (
+            session.query(PairwiseComparison)
+            .filter(
+                PairwiseComparison.source == "derived",
+                PairwiseComparison.query_id == query.id,
+            )
+            .all()
+        )
         assert len(comps) == 1
         # Winner should now be model-b
         assert comps[0].winner_model == "model-b"
@@ -660,8 +734,12 @@ class TestVoteDerivation:
         translations = []
         for i, model in enumerate(["model-a", "model-b", "model-c"]):
             t = Translation(
-                query_id=query.id, model=model, translation=f"T{i}",
-                system_prompt="sp", position=i + 1, user_id=user.id,
+                query_id=query.id,
+                model=model,
+                translation=f"T{i}",
+                system_prompt="sp",
+                position=i + 1,
+                user_id=user.id,
             )
             session.add(t)
             translations.append(t)
@@ -672,8 +750,10 @@ class TestVoteDerivation:
         # Persist initial votes: 3, 1, 2
         for tid, rating in [(t1.id, 3), (t2.id, 1), (t3.id, 2)]:
             vote = Vote(
-                user_id=user.id, query_id=query.id,
-                translation_id=tid, rating=rating,
+                user_id=user.id,
+                query_id=query.id,
+                translation_id=tid,
+                rating=rating,
             )
             session.add(vote)
         session.flush()
@@ -681,26 +761,25 @@ class TestVoteDerivation:
         # Derive from all persisted votes (as process_votes does)
         from app.services.vote_service import _derive_pairwise_from_votes
 
-        persisted = session.query(Vote).filter(
-            Vote.user_id == user.id, Vote.query_id == query.id
-        ).all()
+        persisted = session.query(Vote).filter(Vote.user_id == user.id, Vote.query_id == query.id).all()
         all_votes_data = [
-            {"translation_id": v.translation_id, "rating": v.rating}
-            for v in persisted if v.rating is not None
+            {"translation_id": v.translation_id, "rating": v.rating} for v in persisted if v.rating is not None
         ]
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), all_votes_data)
         session.commit()
 
-        initial_count = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived",
-            PairwiseComparison.query_id == query.id,
-        ).count()
+        initial_count = (
+            session.query(PairwiseComparison)
+            .filter(
+                PairwiseComparison.source == "derived",
+                PairwiseComparison.query_id == query.id,
+            )
+            .count()
+        )
         assert initial_count == 3  # C(3,2) = 3 pairs
 
         # Simulate partial update: change t1 and t2 ratings in persisted votes
-        for v in session.query(Vote).filter(
-            Vote.query_id == query.id, Vote.user_id == user.id
-        ).all():
+        for v in session.query(Vote).filter(Vote.query_id == query.id, Vote.user_id == user.id).all():
             if v.translation_id == t1.id:
                 v.rating = 1
             elif v.translation_id == t2.id:
@@ -708,21 +787,22 @@ class TestVoteDerivation:
         session.flush()
 
         # Fetch ALL persisted votes (as process_votes does after the fix)
-        persisted_votes = session.query(Vote).filter(
-            Vote.user_id == user.id, Vote.query_id == query.id
-        ).all()
+        persisted_votes = session.query(Vote).filter(Vote.user_id == user.id, Vote.query_id == query.id).all()
         all_votes_data = [
-            {"translation_id": v.translation_id, "rating": v.rating}
-            for v in persisted_votes if v.rating is not None
+            {"translation_id": v.translation_id, "rating": v.rating} for v in persisted_votes if v.rating is not None
         ]
         _derive_pairwise_from_votes(session, int(user.id), int(query.id), all_votes_data)
         session.commit()
 
         # Should still have 3 comparisons (all 3 persisted votes considered)
-        final_count = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived",
-            PairwiseComparison.query_id == query.id,
-        ).count()
+        final_count = (
+            session.query(PairwiseComparison)
+            .filter(
+                PairwiseComparison.source == "derived",
+                PairwiseComparison.query_id == query.id,
+            )
+            .count()
+        )
         assert final_count == 3
 
 
@@ -793,12 +873,20 @@ class TestDifficultyAwareTie:
         session.add(query)
         session.flush()
         t1 = Translation(
-            query_id=query.id, model="model-a", translation="A",
-            system_prompt="sp", position=1, user_id=user.id,
+            query_id=query.id,
+            model="model-a",
+            translation="A",
+            system_prompt="sp",
+            position=1,
+            user_id=user.id,
         )
         t2 = Translation(
-            query_id=query.id, model="model-b", translation="B",
-            system_prompt="sp", position=2, user_id=user.id,
+            query_id=query.id,
+            model="model-b",
+            translation="B",
+            system_prompt="sp",
+            position=2,
+            user_id=user.id,
         )
         session.add_all([t1, t2])
         session.flush()
@@ -813,14 +901,10 @@ class TestDifficultyAwareTie:
             {"translation_id": t1.id, "rating": 3},
             {"translation_id": t2.id, "rating": 3},
         ]
-        _derive_pairwise_from_votes(
-            session, int(user.id), int(query.id), votes_data, "hard"
-        )
+        _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data, "hard")
         session.commit()
 
-        comp = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        ).first()
+        comp = session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").first()
         assert comp is not None
         assert comp.winner_model is None
         assert comp.score == 0.5
@@ -834,14 +918,10 @@ class TestDifficultyAwareTie:
             {"translation_id": t1.id, "rating": 3},
             {"translation_id": t2.id, "rating": 3},
         ]
-        _derive_pairwise_from_votes(
-            session, int(user.id), int(query.id), votes_data, "easy"
-        )
+        _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data, "easy")
         session.commit()
 
-        count = session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        ).count()
+        count = session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").count()
         assert count == 0
 
 
@@ -869,8 +949,12 @@ class TestConfidenceWeightedBlend:
         session.add(query)
         session.flush()
         t = Translation(
-            query_id=query.id, model="confident-model", translation="A",
-            system_prompt="sp", position=1, user_id=user.id,
+            query_id=query.id,
+            model="confident-model",
+            translation="A",
+            system_prompt="sp",
+            position=1,
+            user_id=user.id,
         )
         session.add(t)
         session.flush()
@@ -907,8 +991,12 @@ class TestConfidenceWeightedBlend:
         session.add(query)
         session.flush()
         t = Translation(
-            query_id=query.id, model="uncertain-model", translation="A",
-            system_prompt="sp", position=1, user_id=user.id,
+            query_id=query.id,
+            model="uncertain-model",
+            translation="A",
+            system_prompt="sp",
+            position=1,
+            user_id=user.id,
         )
         session.add(t)
         session.flush()
@@ -947,8 +1035,12 @@ class TestConfidenceWeightedBlend:
             session.add(query)
             session.flush()
             t = Translation(
-                query_id=query.id, model=model_name, translation="A",
-                system_prompt="sp", position=1, user_id=user.id,
+                query_id=query.id,
+                model=model_name,
+                translation="A",
+                system_prompt="sp",
+                position=1,
+                user_id=user.id,
             )
             session.add(t)
             session.flush()
@@ -987,16 +1079,36 @@ class TestCostAwareModelSelection:
         # Create config with 3 expensive base model groups, each with 1 model
         config = Config()
         # Override models dict for testing
-        config.MODELS = {
-            "cheap-1": {"base_model": "cheap-a", "output_cost_per_mtok": 1.0, "is_active": True},
-            "cheap-2": {"base_model": "cheap-b", "output_cost_per_mtok": 2.0, "is_active": True},
-            "exp-1": {"base_model": "exp-a", "output_cost_per_mtok": 15.0, "is_active": True},
-            "exp-2": {"base_model": "exp-b", "output_cost_per_mtok": 20.0, "is_active": True},
-            "exp-3": {"base_model": "exp-c", "output_cost_per_mtok": 25.0, "is_active": True},
+        config.MODELS = {  # ty: ignore[invalid-attribute-access]
+            "cheap-1": {
+                "base_model": "cheap-a",
+                "output_cost_per_mtok": 1.0,
+                "is_active": True,
+            },
+            "cheap-2": {
+                "base_model": "cheap-b",
+                "output_cost_per_mtok": 2.0,
+                "is_active": True,
+            },
+            "exp-1": {
+                "base_model": "exp-a",
+                "output_cost_per_mtok": 15.0,
+                "is_active": True,
+            },
+            "exp-2": {
+                "base_model": "exp-b",
+                "output_cost_per_mtok": 20.0,
+                "is_active": True,
+            },
+            "exp-3": {
+                "base_model": "exp-c",
+                "output_cost_per_mtok": 25.0,
+                "is_active": True,
+            },
         }
 
-        available = {k: v["base_model"] for k, v in config.MODELS.items()}
-        usage_stats = {k: 0 for k in config.MODELS}
+        available = {k: v["base_model"] for k, v in config.MODELS.items() if v["base_model"]}
+        usage_stats = dict.fromkeys(config.MODELS, 0)
 
         selected = _select_models(available, usage_stats, config, max_models=5)
 
@@ -1016,15 +1128,31 @@ class TestCostAwareModelSelection:
         from app.config import Config
 
         config = Config()
-        config.MODELS = {
-            "cheap-1": {"base_model": "cheap-a", "output_cost_per_mtok": 1.0, "is_active": True},
-            "cheap-2": {"base_model": "cheap-b", "output_cost_per_mtok": 2.0, "is_active": True},
-            "mid-1": {"base_model": "mid-a", "output_cost_per_mtok": 5.0, "is_active": True},
-            "mid-2": {"base_model": "mid-b", "output_cost_per_mtok": 8.0, "is_active": True},
+        config.MODELS = {  # ty: ignore[invalid-attribute-access]
+            "cheap-1": {
+                "base_model": "cheap-a",
+                "output_cost_per_mtok": 1.0,
+                "is_active": True,
+            },
+            "cheap-2": {
+                "base_model": "cheap-b",
+                "output_cost_per_mtok": 2.0,
+                "is_active": True,
+            },
+            "mid-1": {
+                "base_model": "mid-a",
+                "output_cost_per_mtok": 5.0,
+                "is_active": True,
+            },
+            "mid-2": {
+                "base_model": "mid-b",
+                "output_cost_per_mtok": 8.0,
+                "is_active": True,
+            },
         }
 
-        available = {k: v["base_model"] for k, v in config.MODELS.items()}
-        usage_stats = {k: 0 for k in config.MODELS}
+        available = {k: v["base_model"] for k, v in config.MODELS.items() if v["base_model"]}
+        usage_stats = dict.fromkeys(config.MODELS, 0)
 
         selected = _select_models(available, usage_stats, config, max_models=4)
         assert len(selected) == 4  # All should be selected, no expensive models
@@ -1035,14 +1163,30 @@ class TestCostAwareModelSelection:
         from app.config import Config
 
         config = Config()
-        config.MODELS = {
-            "cheap-1": {"base_model": "cheap-a", "output_cost_per_mtok": 1.0, "is_active": True},
-            "exp-1": {"base_model": "exp-a", "output_cost_per_mtok": 15.0, "is_active": True},
-            "exp-2": {"base_model": "exp-b", "output_cost_per_mtok": 20.0, "is_active": True},
-            "exp-3": {"base_model": "exp-c", "output_cost_per_mtok": 25.0, "is_active": True},
+        config.MODELS = {  # ty: ignore[invalid-attribute-access]
+            "cheap-1": {
+                "base_model": "cheap-a",
+                "output_cost_per_mtok": 1.0,
+                "is_active": True,
+            },
+            "exp-1": {
+                "base_model": "exp-a",
+                "output_cost_per_mtok": 15.0,
+                "is_active": True,
+            },
+            "exp-2": {
+                "base_model": "exp-b",
+                "output_cost_per_mtok": 20.0,
+                "is_active": True,
+            },
+            "exp-3": {
+                "base_model": "exp-c",
+                "output_cost_per_mtok": 25.0,
+                "is_active": True,
+            },
         }
 
-        available = {k: v["base_model"] for k, v in config.MODELS.items()}
+        available = {k: v["base_model"] for k, v in config.MODELS.items() if v["base_model"]}
         # Give cheap-1 high usage so it's selected last
         usage_stats = {"cheap-1": 100, "exp-1": 0, "exp-2": 0, "exp-3": 0}
 
@@ -1090,8 +1234,12 @@ class TestQueryDifficulty:
         session.flush()
         for i, model in enumerate(["weak-a", "weak-b", "weak-c"]):
             t = Translation(
-                query_id=baseline.id, model=model, translation="T",
-                system_prompt="sp", position=i + 1, user_id=user.id,
+                query_id=baseline.id,
+                model=model,
+                translation="T",
+                system_prompt="sp",
+                position=i + 1,
+                user_id=user.id,
             )
             session.add(t)
         session.flush()
@@ -1105,8 +1253,12 @@ class TestQueryDifficulty:
         session.flush()
         for i, model in enumerate(["weak-a", "weak-b", "weak-c"]):
             t = Translation(
-                query_id=query.id, model=model, translation="T",
-                system_prompt="sp", position=i + 1, user_id=user.id,
+                query_id=query.id,
+                model=model,
+                translation="T",
+                system_prompt="sp",
+                position=i + 1,
+                user_id=user.id,
             )
             session.add(t)
         session.flush()
@@ -1144,8 +1296,12 @@ class TestQueryDifficulty:
         session.flush()
         for i, model in enumerate(["strong-a", "strong-b", "strong-c"]):
             t = Translation(
-                query_id=baseline.id, model=model, translation="T",
-                system_prompt="sp", position=i + 1, user_id=user.id,
+                query_id=baseline.id,
+                model=model,
+                translation="T",
+                system_prompt="sp",
+                position=i + 1,
+                user_id=user.id,
             )
             session.add(t)
         session.flush()
@@ -1159,8 +1315,12 @@ class TestQueryDifficulty:
         session.flush()
         for i, model in enumerate(["strong-a", "strong-b", "strong-c"]):
             t = Translation(
-                query_id=query.id, model=model, translation="T",
-                system_prompt="sp", position=i + 1, user_id=user.id,
+                query_id=query.id,
+                model=model,
+                translation="T",
+                system_prompt="sp",
+                position=i + 1,
+                user_id=user.id,
             )
             session.add(t)
         session.flush()
@@ -1195,12 +1355,20 @@ class TestPairComparisonCounts:
         session.flush()
 
         t1 = Translation(
-            query_id=query.id, model="model-a", translation="A",
-            system_prompt="sp", position=1, user_id=user.id,
+            query_id=query.id,
+            model="model-a",
+            translation="A",
+            system_prompt="sp",
+            position=1,
+            user_id=user.id,
         )
         t2 = Translation(
-            query_id=query.id, model="model-b", translation="B",
-            system_prompt="sp", position=2, user_id=user.id,
+            query_id=query.id,
+            model="model-b",
+            translation="B",
+            system_prompt="sp",
+            position=2,
+            user_id=user.id,
         )
         session.add_all([t1, t2])
         session.flush()

@@ -2,7 +2,7 @@ import datetime
 import math
 import time
 from collections import defaultdict
-from typing import cast
+from typing import NotRequired, TypedDict, cast
 
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
@@ -10,6 +10,16 @@ from sqlalchemy.orm import Session
 from app.config import get_config
 from app.database import db_session
 from app.models import ModelELO, Query, Translation, Vote
+
+
+class GroupedStats(TypedDict):
+    model_name: str
+    base_model: str
+    total_cost: float
+    total_generations: int
+    voted_generations: int
+    source_word_count: int
+    projected_cost_100k: NotRequired[float]
 
 
 def calculate_model_scores():
@@ -27,9 +37,7 @@ def calculate_model_scores():
     # Query 1: Aggregate appearances, cost, and estimated word count
     # Word count estimation in SQLite: len(text) - len(replace(text, ' ', '')) + 1
     word_count_expr = (
-        func.length(func.trim(Query.source_text))
-        - func.length(func.replace(func.trim(Query.source_text), " ", ""))
-        + 1
+        func.length(func.trim(Query.source_text)) - func.length(func.replace(func.trim(Query.source_text), " ", "")) + 1
     )
 
     trans_stats = (
@@ -37,9 +45,7 @@ def calculate_model_scores():
             Translation.model,
             func.count(Translation.id).label("appearances"),
             func.sum(Translation.cost).label("total_cost"),
-            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label(
-                "source_word_count"
-            ),
+            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label("source_word_count"),
         )
         .outerjoin(Query, Translation.query_id == Query.id)
         .group_by(Translation.model)
@@ -152,9 +158,7 @@ def calculate_model_scores():
         # Low RD (confident) -> Glicko-2 dominates
         confidence = 1.0 - (rating_deviation / 350.0)
         confidence = max(0.0, min(1.0, confidence))
-        combined_score = (
-            normalized_elo * confidence + normalized_avg_score * (1.0 - confidence)
-        )
+        combined_score = normalized_elo * confidence + normalized_avg_score * (1.0 - confidence)
 
         # 4. Bang for Buck: Soft floor + cubic quality / log(cost)
         # Soft floor: subtract 0.3 from combined_score so models below 0.3 get
@@ -165,10 +169,7 @@ def calculate_model_scores():
             projected_cost_100k = 0.01
 
         quality = max(0.0, combined_score - 0.3)
-        if quality <= 0:
-            raw_bang_for_buck = 0.0
-        else:
-            raw_bang_for_buck = (quality ** 3) / math.log(projected_cost_100k + 1)
+        raw_bang_for_buck = 0.0 if quality <= 0 else (quality**3) / math.log(projected_cost_100k + 1)
 
         # Get model config
         model_config = get_config().MODELS.get(model_name, {})
@@ -217,10 +218,8 @@ def calculate_model_scores():
     if stats_list:
         # Apply log transform to spread values more evenly
         for s in stats_list:
-            if s["bang_for_buck"] > 0:
-                s["bang_for_buck"] = math.log(s["bang_for_buck"] + 1)
-            else:
-                s["bang_for_buck"] = 0
+            bf = cast(float, s["bang_for_buck"])
+            s["bang_for_buck"] = math.log(bf + 1) if bf > 0 else 0
 
         # Now normalize the log-transformed values to 0-10
         max_bb = max(s["bang_for_buck"] for s in stats_list)
@@ -271,16 +270,18 @@ def calculate_base_model_groups():
         avg_combined = sum(p["combined_score"] for p in scored) / len(scored) if scored else 0.0
         best = max(scored, key=lambda x: x["average_score"]) if scored else None
 
-        result.append({
-            "base_model": base_model,
-            "avg_score": avg_score,
-            "avg_combined_score": avg_combined,
-            "total_votes": total_votes,
-            "total_cost": total_cost,
-            "best_preset": best["display_name"] if best else None,
-            "best_preset_score": best["average_score"] if best else 0.0,
-            "presets": sorted(presets, key=lambda x: x["average_score"], reverse=True),
-        })
+        result.append(
+            {
+                "base_model": base_model,
+                "avg_score": avg_score,
+                "avg_combined_score": avg_combined,
+                "total_votes": total_votes,
+                "total_cost": total_cost,
+                "best_preset": best["display_name"] if best else None,
+                "best_preset_score": best["average_score"] if best else 0.0,
+                "presets": sorted(presets, key=lambda x: x["average_score"], reverse=True),
+            }
+        )
 
     result.sort(key=lambda x: x["avg_combined_score"], reverse=True)
     return result
@@ -288,9 +289,9 @@ def calculate_base_model_groups():
 
 def invalidate_caches() -> None:
     """Invalidate all TTL caches after data writes (votes, comparisons)."""
-    global _usage_stats_cache, _usage_stats_cache_time  # noqa: PLW0603
-    global _pair_counts_cache, _pair_counts_cache_time  # noqa: PLW0603
-    global _query_difficulty_cache, _query_difficulty_cache_time  # noqa: PLW0603
+    global _usage_stats_cache, _usage_stats_cache_time
+    global _pair_counts_cache, _pair_counts_cache_time
+    global _query_difficulty_cache, _query_difficulty_cache_time
 
     _usage_stats_cache = None
     _usage_stats_cache_time = 0
@@ -311,13 +312,10 @@ def get_model_usage_stats() -> dict[str, int]:
     Returns a dictionary mapping model names to their usage count (appearances).
     Uses a simple TTL cache to improve performance.
     """
-    global _usage_stats_cache, _usage_stats_cache_time  # noqa: PLW0603
+    global _usage_stats_cache, _usage_stats_cache_time
 
     now = time.time()
-    if (
-        _usage_stats_cache is not None
-        and (now - _usage_stats_cache_time) < USAGE_STATS_CACHE_TTL
-    ):
+    if _usage_stats_cache is not None and (now - _usage_stats_cache_time) < USAGE_STATS_CACHE_TTL:
         return _usage_stats_cache
 
     session = cast(Session, db_session)
@@ -325,14 +323,14 @@ def get_model_usage_stats() -> dict[str, int]:
     results = (
         session.query(
             Translation.model,
-            func.count(func.distinct(Vote.translation_id)).label("count"),
+            func.count(func.distinct(Vote.translation_id)).label("cnt"),
         )
         .join(Vote, Vote.translation_id == Translation.id)
         .group_by(Translation.model)
         .all()
     )
 
-    _usage_stats_cache = {row.model: row.count for row in results}
+    _usage_stats_cache = {row.model: row.cnt for row in results}
     _usage_stats_cache_time = now
 
     return _usage_stats_cache
@@ -353,16 +351,14 @@ def get_pair_comparison_counts() -> dict[tuple[str, str], int]:
     Returns a dict mapping (model_a, model_b) sorted alphabetically to count.
     Uses a TTL cache to avoid expensive grouping queries.
     """
-    global _pair_counts_cache, _pair_counts_cache_time  # noqa: PLW0603
+    global _pair_counts_cache, _pair_counts_cache_time
 
     now = time.time()
-    if (
-        _pair_counts_cache is not None
-        and (now - _pair_counts_cache_time) < PAIR_COUNTS_CACHE_TTL
-    ):
+    if _pair_counts_cache is not None and (now - _pair_counts_cache_time) < PAIR_COUNTS_CACHE_TTL:
         return _pair_counts_cache
 
-    from sqlalchemy import case, func as sql_func
+    from sqlalchemy import case
+    from sqlalchemy import func as sql_func
     from sqlalchemy.orm import aliased
 
     from app.models import PairwiseComparison, Translation
@@ -387,7 +383,7 @@ def get_pair_comparison_counts() -> dict[tuple[str, str], int]:
         session.query(
             m1_expr,
             m2_expr,
-            sql_func.count().label("count"),
+            sql_func.count().label("cnt"),
         )
         .select_from(PairwiseComparison)
         .join(t_a, t_a.id == PairwiseComparison.translation_a_id)
@@ -404,7 +400,7 @@ def get_pair_comparison_counts() -> dict[tuple[str, str], int]:
     _pair_counts_cache = {}
     for row in results:
         key = (row.m1, row.m2)
-        _pair_counts_cache[key] = row.count
+        _pair_counts_cache[key] = row.cnt
 
     _pair_counts_cache_time = now
     return _pair_counts_cache
@@ -430,13 +426,10 @@ def get_query_difficulty() -> dict[int, str]:
     Returns a dict mapping query_id to difficulty tier string.
     Uses a TTL cache.
     """
-    global _query_difficulty_cache, _query_difficulty_cache_time  # noqa: PLW0603
+    global _query_difficulty_cache, _query_difficulty_cache_time
 
     now = time.time()
-    if (
-        _query_difficulty_cache is not None
-        and (now - _query_difficulty_cache_time) < QUERY_DIFFICULTY_CACHE_TTL
-    ):
+    if _query_difficulty_cache is not None and (now - _query_difficulty_cache_time) < QUERY_DIFFICULTY_CACHE_TTL:
         return _query_difficulty_cache
 
     from app.config import Config
@@ -496,7 +489,7 @@ def get_query_difficulty() -> dict[int, str]:
             difficulty_map[query_id] = "medium"
 
     # Any queries with no votes at all are unknown
-    all_query_ids = {int(q.id) for q in session.query(QueryModel).all()}  # type: ignore[arg-type]
+    all_query_ids = {int(q.id) for q in session.query(QueryModel).all()}
     for qid in all_query_ids:
         if qid not in difficulty_map:
             difficulty_map[qid] = "unknown"
@@ -513,36 +506,26 @@ def calculate_global_stats():
     session = cast(Session, db_session)
 
     total_generations = session.query(func.count(Translation.id)).scalar() or 0
-    voted_generations = (
-        session.query(func.count(func.distinct(Vote.translation_id))).scalar() or 0
-    )
+    voted_generations = session.query(func.count(func.distinct(Vote.translation_id))).scalar() or 0
     total_cost = session.query(func.sum(Translation.cost)).scalar() or 0.0
 
-    now = datetime.datetime.now()
-    start_of_month = datetime.datetime(now.year, now.month, 1)
-    start_of_day = datetime.datetime(now.year, now.month, now.day)
+    now = datetime.datetime.now(datetime.UTC)
+    start_of_month = datetime.datetime(now.year, now.month, 1, tzinfo=datetime.UTC)
+    start_of_day = datetime.datetime(now.year, now.month, now.day, tzinfo=datetime.UTC)
 
     current_month_cost = (
-        session.query(func.sum(Translation.cost))
-        .filter(Translation.created_at >= start_of_month)
-        .scalar()
-        or 0.0
+        session.query(func.sum(Translation.cost)).filter(Translation.created_at >= start_of_month).scalar() or 0.0
     )
 
     current_day_cost = (
-        session.query(func.sum(Translation.cost))
-        .filter(Translation.created_at >= start_of_day)
-        .scalar()
-        or 0.0
+        session.query(func.sum(Translation.cost)).filter(Translation.created_at >= start_of_day).scalar() or 0.0
     )
 
     return {
         "total_cost": total_cost,
         "total_generations": total_generations,
         "voted_generations": voted_generations,
-        "vote_percentage": (voted_generations / total_generations * 100)
-        if total_generations > 0
-        else 0,
+        "vote_percentage": (voted_generations / total_generations * 100) if total_generations > 0 else 0,
         "current_month_cost": current_month_cost,
         "current_day_cost": current_day_cost,
     }
@@ -555,7 +538,7 @@ def get_monthly_spending_stats() -> dict[str, list[float] | list[str]]:
     session = cast(Session, db_session)
 
     monthly_data = defaultdict(float)
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.UTC)
 
     # Initialize last 12 months with 0
     for i in range(12):
@@ -568,12 +551,8 @@ def get_monthly_spending_stats() -> dict[str, list[float] | list[str]]:
 
     month_str = func.strftime("%Y-%m", Translation.created_at)
     monthly_costs = (
-        session.query(
-            month_str.label("month"), func.sum(Translation.cost).label("total")
-        )
-        .filter(
-            Translation.cost.isnot(None), Translation.created_at >= twelve_months_ago
-        )
+        session.query(month_str.label("month"), func.sum(Translation.cost).label("total"))
+        .filter(Translation.cost.isnot(None), Translation.created_at >= twelve_months_ago)
         .group_by(month_str)
         .all()
     )
@@ -604,18 +583,14 @@ def get_cost_breakdown():
         d_name = conf["display_name"]
         b_name = conf.get("base_model")
 
-        if u_name not in upstream_display_names or len(d_name) < len(
-            upstream_display_names[u_name]
-        ):
+        if u_name not in upstream_display_names or len(d_name) < len(upstream_display_names[u_name]):
             upstream_display_names[u_name] = d_name
         if b_name and u_name not in upstream_base_models:
             upstream_base_models[u_name] = b_name
 
     # Word count estimation in SQLite
     word_count_expr = (
-        func.length(func.trim(Query.source_text))
-        - func.length(func.replace(func.trim(Query.source_text), " ", ""))
-        + 1
+        func.length(func.trim(Query.source_text)) - func.length(func.replace(func.trim(Query.source_text), " ", "")) + 1
     )
 
     trans_stats = (
@@ -623,9 +598,7 @@ def get_cost_breakdown():
             Translation.model,
             func.count(Translation.id).label("total_generations"),
             func.sum(Translation.cost).label("total_cost"),
-            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label(
-                "source_word_count"
-            ),
+            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label("source_word_count"),
         )
         .outerjoin(Query, Translation.query_id == Query.id)
         .group_by(Translation.model)
@@ -646,7 +619,7 @@ def get_cost_breakdown():
 
     voted_map = {row.model: row.voted_generations for row in voted_stats}
 
-    grouped_stats = {}
+    grouped_stats: dict[str, GroupedStats] = {}
 
     for row in trans_stats:
         model_key = str(row.model)

@@ -31,6 +31,8 @@ try:
 except ImportError:
     pass
 
+from datetime import UTC
+
 from app.config import get_config
 from app.database import db_session
 from app.models import (
@@ -77,7 +79,7 @@ def get_db_session() -> Session:
 
 def detect_source_language(text: str) -> str:
     """Heuristically detect Arabic vs English source text."""
-    arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06FF")
+    arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
     return "arabic" if arabic_chars > len(text) * 0.15 else "english"
 
 
@@ -165,9 +167,7 @@ def analyze_temperature(session: Session) -> dict[str, Any]:
     total = 0
 
     # Track per-base-model breakdown
-    per_base: dict[str, dict[str, int]] = defaultdict(
-        lambda: {"high_wins": 0, "low_wins": 0, "ties": 0, "total": 0}
-    )
+    per_base: dict[str, dict[str, int]] = defaultdict(lambda: {"high_wins": 0, "low_wins": 0, "ties": 0, "total": 0})
 
     for comp in comparisons:
         winner = comp.winner_model
@@ -217,7 +217,8 @@ def analyze_temperature(session: Session) -> dict[str, Any]:
                 "high_win_rate": d["high_wins"] / d["total"] if d["total"] > 0 else 0,
                 "low_win_rate": d["low_wins"] / d["total"] if d["total"] > 0 else 0,
             }
-            for base, d in sorted(per_base.items()) if d["total"] > 0
+            for base, d in sorted(per_base.items())
+            if d["total"] > 0
         },
     }
 
@@ -244,9 +245,7 @@ def analyze_reasoning(session: Session) -> dict[str, Any]:
     elos = {e.model: e for e in session.query(ModelELO).all()}
 
     # Group by base model: reasoning vs non-reasoning variants
-    base_groups: dict[str, dict[bool, list[str]]] = defaultdict(
-        lambda: {True: [], False: []}
-    )
+    base_groups: dict[str, dict[bool, list[str]]] = defaultdict(lambda: {True: [], False: []})
     for model_key, (base, has_reason) in model_info.items():
         if base is None:
             continue
@@ -265,41 +264,35 @@ def analyze_reasoning(session: Session) -> dict[str, Any]:
                 nr_elo = elos.get(nr_model)
                 if not r_elo or not nr_elo:
                     continue
-                comparisons.append({
-                    "base_model": base,
-                    "reasoning_model": r_model,
-                    "non_reasoning_model": nr_model,
-                    "reasoning_elo": r_elo.elo_rating,
-                    "non_reasoning_elo": nr_elo.elo_rating,
-                    "elo_diff": r_elo.elo_rating - nr_elo.elo_rating,
-                    "reasoning_wins": r_elo.wins,
-                    "reasoning_losses": r_elo.losses,
-                    "reasoning_ties": r_elo.ties,
-                    "non_reasoning_wins": nr_elo.wins,
-                    "non_reasoning_losses": nr_elo.losses,
-                    "non_reasoning_ties": nr_elo.ties,
-                })
+                comparisons.append(
+                    {
+                        "base_model": base,
+                        "reasoning_model": r_model,
+                        "non_reasoning_model": nr_model,
+                        "reasoning_elo": r_elo.elo_rating,
+                        "non_reasoning_elo": nr_elo.elo_rating,
+                        "elo_diff": r_elo.elo_rating - nr_elo.elo_rating,
+                        "reasoning_wins": r_elo.wins,
+                        "reasoning_losses": r_elo.losses,
+                        "reasoning_ties": r_elo.ties,
+                        "non_reasoning_wins": nr_elo.wins,
+                        "non_reasoning_losses": nr_elo.losses,
+                        "non_reasoning_ties": nr_elo.ties,
+                    }
+                )
 
     # Overall averages
-    all_reasoning = [
-        elos[m] for m, (base, has_r) in model_info.items()
-        if has_r and base is not None and m in elos
-    ]
+    all_reasoning = [elos[m] for m, (base, has_r) in model_info.items() if has_r and base is not None and m in elos]
     all_non_reasoning = [
-        elos[m] for m, (base, has_r) in model_info.items()
-        if not has_r and base is not None and m in elos
+        elos[m] for m, (base, has_r) in model_info.items() if not has_r and base is not None and m in elos
     ]
 
     return {
         "reasoning_model_count": len(all_reasoning),
         "non_reasoning_model_count": len(all_non_reasoning),
-        "avg_elo_reasoning": (
-            sum(e.elo_rating for e in all_reasoning) / len(all_reasoning)
-            if all_reasoning else 0
-        ),
+        "avg_elo_reasoning": (sum(e.elo_rating for e in all_reasoning) / len(all_reasoning) if all_reasoning else 0),
         "avg_elo_non_reasoning": (
-            sum(e.elo_rating for e in all_non_reasoning) / len(all_non_reasoning)
-            if all_non_reasoning else 0
+            sum(e.elo_rating for e in all_non_reasoning) / len(all_non_reasoning) if all_non_reasoning else 0
         ),
         "same_base_comparisons": comparisons,
     }
@@ -335,13 +328,15 @@ def get_qualitative_examples(session: Session, n_examples: int = 8) -> list[dict
     # Group by query_id
     queries: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for row in query_data:
-        queries[row.query_id].append({
-            "translation_id": row.id,
-            "model": row.model,
-            "text": row.translation,
-            "rating": row.rating,
-            "rating_label": RATING_LABELS.get(row.rating, "unknown"),
-        })
+        queries[row.query_id].append(
+            {
+                "translation_id": row.id,
+                "model": row.model,
+                "text": row.translation,
+                "rating": row.rating,
+                "rating_label": RATING_LABELS.get(row.rating, "unknown"),
+            }
+        )
 
     # Score each query by rating divergence and number of distinct models
     scored_queries = []
@@ -361,17 +356,19 @@ def get_qualitative_examples(session: Session, n_examples: int = 8) -> list[dict
 
         source_lang = detect_source_language(query.source_text)
 
-        scored_queries.append({
-            "query_id": qid,
-            "source": query.source_text,
-            "source_language": source_lang,
-            "divergence": divergence,
-            "max_rating": max_rating,
-            "min_rating": min_rating,
-            "num_translations": len(translations),
-            "num_models": len(models_set),
-            "translations": translations,
-        })
+        scored_queries.append(
+            {
+                "query_id": qid,
+                "source": query.source_text,
+                "source_language": source_lang,
+                "divergence": divergence,
+                "max_rating": max_rating,
+                "min_rating": min_rating,
+                "num_translations": len(translations),
+                "num_models": len(models_set),
+                "translations": translations,
+            }
+        )
 
     # Sort by divergence (desc), then by num_models (desc)
     scored_queries.sort(key=lambda x: (x["divergence"], x["num_models"]), reverse=True)
@@ -413,21 +410,23 @@ def get_qualitative_examples(session: Session, n_examples: int = 8) -> list[dict
     # Clean up for output
     result = []
     for q in selected:
-        result.append({
-            "query_id": q["query_id"],
-            "source": q["source"],
-            "source_language": q["source_language"],
-            "rating_divergence": q["divergence"],
-            "translations": q["translations"],
-        })
+        result.append(
+            {
+                "query_id": q["query_id"],
+                "source": q["source"],
+                "source_language": q["source_language"],
+                "rating_divergence": q["divergence"],
+                "translations": q["translations"],
+            }
+        )
 
     return result
 
 
 def _now_iso() -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def build_analysis_prompt(data: dict[str, Any]) -> str:

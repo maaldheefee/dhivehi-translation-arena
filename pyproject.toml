@@ -5,14 +5,14 @@ description = "A blind testing platform for comparing Arabic to Dhivehi translat
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "flask-wtf>=1.2.2",
-    "flask[async]>=3.1.0",
-    "gunicorn>=23.0.0",
-    "openai>=1.65.4",
-    "pyyaml>=6.0.2",
-    "python-dotenv>=1.0.1",
-    "sqlalchemy>=2.0.38",
-    "werkzeug>=3.0.0",
+  "flask-wtf>=1.2.2",
+  "flask[async]>=3.1.0",
+  "gunicorn>=23.0.0",
+  "openai>=1.65.4",
+  "pyyaml>=6.0.2",
+  "python-dotenv>=1.0.1",
+  "sqlalchemy>=2.0.38",
+  "werkzeug>=3.0.0",
 ]
 
 [build-system]
@@ -30,6 +30,37 @@ module-root = ""
 [tool.ty.environment]
 python = "./.venv"
 
+[tool.ruff]
+line-length = 120
 
 [tool.ruff.lint]
-ignore = ["TRY300"]
+ignore = [
+  "E501",   # line too long — codebase has long strings (Dhivehi text, SQL, model IDs)
+  "S105",   # hardcoded password — false positives for Flask secret_key dev defaults
+  "TRY300", # abstract raise to inner function — opinionated
+  "TRY301", # abstract raise to inner function — opinionated
+  "TRY003", # long messages outside exception class — opinionated
+  "RUF002", # ambiguous unicode in docstrings — noisy for math notation (µ, φ, σ)
+  "RUF003", # ambiguous unicode in comments — same
+]
+extend-select = [
+  "B",   # flake8-bugbear (likely bugs & best practices)
+  "PGH", # pygrep-hooks (no blanket type: ignore, no eval)
+  "C4",  # comprehension best practices
+  "DTZ", # flake8-datetimez (enforce timezone-aware datetime)
+  "E",   # pycodestyle errors
+  "F",   # pyflakes (unused imports/vars etc.)
+  "I",   # isort import sorting
+  "RUF", # Ruff-specific rules
+  "S",   # flake8-bandit (security: hardcoded secrets, SQL injection, shell injection)
+  "SIM", # flake8-simplify
+  "TRY", # tryceratops
+  "UP",  # pyupgrade
+  "W",   # pycodestyle warnings
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S106"]           # asserts and test passwords are expected in tests
+"wsgi.py" = ["S104"]                   # binding to 0.0.0.0 is intentional for production WSGI
+"scripts/*" = ["S602", "S603", "S605"] # CLI scripts intentionally use shell
+"app/blueprints/main.py" = ["S311"]    # random used for shuffling, not crypto

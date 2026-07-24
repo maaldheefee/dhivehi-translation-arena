@@ -40,28 +40,20 @@ def count_references(session: Session, old_name: str) -> dict[str, int]:
     counts = {}
 
     # Count translations
-    counts["translations"] = (
-        session.query(Translation).filter(Translation.model == old_name).count()
-    )
+    counts["translations"] = session.query(Translation).filter(Translation.model == old_name).count()
 
     # Count pairwise comparisons (winner)
     counts["comparisons_winner"] = (
-        session.query(PairwiseComparison)
-        .filter(PairwiseComparison.winner_model == old_name)
-        .count()
+        session.query(PairwiseComparison).filter(PairwiseComparison.winner_model == old_name).count()
     )
 
     # Count pairwise comparisons (loser)
     counts["comparisons_loser"] = (
-        session.query(PairwiseComparison)
-        .filter(PairwiseComparison.loser_model == old_name)
-        .count()
+        session.query(PairwiseComparison).filter(PairwiseComparison.loser_model == old_name).count()
     )
 
     # Count ELO records
-    counts["elo_records"] = (
-        session.query(ModelELO).filter(ModelELO.model == old_name).count()
-    )
+    counts["elo_records"] = session.query(ModelELO).filter(ModelELO.model == old_name).count()
 
     return counts
 
@@ -70,24 +62,16 @@ def check_new_name_exists(session: Session, new_name: str) -> dict[str, bool]:
     """Check if the new name already exists in any table."""
     exists = {}
 
-    exists["translations"] = (
-        session.query(Translation).filter(Translation.model == new_name).first()
-        is not None
-    )
+    exists["translations"] = session.query(Translation).filter(Translation.model == new_name).first() is not None
 
     exists["comparisons"] = (
         session.query(PairwiseComparison)
-        .filter(
-            (PairwiseComparison.winner_model == new_name)
-            | (PairwiseComparison.loser_model == new_name)
-        )
+        .filter((PairwiseComparison.winner_model == new_name) | (PairwiseComparison.loser_model == new_name))
         .first()
         is not None
     )
 
-    exists["elo_records"] = (
-        session.query(ModelELO).filter(ModelELO.model == new_name).first() is not None
-    )
+    exists["elo_records"] = session.query(ModelELO).filter(ModelELO.model == new_name).first() is not None
 
     return exists
 
@@ -108,9 +92,7 @@ def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
 
     print(f"\n{'=' * 60}")
     print(f"Model Rename Migration: '{old_name}' → '{new_name}'")
-    print(
-        f"Mode: {'DRY RUN (no changes will be made)' if dry_run else 'LIVE (changes will be committed)'}"
-    )
+    print(f"Mode: {'DRY RUN (no changes will be made)' if dry_run else 'LIVE (changes will be committed)'}")
     print(f"{'=' * 60}\n")
 
     # Step 1: Count existing references
@@ -138,9 +120,7 @@ def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
             if exists:
                 print(f"  - {table}")
 
-        response = input(
-            "\nThis will merge data from both models. Continue? (yes/no): "
-        )
+        response = input("\nThis will merge data from both models. Continue? (yes/no): ")
         if response.lower() != "yes":
             print("❌ Migration cancelled by user")
             session.close()
@@ -156,51 +136,37 @@ def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
         if counts["translations"] > 0:
             print(f"  Updating {counts['translations']} translation records...")
             if not dry_run:
-                session.query(Translation).filter(Translation.model == old_name).update(
-                    {Translation.model: new_name}
-                )
+                session.query(Translation).filter(Translation.model == old_name).update({Translation.model: new_name})
 
         # Update pairwise comparisons (winner)
         if counts["comparisons_winner"] > 0:
-            print(
-                f"  Updating {counts['comparisons_winner']} comparison records (winner)..."
-            )
+            print(f"  Updating {counts['comparisons_winner']} comparison records (winner)...")
             if not dry_run:
-                session.query(PairwiseComparison).filter(
-                    PairwiseComparison.winner_model == old_name
-                ).update({PairwiseComparison.winner_model: new_name})
+                session.query(PairwiseComparison).filter(PairwiseComparison.winner_model == old_name).update(
+                    {PairwiseComparison.winner_model: new_name}
+                )
 
         # Update pairwise comparisons (loser)
         if counts["comparisons_loser"] > 0:
-            print(
-                f"  Updating {counts['comparisons_loser']} comparison records (loser)..."
-            )
+            print(f"  Updating {counts['comparisons_loser']} comparison records (loser)...")
             if not dry_run:
-                session.query(PairwiseComparison).filter(
-                    PairwiseComparison.loser_model == old_name
-                ).update({PairwiseComparison.loser_model: new_name})
+                session.query(PairwiseComparison).filter(PairwiseComparison.loser_model == old_name).update(
+                    {PairwiseComparison.loser_model: new_name}
+                )
 
         # Update or merge ELO records
         if counts["elo_records"] > 0:
             print(f"  Updating {counts['elo_records']} ELO record(s)...")
             if not dry_run:
-                old_elo = (
-                    session.query(ModelELO).filter(ModelELO.model == old_name).first()
-                )
+                old_elo = session.query(ModelELO).filter(ModelELO.model == old_name).first()
 
-                new_elo = (
-                    session.query(ModelELO).filter(ModelELO.model == new_name).first()
-                )
+                new_elo = session.query(ModelELO).filter(ModelELO.model == new_name).first()
 
                 if new_elo and old_elo:
                     # Merge ELO records
                     print("    Merging ELO data:")
-                    print(
-                        f"      Old: {old_elo.elo_rating:.1f} ({old_elo.wins}W/{old_elo.losses}L/{old_elo.ties}T)"
-                    )
-                    print(
-                        f"      New: {new_elo.elo_rating:.1f} ({new_elo.wins}W/{new_elo.losses}L/{new_elo.ties}T)"
-                    )
+                    print(f"      Old: {old_elo.elo_rating:.1f} ({old_elo.wins}W/{old_elo.losses}L/{old_elo.ties}T)")
+                    print(f"      New: {new_elo.elo_rating:.1f} ({new_elo.wins}W/{new_elo.losses}L/{new_elo.ties}T)")
 
                     # Combine statistics
                     new_elo.wins += old_elo.wins
@@ -214,13 +180,10 @@ def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
 
                     if total_matches > 0:
                         new_elo.elo_rating = (
-                            old_elo.elo_rating * old_matches
-                            + new_elo.elo_rating * new_matches
+                            old_elo.elo_rating * old_matches + new_elo.elo_rating * new_matches
                         ) / total_matches
 
-                    print(
-                        f"      Merged: {new_elo.elo_rating:.1f} ({new_elo.wins}W/{new_elo.losses}L/{new_elo.ties}T)"
-                    )
+                    print(f"      Merged: {new_elo.elo_rating:.1f} ({new_elo.wins}W/{new_elo.losses}L/{new_elo.ties}T)")
 
                     # Delete old record
                     session.delete(old_elo)
@@ -234,9 +197,7 @@ def rename_model(old_name: str, new_name: str, *, dry_run: bool = True) -> bool:
         else:
             session.commit()
             print("\n✓ Migration completed successfully!")
-            print(
-                f"\n⚠️  IMPORTANT: Update config.py to rename the model key from '{old_name}' to '{new_name}'"
-            )
+            print(f"\n⚠️  IMPORTANT: Update config.py to rename the model key from '{old_name}' to '{new_name}'")
 
         session.close()
         return True

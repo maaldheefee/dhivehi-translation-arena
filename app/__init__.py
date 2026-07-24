@@ -19,11 +19,11 @@ def create_app() -> Flask:
     # Load environment variables from .env file
     if os.getenv("FLASK_ENV") != "production":
         try:
-            from dotenv import load_dotenv  # noqa: PLC0415
+            from dotenv import load_dotenv
 
             load_dotenv()
         except ImportError:
-            logging.warning("python-dotenv not installed, skipping load_dotenv()")  # noqa: LOG015
+            logging.warning("python-dotenv not installed, skipping load_dotenv()")
 
     # Initialize logging
     logging.basicConfig(
@@ -38,10 +38,7 @@ def create_app() -> Flask:
     app.config.from_object(Config)
     Config.check_configuration()
     # Use a stable key for development, but require one in production
-    is_development = (
-        os.environ.get("FLASK_DEBUG") == "1"
-        or os.environ.get("FLASK_ENV") == "development"
-    )
+    is_development = os.environ.get("FLASK_DEBUG") == "1" or os.environ.get("FLASK_ENV") == "development"
 
     secret_key = os.environ.get("SECRET_KEY") or app.config.get("SECRET_KEY")
     if not secret_key or secret_key == "dev-secret-key-change-in-production":
@@ -61,7 +58,7 @@ def create_app() -> Flask:
     CSRFProtect(app)
 
     # Fix for running behind a proxy (Cloudflare, Nginx, etc.)
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)  # type: ignore
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)  # ty: ignore[invalid-assignment]
 
     @app.before_request
     def before_request() -> None:

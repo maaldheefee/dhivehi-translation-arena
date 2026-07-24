@@ -46,9 +46,7 @@ def _should_skip_pair(r1: int, r2: int, query_difficulty: str = "unknown") -> bo
         # On easy or unknown queries, skip 3★/3★ (perfection signal, not skill)
         # On medium/hard queries, record as tie (both models succeeded on something hard)
         return query_difficulty in ("easy", "unknown")
-    if r1 == -1 and r2 == -1:
-        return True
-    return False
+    return bool(r1 == -1 and r2 == -1)
 
 
 def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | str]:
@@ -93,9 +91,7 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
             if existing_vote:
                 existing_vote.rating = rating
                 vote_repo.update(existing_vote)
-                processed_votes.append(
-                    {"translation_id": translation_id, "rating": rating}
-                )
+                processed_votes.append({"translation_id": translation_id, "rating": rating})
             else:
                 vote = Vote(
                     user_id=user_id,
@@ -106,24 +102,18 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
                 vote_repo.add(vote)
                 # Update map to avoid creating duplicates if translation_id repeats in votes_data
                 vote_map[translation_id] = vote
-                processed_votes.append(
-                    {"translation_id": translation_id, "rating": rating}
-                )
+                processed_votes.append({"translation_id": translation_id, "rating": rating})
 
         # Derive pairwise comparisons from ALL persisted votes for this user+query
         all_votes = vote_repo.get_by_user_and_query(user_id, query_id)
         if len(all_votes) >= 2:
             all_votes_data = [
-                {"translation_id": v.translation_id, "rating": v.rating}
-                for v in all_votes
-                if v.rating is not None
+                {"translation_id": v.translation_id, "rating": v.rating} for v in all_votes if v.rating is not None
             ]
             if len(all_votes_data) >= 2:
                 difficulty_map = get_query_difficulty()
                 query_difficulty = difficulty_map.get(query_id, "unknown")
-                _derive_pairwise_from_votes(
-                    session, user_id, query_id, all_votes_data, query_difficulty
-                )
+                _derive_pairwise_from_votes(session, user_id, query_id, all_votes_data, query_difficulty)
 
     except Exception:
         logger.exception("Error processing votes")
@@ -161,12 +151,8 @@ def _derive_pairwise_from_votes(
     session.flush()
 
     # Pre-fetch translations to avoid N+1 query
-    translation_ids = {
-        v["translation_id"] for v in votes_data if v.get("translation_id")
-    }
-    translations = (
-        session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
-    )
+    translation_ids = {v["translation_id"] for v in votes_data if v.get("translation_id")}
+    translations = session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
     translation_map = {t.id: t for t in translations}
 
     for v1, v2 in combinations(votes_data, 2):

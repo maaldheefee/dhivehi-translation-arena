@@ -24,11 +24,7 @@ class QueryRepository:
 
     def get_by_source_text(self, source_text: str) -> Query | None:
         """Get query by source text."""
-        return (
-            self.db_session.query(Query)
-            .filter(Query.source_text == source_text)
-            .first()
-        )
+        return self.db_session.query(Query).filter(Query.source_text == source_text).first()
 
     def get_all(self) -> list[Query]:
         """Get all queries."""

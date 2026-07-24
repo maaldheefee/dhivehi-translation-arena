@@ -2,7 +2,6 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -21,11 +20,11 @@ from app.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(50), nullable=False, unique=True)
-    password_hash = Column(String(256), nullable=False)
-    is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
     def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username}>"
@@ -34,13 +33,11 @@ class User(Base):
 class Query(Base):
     __tablename__ = "queries"
 
-    id = Column(Integer, primary_key=True)
-    source_text = Column(Text, nullable=False, unique=True)
-    timestamp = Column(DateTime, default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_text: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    timestamp: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
-    translations = relationship(
-        "Translation", back_populates="query", cascade="all, delete-orphan"
-    )
+    translations = relationship("Translation", back_populates="query", cascade="all, delete-orphan")
     votes = relationship("Vote", back_populates="query", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
@@ -55,26 +52,20 @@ class Translation(Base):
         Index("ix_translations_user_created", "user_id", "created_at"),
     )
 
-    id = Column(Integer, primary_key=True)
-    query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
-    user_id = Column(
-        Integer, ForeignKey("users.id"), nullable=True
-    )  # Who generated this
-    model = Column(String(50), nullable=False)
-    translation = Column(Text, nullable=False)
-    system_prompt = Column(Text, nullable=False)
-    position = Column(
-        Integer, nullable=False
-    )  # For blind testing, position in the UI (1, 2, or 3)
-    cost = Column(Float, default=0.0)  # Cost of the API call
-    response_hash = Column(String(64), nullable=True)
-    created_at = Column(DateTime, default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    query_id: Mapped[int] = mapped_column(Integer, ForeignKey("queries.id"), nullable=False)
+    user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)  # Who generated this
+    model: Mapped[str] = mapped_column(String(50), nullable=False)
+    translation: Mapped[str] = mapped_column(Text, nullable=False)
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)  # For blind testing, position in the UI (1, 2, or 3)
+    cost: Mapped[float] = mapped_column(Float, default=0.0)  # Cost of the API call
+    response_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
     query = relationship("Query", back_populates="translations")
     user = relationship("User")
-    votes = relationship(
-        "Vote", back_populates="translation", cascade="all, delete-orphan"
-    )
+    votes = relationship("Vote", back_populates="translation", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Translation id={self.id} model={self.model}>"
@@ -91,11 +82,11 @@ class Vote(Base):
         ),
     )
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    translation_id = Column(Integer, ForeignKey("translations.id"), nullable=False)
-    query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
-    rating = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    translation_id: Mapped[int] = mapped_column(Integer, ForeignKey("translations.id"), nullable=False)
+    query_id: Mapped[int] = mapped_column(Integer, ForeignKey("queries.id"), nullable=False)
+    rating: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )  # 3=Excellent, 2=Good/Meaning Correct, 1=Okay/Understandable, -1=Trash
 
@@ -121,20 +112,18 @@ class PairwiseComparison(Base):
     """
 
     __tablename__ = "pairwise_comparisons"
-    __table_args__ = (
-        Index("ix_pairwise_user_source", "user_id", "source"),
-    )
+    __table_args__ = (Index("ix_pairwise_user_source", "user_id", "source"),)
 
-    id = Column(Integer, primary_key=True)
-    query_id = Column(Integer, ForeignKey("queries.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    winner_model = Column(String(50), nullable=True)  # NULL = tie
-    loser_model = Column(String(50), nullable=True)  # NULL = tie
-    translation_a_id = Column(Integer, ForeignKey("translations.id"), nullable=True)
-    translation_b_id = Column(Integer, ForeignKey("translations.id"), nullable=True)
-    source = Column(String(20), nullable=False)  # 'derived' or 'explicit'
-    score = Column(Float, nullable=True)  # Glicko-2 game score [0, 1]
-    created_at = Column(DateTime, default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    query_id: Mapped[int] = mapped_column(Integer, ForeignKey("queries.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    winner_model: Mapped[str | None] = mapped_column(String(50), nullable=True)  # NULL = tie
+    loser_model: Mapped[str | None] = mapped_column(String(50), nullable=True)  # NULL = tie
+    translation_a_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("translations.id"), nullable=True)
+    translation_b_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("translations.id"), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)  # 'derived' or 'explicit'
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)  # Glicko-2 game score [0, 1]
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
     query = relationship("Query")
     user = relationship("User")
@@ -151,7 +140,7 @@ class ModelELO(Base):
     Columns:
     - elo_rating: Glicko-2 rating (µ), renamed from ELO but field name kept for compatibility
     - rating_deviation: Glicko-2 RD (φ), uncertainty measure. Starts at 350, floor at 80.
-    - volatility: Glicko-2 σ, rating stability over time.
+    - volatility: Glicko-2 sigma, rating stability over time.
     - legacy_elo_rating: Pre-migration ELO rating, preserved for rollback.
     - last_comparison_at: Timestamp of last comparison, used for RD time decay.
     """

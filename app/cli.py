@@ -37,9 +37,7 @@ def init_db_command() -> None:
             )
         print("Default users created successfully!")
     elif user_count == 0:
-        print(
-            "No users found. Use 'flask add-user <username> <password>' to create users."
-        )
+        print("No users found. Use 'flask add-user <username> <password>' to create users.")
     else:
         print(f"{user_count} users already exist.")
 
@@ -90,7 +88,7 @@ def list_users_command() -> None:
 @with_appcontext
 def derive_elo_command(user_id) -> None:
     """Derive ELO comparisons from existing votes."""
-    from app.services.elo_service import get_elo_service  # noqa: PLC0415
+    from app.services.elo_service import get_elo_service
 
     try:
         elo_service = get_elo_service()
@@ -105,7 +103,7 @@ def derive_elo_command(user_id) -> None:
 @with_appcontext
 def rebuild_ratings_command() -> None:
     """Rebuild all Glicko-2 ratings from stored comparisons."""
-    from app.services.elo_service import get_elo_service  # noqa: PLC0415
+    from app.services.elo_service import get_elo_service
 
     try:
         elo_service = get_elo_service()

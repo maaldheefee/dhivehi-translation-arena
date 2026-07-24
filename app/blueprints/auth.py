@@ -52,10 +52,4 @@ def get_users() -> Response:
     """Returns a list of all users."""
     users = db_session.query(User).all()
 
-    return jsonify(
-        {
-            "users": [
-                {"username": user.username, "is_admin": user.is_admin} for user in users
-            ]
-        }
-    )
+    return jsonify({"users": [{"username": user.username, "is_admin": user.is_admin} for user in users]})

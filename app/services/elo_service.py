@@ -7,7 +7,7 @@ This service manages Glicko-2 ratings for translation models, supporting both:
 
 import logging
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import combinations
 from typing import cast
 
@@ -38,7 +38,7 @@ def _glicko2_update(
     Args:
         rating: Player's current rating (µ, on Glicko-2 scale)
         rd: Player's current RD (φ, on Glicko-2 scale)
-        vol: Player's current volatility (σ)
+        vol: Player's current volatility (sigma)
         opp_ratings: Opponent ratings (Glicko-2 scale)
         opp_rds: Opponent RDs (Glicko-2 scale)
         scores: Game scores [0, 1] for each opponent
@@ -75,29 +75,29 @@ def _glicko2_update(
         phi_js = [r / 173.7178 for r in opp_rds]
 
         # Step 4: Compute v (estimated variance)
-        v_inv = sum(g(pj) ** 2 * expected(mu, mj, pj) * (1 - expected(mu, mj, pj))
-                     for mj, pj in zip(mu_js, phi_js))
+        v_inv = sum(
+            g(pj) ** 2 * expected(mu, mj, pj) * (1 - expected(mu, mj, pj)) for mj, pj in zip(mu_js, phi_js, strict=True)
+        )
         v = 1.0 / v_inv if v_inv > 0 else 1e6
 
         # Step 5: Compute Δ (improvement)
-        delta_sum = sum(g(pj) * (s - expected(mu, mj, pj))
-                        for mj, pj, s in zip(mu_js, phi_js, scores))
+        delta_sum = sum(g(pj) * (s - expected(mu, mj, pj)) for mj, pj, s in zip(mu_js, phi_js, scores, strict=True))
         delta = v * delta_sum
 
         # Step 6: Compute new volatility (iterative)
-        a = math.log(sigma ** 2)
-        tau_sq = tau ** 2
+        a = math.log(sigma**2)
+        tau_sq = tau**2
 
         def f(x: float) -> float:
             ex = math.exp(x)
-            num = ex * (delta ** 2 - phi ** 2 - v - ex)
-            den = 2.0 * (phi ** 2 + v + ex) ** 2
+            num = ex * (delta**2 - phi**2 - v - ex)
+            den = 2.0 * (phi**2 + v + ex) ** 2
             return num / den - (x - a) / tau_sq
 
         # Initial bounds
         A = a
-        if delta ** 2 > phi ** 2 + v:
-            B = math.log(delta ** 2 - phi ** 2 - v)
+        if delta**2 > phi**2 + v:
+            B = math.log(delta**2 - phi**2 - v)
         else:
             k = 1.0
             while f(a - k * tau) < 0:
@@ -120,11 +120,11 @@ def _glicko2_update(
         new_sigma = math.exp(A / 2.0)
 
         # Step 7: Compute new phi* (pre-rating-period)
-        phi_star = math.sqrt(phi ** 2 + new_sigma ** 2)
+        phi_star = math.sqrt(phi**2 + new_sigma**2)
 
         # Step 8: Compute new phi and mu
-        new_phi = 1.0 / math.sqrt(1.0 / phi_star ** 2 + 1.0 / v)
-        new_mu = mu + new_phi ** 2 * delta_sum
+        new_phi = 1.0 / math.sqrt(1.0 / phi_star**2 + 1.0 / v)
+        new_mu = mu + new_phi**2 * delta_sum
 
     # Step 9: Convert back to original scale
     new_rating = 173.7178 * new_mu + 1500
@@ -144,9 +144,7 @@ class ELOService:
 
     def get_or_create(self, model: str) -> ModelELO:
         """Get existing rating record or create new one with default Glicko-2 values."""
-        record = (
-            self.session.query(ModelELO).filter(ModelELO.model == model).first()
-        )
+        record = self.session.query(ModelELO).filter(ModelELO.model == model).first()
         if not record:
             record = ModelELO(
                 model=model,
@@ -162,10 +160,10 @@ class ELOService:
         """Calculate weeks since last comparison for RD time decay."""
         if record.last_comparison_at is None:
             return 0.0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last = record.last_comparison_at
         if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
+            last = last.replace(tzinfo=UTC)
         delta = now - last
         return max(0.0, delta.total_seconds() / (7 * 24 * 3600))
 
@@ -190,17 +188,25 @@ class ELOService:
 
         # Each comparison is a single-game "rating period"
         new_rating_a, new_rd_a, new_vol_a = _glicko2_update(
-            rec_a.elo_rating, rec_a.rating_deviation, rec_a.volatility,
-            [rec_b.elo_rating], [rec_b.rating_deviation], [score_a],
+            rec_a.elo_rating,
+            rec_a.rating_deviation,
+            rec_a.volatility,
+            [rec_b.elo_rating],
+            [rec_b.rating_deviation],
+            [score_a],
             weeks_inactive=weeks_a,
         )
         new_rating_b, new_rd_b, new_vol_b = _glicko2_update(
-            rec_b.elo_rating, rec_b.rating_deviation, rec_b.volatility,
-            [rec_a.elo_rating], [rec_a.rating_deviation], [1.0 - score_a],
+            rec_b.elo_rating,
+            rec_b.rating_deviation,
+            rec_b.volatility,
+            [rec_a.elo_rating],
+            [rec_a.rating_deviation],
+            [1.0 - score_a],
             weeks_inactive=weeks_b,
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rec_a.elo_rating = new_rating_a
         rec_a.rating_deviation = new_rd_a
         rec_a.volatility = new_vol_a
@@ -284,9 +290,7 @@ class ELOService:
 
     def get_all_rankings(self) -> list[dict]:
         """Get all models ranked by Glicko-2 rating."""
-        records = (
-            self.session.query(ModelELO).order_by(ModelELO.elo_rating.desc()).all()
-        )
+        records = self.session.query(ModelELO).order_by(ModelELO.elo_rating.desc()).all()
         return [
             {
                 "model": r.model,
@@ -331,11 +335,7 @@ class ELOService:
 
         trans_map: dict[int, str] = {}
         if trans_ids:
-            translations = (
-                self.session.query(Trans)
-                .filter(Trans.id.in_(trans_ids))
-                .all()
-            )
+            translations = self.session.query(Trans).filter(Trans.id.in_(trans_ids)).all()
             trans_map = {t.id: str(t.model) for t in translations}
 
         count = 0
@@ -361,7 +361,7 @@ class ELOService:
             # Compute weeks since each model's last comparison for RD time decay
             comp_time = c.created_at
             if comp_time is not None and comp_time.tzinfo is None:
-                comp_time = comp_time.replace(tzinfo=timezone.utc)
+                comp_time = comp_time.replace(tzinfo=UTC)
 
             weeks_a = 0.0
             weeks_b = 0.0
@@ -369,23 +369,31 @@ class ELOService:
                 if rec_a.last_comparison_at is not None:
                     last_a = rec_a.last_comparison_at
                     if last_a.tzinfo is None:
-                        last_a = last_a.replace(tzinfo=timezone.utc)
+                        last_a = last_a.replace(tzinfo=UTC)
                     weeks_a = max(0.0, (comp_time - last_a).total_seconds() / (7 * 24 * 3600))
                 if rec_b.last_comparison_at is not None:
                     last_b = rec_b.last_comparison_at
                     if last_b.tzinfo is None:
-                        last_b = last_b.replace(tzinfo=timezone.utc)
+                        last_b = last_b.replace(tzinfo=UTC)
                     weeks_b = max(0.0, (comp_time - last_b).total_seconds() / (7 * 24 * 3600))
 
             # Apply Glicko-2 update with time decay
             new_rating_a, new_rd_a, new_vol_a = _glicko2_update(
-                rec_a.elo_rating, rec_a.rating_deviation, rec_a.volatility,
-                [rec_b.elo_rating], [rec_b.rating_deviation], [score_a],
+                rec_a.elo_rating,
+                rec_a.rating_deviation,
+                rec_a.volatility,
+                [rec_b.elo_rating],
+                [rec_b.rating_deviation],
+                [score_a],
                 weeks_inactive=weeks_a,
             )
             new_rating_b, new_rd_b, new_vol_b = _glicko2_update(
-                rec_b.elo_rating, rec_b.rating_deviation, rec_b.volatility,
-                [rec_a.elo_rating], [rec_a.rating_deviation], [1.0 - score_a],
+                rec_b.elo_rating,
+                rec_b.rating_deviation,
+                rec_b.volatility,
+                [rec_a.elo_rating],
+                [rec_a.rating_deviation],
+                [1.0 - score_a],
                 weeks_inactive=weeks_b,
             )
 
@@ -427,17 +435,11 @@ class ELOService:
         votes = vote_query.all()
 
         translation_ids = {v.translation_id for v in votes if v.translation_id}
-        translations = (
-            self.session.query(Translation)
-            .filter(Translation.id.in_(translation_ids))
-            .all()
-        )
+        translations = self.session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
         translation_map = {t.id: t for t in translations}
 
         # Delete existing derived comparisons before re-deriving
-        comp_query = self.session.query(PairwiseComparison).filter(
-            PairwiseComparison.source == "derived"
-        )
+        comp_query = self.session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived")
         if user_id is not None:
             comp_query = comp_query.filter(PairwiseComparison.user_id == user_id)
         comp_query.delete()
@@ -445,7 +447,7 @@ class ELOService:
 
         vote_groups: dict[tuple[int, int], list[Vote]] = {}
         for vote in votes:
-            key = (int(vote.query_id), int(vote.user_id))  # type: ignore
+            key = (int(vote.query_id), int(vote.user_id))
             if key not in vote_groups:
                 vote_groups[key] = []
             vote_groups[key].append(vote)

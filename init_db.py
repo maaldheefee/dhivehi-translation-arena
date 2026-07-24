@@ -90,24 +90,13 @@ def _migrate_glicko2_columns(engine) -> None:
         if col_name not in elo_columns:
             print(f"  Adding column '{col_name}' to model_elo...")
             with engine.begin() as conn:
-                conn.execute(
-                    text(f"ALTER TABLE model_elo ADD COLUMN {col_name} {col_def}")
-                )
+                conn.execute(text(f"ALTER TABLE model_elo ADD COLUMN {col_name} {col_def}"))
 
     # Always backfill NULL values (idempotent — safe to run every startup)
     with engine.begin() as conn:
-        conn.execute(text(
-            "UPDATE model_elo SET legacy_elo_rating = elo_rating "
-            "WHERE legacy_elo_rating IS NULL"
-        ))
-        conn.execute(text(
-            "UPDATE model_elo SET rating_deviation = 350.0 "
-            "WHERE rating_deviation IS NULL"
-        ))
-        conn.execute(text(
-            "UPDATE model_elo SET volatility = 0.06 "
-            "WHERE volatility IS NULL"
-        ))
+        conn.execute(text("UPDATE model_elo SET legacy_elo_rating = elo_rating WHERE legacy_elo_rating IS NULL"))
+        conn.execute(text("UPDATE model_elo SET rating_deviation = 350.0 WHERE rating_deviation IS NULL"))
+        conn.execute(text("UPDATE model_elo SET volatility = 0.06 WHERE volatility IS NULL"))
     # Backfill NULL win/loss/tie counters (columns existed before but were nullable)
     with engine.begin() as conn:
         conn.execute(text("UPDATE model_elo SET wins = 0 WHERE wins IS NULL"))
@@ -121,27 +110,29 @@ def _migrate_glicko2_columns(engine) -> None:
     if "score" not in comp_columns:
         print("  Adding column 'score' to pairwise_comparisons...")
         with engine.begin() as conn:
-            conn.execute(text(
-                "ALTER TABLE pairwise_comparisons ADD COLUMN score FLOAT"
-            ))
+            conn.execute(text("ALTER TABLE pairwise_comparisons ADD COLUMN score FLOAT"))
 
     # Always backfill NULL scores (idempotent — safe to run every startup)
     # - Non-null winner/loser -> 1.0 (decisive win)
     # - Null winner/loser with both translation IDs -> 0.5 (tie)
     # - Rows missing translation IDs are left untouched (incomplete/corrupt)
     with engine.begin() as conn:
-        conn.execute(text(
-            "UPDATE pairwise_comparisons SET score = 1.0 "
-            "WHERE winner_model IS NOT NULL AND loser_model IS NOT NULL "
-            "AND score IS NULL"
-        ))
-        conn.execute(text(
-            "UPDATE pairwise_comparisons SET score = 0.5 "
-            "WHERE winner_model IS NULL AND loser_model IS NULL "
-            "AND translation_a_id IS NOT NULL "
-            "AND translation_b_id IS NOT NULL "
-            "AND score IS NULL"
-        ))
+        conn.execute(
+            text(
+                "UPDATE pairwise_comparisons SET score = 1.0 "
+                "WHERE winner_model IS NOT NULL AND loser_model IS NOT NULL "
+                "AND score IS NULL"
+            )
+        )
+        conn.execute(
+            text(
+                "UPDATE pairwise_comparisons SET score = 0.5 "
+                "WHERE winner_model IS NULL AND loser_model IS NULL "
+                "AND translation_a_id IS NOT NULL "
+                "AND translation_b_id IS NOT NULL "
+                "AND score IS NULL"
+            )
+        )
     print("  Backfilled score column on pairwise_comparisons.")
 
 
@@ -161,24 +152,19 @@ def _migrate_elo_data() -> None:
     print("Deriving ELO ratings from existing star ratings...")
 
     # Import here to avoid circular imports during app startup
-    from app.services.elo_service import get_elo_service  # noqa: PLC0415
+    from app.services.elo_service import get_elo_service
 
     elo_service = get_elo_service()
     comparisons_created = elo_service.derive_from_existing_votes()
 
     if comparisons_created > 0:
-        print(
-            f"Created {comparisons_created} pairwise comparisons from existing votes."
-        )
+        print(f"Created {comparisons_created} pairwise comparisons from existing votes.")
 
         # Get final ELO standings
         rankings = elo_service.get_all_rankings()
         print("\nInitial ELO Rankings:")
         for i, r in enumerate(rankings, 1):
-            print(
-                f"  {i}. {r['model']}: {r['elo_rating']:.0f} ELO "
-                f"({r['wins']}W/{r['losses']}L/{r['ties']}T)"
-            )
+            print(f"  {i}. {r['model']}: {r['elo_rating']:.0f} ELO ({r['wins']}W/{r['losses']}L/{r['ties']}T)")
     else:
         print("No existing votes found to derive comparisons from.")
 

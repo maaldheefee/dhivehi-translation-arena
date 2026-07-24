@@ -32,10 +32,7 @@ class UserRepository:
 
     def exists_by_username(self, username: str) -> bool:
         """Check if a user with given username exists."""
-        return (
-            self.db_session.query(User).filter(User.username == username).first()
-            is not None
-        )
+        return self.db_session.query(User).filter(User.username == username).first() is not None
 
     def update(self, user: User) -> User:
         """Update an existing user."""
