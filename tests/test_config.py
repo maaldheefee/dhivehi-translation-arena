@@ -226,3 +226,54 @@ model-b:
     error_msg = str(exc_info.value)
     assert "model-a" in error_msg
     assert "model-b" in error_msg
+
+
+def test_mandatory_reasoning_models_not_set_to_none():
+    """Mandatory-reasoning models must not send effort=none (causes OpenRouter 400).
+
+    Per OpenRouter GET /api/v1/models, these models report reasoning.mandatory=true,
+    so effort=none is rejected. They must use the lowest supported effort level:
+      - Gemini 3.7 Flash (mandatory): supports high,medium,low  -> low
+      - Muse Glimmer 30B (mandatory): supports xhigh,high,medium,low -> low
+      - Muse Spark 1.2 (mandatory): supports xhigh,high,medium,low,minimal -> minimal
+
+    DeepSeek V4 Pro/Flash (mandatory=false) legitimately use none.
+    """
+    models = _load_models_from_yaml()
+
+    # Each entry: (model key, exact expected reasoning effort)
+    expected_effort = {
+        "gemini-3.7-flash-t1.0": "low",
+        "gemini-3.7-flash-t0.3": "low",
+        "muse-glimmer-30b-t1.0": "low",
+        "muse-glimmer-30b-t0.3": "low",
+        "muse-spark-1.2-t1.0": "minimal",
+        "muse-spark-1.2-t0.3": "minimal",
+    }
+
+    for key, effort in expected_effort.items():
+        assert key in models, f"Expected mandatory-reasoning model '{key}' to exist in models.yaml"
+        reasoning = models[key].get("reasoning")
+        assert reasoning is not None, (
+            f"Mandatory-reasoning model '{key}' must define a reasoning block"
+        )
+        actual = reasoning.get("effort")
+        assert actual == effort, (
+            f"Mandatory-reasoning model '{key}' must use effort='{effort}' "
+            f"(got '{actual}'); effort='none' triggers OpenRouter 400 errors"
+        )
+
+    # DeepSeek V4 Pro/Flash are mandatory=false and must remain on none.
+    deepseek_none_models = [
+        "deepseek-v4-pro-0813-t1.0",
+        "deepseek-v4-pro-0813-t0.3",
+        "deepseek-v4-flash-0731-t1.0",
+        "deepseek-v4-flash-0731-t0.3",
+    ]
+    for key in deepseek_none_models:
+        assert key in models, f"Expected DeepSeek model '{key}' to exist in models.yaml"
+        reasoning = models[key].get("reasoning")
+        assert reasoning is not None, f"DeepSeek model '{key}' should define a reasoning block"
+        assert reasoning.get("effort") == "none", (
+            f"DeepSeek model '{key}' (mandatory=false) must keep effort='none'"
+        )

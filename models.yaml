@@ -710,7 +710,7 @@ gemini-3.7-flash-t1.0:
   base_model: Gemini 3.7 Flash
   temperature: 1.0
   reasoning:
-    effort: none
+    effort: low
   preset_name: Default, Temp 1.0
 
 gemini-3.7-flash-t0.3:
@@ -724,7 +724,7 @@ gemini-3.7-flash-t0.3:
   base_model: Gemini 3.7 Flash
   temperature: 0.3
   reasoning:
-    effort: none
+    effort: low
   preset_name: Temp 0.3
 
 # ==================== Meta Muse Glimmer 30B ====================
@@ -740,7 +740,7 @@ muse-glimmer-30b-t1.0:
   base_model: Muse Glimmer 30B
   temperature: 1.0
   reasoning:
-    effort: none
+    effort: low
   preset_name: Default, Temp 1.0
 
 muse-glimmer-30b-t0.3:
@@ -754,7 +754,7 @@ muse-glimmer-30b-t0.3:
   base_model: Muse Glimmer 30B
   temperature: 0.3
   reasoning:
-    effort: none
+    effort: low
   preset_name: Temp 0.3
 
 # ==================== Meta Muse Spark 1.2 ====================
@@ -770,7 +770,7 @@ muse-spark-1.2-t1.0:
   base_model: Muse Spark 1.2
   temperature: 1.0
   reasoning:
-    effort: none
+    effort: minimal
   preset_name: Default, Temp 1.0
 
 muse-spark-1.2-t0.3:
@@ -784,7 +784,7 @@ muse-spark-1.2-t0.3:
   base_model: Muse Spark 1.2
   temperature: 0.3
   reasoning:
-    effort: none
+    effort: minimal
   preset_name: Temp 0.3
 
 # ==================== DeepSeek V4 Pro 0813 ====================
