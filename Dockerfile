@@ -3,7 +3,7 @@
 # ==========================================
 # Stage 1: Builder
 # ==========================================
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ==========================================
 # Stage 2: Final
 # ==========================================
-FROM python:3.13-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 # Create a non-root user
 RUN groupadd --system --gid 999 nonroot \
