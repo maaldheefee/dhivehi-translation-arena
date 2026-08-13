@@ -696,3 +696,153 @@ gemini-3.5-flash-lite-t0.1:
   base_model: Gemini 3.5 Flash Lite
   temperature: 0.1
   preset_name: Temp 0.1
+
+# ==================== Gemini 3.7 Flash ====================
+
+gemini-3.7-flash-t1.0:
+  name: google/gemini-3.7-flash
+  display_name: Gemini 3.7 Flash (T1.0)
+  type: openrouter
+  input_cost_per_mtok: 0.375
+  output_cost_per_mtok: 1.875
+  is_active: true
+  timeout: 180.0
+  base_model: Gemini 3.7 Flash
+  temperature: 1.0
+  reasoning:
+    effort: none
+  preset_name: Default, Temp 1.0
+
+gemini-3.7-flash-t0.3:
+  name: google/gemini-3.7-flash
+  display_name: Gemini 3.7 Flash (T0.3)
+  type: openrouter
+  input_cost_per_mtok: 0.375
+  output_cost_per_mtok: 1.875
+  is_active: true
+  timeout: 180.0
+  base_model: Gemini 3.7 Flash
+  temperature: 0.3
+  reasoning:
+    effort: none
+  preset_name: Temp 0.3
+
+# ==================== Meta Muse Glimmer 30B ====================
+
+muse-glimmer-30b-t1.0:
+  name: meta/muse-glimmer-30b
+  display_name: Muse Glimmer 30B (T1.0)
+  type: openrouter
+  input_cost_per_mtok: 0.35
+  output_cost_per_mtok: 1.5
+  is_active: true
+  timeout: 180.0
+  base_model: Muse Glimmer 30B
+  temperature: 1.0
+  reasoning:
+    effort: none
+  preset_name: Default, Temp 1.0
+
+muse-glimmer-30b-t0.3:
+  name: meta/muse-glimmer-30b
+  display_name: Muse Glimmer 30B (T0.3)
+  type: openrouter
+  input_cost_per_mtok: 0.35
+  output_cost_per_mtok: 1.5
+  is_active: true
+  timeout: 180.0
+  base_model: Muse Glimmer 30B
+  temperature: 0.3
+  reasoning:
+    effort: none
+  preset_name: Temp 0.3
+
+# ==================== Meta Muse Spark 1.2 ====================
+
+muse-spark-1.2-t1.0:
+  name: meta/muse-spark-1.2
+  display_name: Muse Spark 1.2 (T1.0)
+  type: openrouter
+  input_cost_per_mtok: 1.25
+  output_cost_per_mtok: 4.25
+  is_active: true
+  timeout: 180.0
+  base_model: Muse Spark 1.2
+  temperature: 1.0
+  reasoning:
+    effort: none
+  preset_name: Default, Temp 1.0
+
+muse-spark-1.2-t0.3:
+  name: meta/muse-spark-1.2
+  display_name: Muse Spark 1.2 (T0.3)
+  type: openrouter
+  input_cost_per_mtok: 1.25
+  output_cost_per_mtok: 4.25
+  is_active: true
+  timeout: 180.0
+  base_model: Muse Spark 1.2
+  temperature: 0.3
+  reasoning:
+    effort: none
+  preset_name: Temp 0.3
+
+# ==================== DeepSeek V4 Pro 0813 ====================
+
+deepseek-v4-pro-0813-t1.0:
+  name: deepseek/deepseek-v4-pro-0813
+  display_name: DeepSeek V4 Pro 0813 (T1.0)
+  type: openrouter
+  input_cost_per_mtok: 0.435
+  output_cost_per_mtok: 0.87
+  is_active: true
+  timeout: 180.0
+  base_model: DeepSeek V4 Pro 0813
+  temperature: 1.0
+  reasoning:
+    effort: none
+  preset_name: Default, Temp 1.0
+
+deepseek-v4-pro-0813-t0.3:
+  name: deepseek/deepseek-v4-pro-0813
+  display_name: DeepSeek V4 Pro 0813 (T0.3)
+  type: openrouter
+  input_cost_per_mtok: 0.435
+  output_cost_per_mtok: 0.87
+  is_active: true
+  timeout: 180.0
+  base_model: DeepSeek V4 Pro 0813
+  temperature: 0.3
+  reasoning:
+    effort: none
+  preset_name: Temp 0.3
+
+# ==================== DeepSeek V4 Flash 0731 ====================
+
+deepseek-v4-flash-0731-t1.0:
+  name: deepseek/deepseek-v4-flash-0731
+  display_name: DeepSeek V4 Flash 0731 (T1.0)
+  type: openrouter
+  input_cost_per_mtok: 0.08
+  output_cost_per_mtok: 0.18
+  is_active: true
+  timeout: 180.0
+  base_model: DeepSeek V4 Flash 0731
+  temperature: 1.0
+  reasoning:
+    effort: none
+  preset_name: Default, Temp 1.0
+
+deepseek-v4-flash-0731-t0.3:
+  name: deepseek/deepseek-v4-flash-0731
+  display_name: DeepSeek V4 Flash 0731 (T0.3)
+  type: openrouter
+  input_cost_per_mtok: 0.08
+  output_cost_per_mtok: 0.18
+  is_active: true
+  timeout: 180.0
+  base_model: DeepSeek V4 Flash 0731
+  temperature: 0.3
+  reasoning:
+    effort: none
+  preset_name: Temp 0.3
