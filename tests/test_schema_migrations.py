@@ -39,9 +39,7 @@ def test_legacy_votes_are_backfilled_into_one_synthetic_ballot():
         connection.execute(text("INSERT INTO translations VALUES (101, 10, '2025-01-02 00:00:00')"))
         connection.execute(text("INSERT INTO votes VALUES (1, 1, 10, 100, 3)"))
         connection.execute(text("INSERT INTO votes VALUES (2, 1, 10, 101, 2)"))
-        connection.execute(
-            text("INSERT INTO pairwise_comparisons VALUES (1, 1, 10, 'derived', '2025-01-04 00:00:00')")
-        )
+        connection.execute(text("INSERT INTO pairwise_comparisons VALUES (1, 1, 10, 'derived', '2025-01-04 00:00:00')"))
 
     run_schema_migrations(engine)
     run_schema_migrations(engine)

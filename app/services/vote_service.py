@@ -199,6 +199,8 @@ def _derive_pairwise_from_votes(
 
         if not t1 or not t2:
             continue
+        if t1.model == t2.model:
+            continue
 
         r1, r2 = v1["rating"], v2["rating"]
 
@@ -250,3 +252,50 @@ def _derive_pairwise_from_votes(
 
     observed_at = ballot.observed_at if ballot else datetime.now(UTC)
     elo_service.apply_rating_period(games, observed_at)
+
+
+def correct_vote(user_id: int, query_id: int, translation_id: int, rating: int) -> None:
+    """Exceptional maintenance path for correcting one mistaken ballot value."""
+    if rating not in (3, 2, 1, -1):
+        raise ValueError("Rating must be one of 3, 2, 1, or -1")
+    session = cast(Session, db_session)
+    try:
+        vote = (
+            session.query(Vote)
+            .filter(
+                Vote.user_id == user_id,
+                Vote.query_id == query_id,
+                Vote.translation_id == translation_id,
+            )
+            .one_or_none()
+        )
+        if not vote or not vote.ballot:
+            raise ValueError("Vote or its rating ballot was not found")
+        if vote.rating == rating:
+            return
+
+        ballot = vote.ballot
+        vote.rating = rating
+        session.query(PairwiseComparison).filter(
+            PairwiseComparison.source == "derived",
+            PairwiseComparison.ballot_id == ballot.id,
+        ).delete()
+        all_votes = session.query(Vote).filter(Vote.user_id == user_id, Vote.query_id == query_id).all()
+        ballot_translation_ids = {item.translation_id for item in ballot.votes}
+        _derive_pairwise_from_votes(
+            session,
+            user_id,
+            query_id,
+            [
+                {"translation_id": item.translation_id, "rating": item.rating}
+                for item in all_votes
+                if item.rating is not None
+            ],
+            ballot=ballot,
+            new_translation_ids=ballot_translation_ids,
+        )
+        get_elo_service(session).rebuild_ratings_from_comparisons()
+        invalidate_caches()
+    except Exception:
+        session.rollback()
+        raise

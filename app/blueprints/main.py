@@ -700,8 +700,6 @@ def _get_user_comparison_stats(user_id: int):
         .filter(
             PairwiseComparison.user_id == user_id,
             PairwiseComparison.source == "explicit",
-            PairwiseComparison.winner_model.in_(active_model_keys)
-            | PairwiseComparison.loser_model.in_(active_model_keys),
         )
         .scalar()
     ) or 0

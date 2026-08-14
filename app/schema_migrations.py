@@ -1,8 +1,9 @@
 """Small idempotent schema migrations for this personal SQLite application."""
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import cast
 
-from sqlalchemy import Engine, inspect, text
+from sqlalchemy import Engine, Table, inspect, text
 
 
 def _columns(engine: Engine, table: str) -> set[str]:
@@ -24,7 +25,7 @@ def run_schema_migrations(engine: Engine) -> None:
 
     from app.models import RatingBallot
 
-    RatingBallot.__table__.create(bind=engine, checkfirst=True)
+    cast(Table, RatingBallot.__table__).create(bind=engine, checkfirst=True)
     _add_column(engine, "votes", "ballot_id INTEGER REFERENCES rating_ballots(id)")
     _add_column(engine, "votes", "created_at DATETIME")
 
@@ -32,7 +33,7 @@ def run_schema_migrations(engine: Engine) -> None:
         _add_column(engine, "pairwise_comparisons", "evidence_weight FLOAT NOT NULL DEFAULT 1.0")
         _add_column(engine, "pairwise_comparisons", "ballot_id INTEGER REFERENCES rating_ballots(id)")
 
-    epoch = datetime(1970, 1, 1)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
     with engine.begin() as connection:
         groups = connection.execute(
             text(

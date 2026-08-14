@@ -10,7 +10,13 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from app.config import Config
 from app.database import Base
 from app.models import ModelELO, PairwiseComparison, Query, RatingBallot, Translation, User, Vote
-from app.services.elo_service import ELOService, _glicko2_update, _serialize_rating_state, _weeks_between
+from app.services.elo_service import (
+    ELOService,
+    _glicko2_update,
+    _serialize_rating_state,
+    _weeks_between,
+    effective_rating_deviation,
+)
 from app.services.vote_service import _gap_to_score, _should_skip_pair
 
 
@@ -29,6 +35,27 @@ def session():
 def elo_service(session):
     """Create an ELOService with the test session."""
     return ELOService(session)
+
+
+def _comparison_data(session, model_a="winner", model_b="loser"):
+    user = User(username="comparison-user", password_hash="x")
+    query = Query(source_text="comparison-query")
+    session.add_all([user, query])
+    session.flush()
+    translations = [
+        Translation(
+            query_id=query.id,
+            model=model,
+            translation=model,
+            system_prompt="sp",
+            position=position,
+            user_id=user.id,
+        )
+        for position, model in enumerate((model_a, model_b), 1)
+    ]
+    session.add_all(translations)
+    session.flush()
+    return user, query, translations[0], translations[1]
 
 
 class TestDeterministicRatingInputs:
@@ -64,12 +91,27 @@ class TestDeterministicRatingInputs:
 
         assert _serialize_rating_state([b, a]) == _serialize_rating_state([a, b])
 
+    def test_effective_rd_increases_at_read_time_without_mutating_state(self):
+        last = datetime(2025, 1, 1, tzinfo=UTC)
+        record = ModelELO(
+            model="dormant",
+            elo_rating=1600.0,
+            rating_deviation=80.0,
+            volatility=0.06,
+            last_comparison_at=last,
+        )
+
+        effective = effective_rating_deviation(record, last + timedelta(weeks=52))
+
+        assert effective > 300
+        assert record.rating_deviation == 80.0
+
     def test_raw_comparisons_have_a_total_replay_order(self, session):
         user = User(username="clock", password_hash="x")
         query = Query(source_text="ordering")
         session.add_all([user, query])
         session.flush()
-        observed = datetime(2025, 2, 1)
+        observed = datetime(2025, 2, 1, tzinfo=UTC)
         later = PairwiseComparison(
             query_id=query.id,
             user_id=user.id,
@@ -361,11 +403,14 @@ class TestELOService:
 
     def test_record_comparison_with_score(self, elo_service, session):
         """record_comparison should store the score in the comparison."""
+        user, query, t1, t2 = _comparison_data(session)
         comp = elo_service.record_comparison(
-            query_id=1,
-            user_id=1,
+            query_id=query.id,
+            user_id=user.id,
             winner_model="winner",
             loser_model="loser",
+            translation_a_id=t1.id,
+            translation_b_id=t2.id,
             source="derived",
             score=0.85,
         )
@@ -378,24 +423,28 @@ class TestELOService:
 
     def test_record_comparison_explicit_defaults_binary(self, elo_service, session):
         """Explicit comparison without score should default to 1.0."""
+        user, query, t1, t2 = _comparison_data(session)
         comp = elo_service.record_comparison(
-            query_id=1,
-            user_id=1,
+            query_id=query.id,
+            user_id=user.id,
             winner_model="winner",
             loser_model="loser",
+            translation_a_id=t1.id,
+            translation_b_id=t2.id,
             source="explicit",
         )
         assert comp.score == 1.0
 
     def test_record_comparison_tie_defaults_half(self, elo_service, session):
         """Tie comparison without score should default to 0.5."""
+        user, query, t1, t2 = _comparison_data(session)
         comp = elo_service.record_comparison(
-            query_id=1,
-            user_id=1,
+            query_id=query.id,
+            user_id=user.id,
             winner_model=None,
             loser_model=None,
-            translation_a_id=1,
-            translation_b_id=2,
+            translation_a_id=t1.id,
+            translation_b_id=t2.id,
             source="explicit",
         )
         assert comp.score == 0.5
@@ -573,16 +622,19 @@ class TestRebuildRatings:
 
     def test_rebuild_idempotent(self, elo_service, session):
         """Running rebuild twice should produce the same results."""
-        # Add some comparisons
-        for _ in range(5):
-            elo_service.record_comparison(
-                query_id=1,
-                user_id=1,
-                winner_model="model-a",
-                loser_model="model-b",
-                source="derived",
-                score=0.85,
+        for index in range(5):
+            session.add(
+                PairwiseComparison(
+                    query_id=1,
+                    user_id=1,
+                    winner_model="model-a",
+                    loser_model="model-b",
+                    source="derived",
+                    score=0.85,
+                    created_at=datetime(2025, 1, index + 1, tzinfo=UTC),
+                )
             )
+        session.commit()
 
         # First rebuild
         elo_service.rebuild_ratings_from_comparisons()
@@ -918,144 +970,35 @@ class TestDifficultyAwareTie:
         assert count == 0
 
 
-# --- Confidence-weighted leaderboard tests ---
+# --- Canonical leaderboard tests ---
 
 
-class TestConfidenceWeightedBlend:
-    """Tests for RD-aware confidence weighting in calculate_model_scores."""
-
-    def test_high_confidence_glicko_dominates(self, session):
-        """With low RD (high confidence), Glicko-2 should dominate the blend."""
-        from unittest.mock import patch
-
-        from app.services.stats_service import calculate_model_scores
-
-        # Create model with low RD (confident)
-        elo = ModelELO(model="confident-model", elo_rating=1800, rating_deviation=80)
-        session.add(elo)
-
-        # Create translation and vote with mediocre star rating
-        user = User(username="testuser", password_hash="x")
-        session.add(user)
-        session.flush()
-        query = Query(source_text="test")
-        session.add(query)
-        session.flush()
-        t = Translation(
-            query_id=query.id,
-            model="confident-model",
-            translation="A",
-            system_prompt="sp",
-            position=1,
-            user_id=user.id,
+class TestCanonicalLeaderboard:
+    def test_conservative_rating_penalizes_uncertainty(self, session):
+        observed = datetime.now(UTC)
+        session.add_all(
+            [
+                ModelELO(
+                    model="confident",
+                    elo_rating=1700,
+                    rating_deviation=80,
+                    last_comparison_at=observed,
+                ),
+                ModelELO(
+                    model="uncertain",
+                    elo_rating=1800,
+                    rating_deviation=300,
+                    last_comparison_at=observed,
+                ),
+            ]
         )
-        session.add(t)
-        session.flush()
-        vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=1)
-        session.add(vote)
         session.commit()
 
-        with patch("app.services.stats_service.db_session", session):
-            scores = calculate_model_scores()
-        model_score = next(s for s in scores if s["model_name"] == "confident-model")
+        rankings = ELOService(session).get_all_rankings(observed)
 
-        # Score mapping: rating=1 -> score=0, so average_score=0
-        # normalized_avg = (0+2)/5 = 0.4
-        # With RD=80, confidence = 1 - 80/350 ≈ 0.77
-        # normalized_elo = (1800-1000)/1000 = 0.8
-        # combined ≈ 0.8*0.77 + 0.4*0.23 ≈ 0.709
-        assert model_score["combined_score"] > 0.65
-        assert model_score["rating_deviation"] == 80
-
-    def test_low_confidence_stars_dominate(self, session):
-        """With high RD (low confidence), star ratings should dominate."""
-        from unittest.mock import patch
-
-        from app.services.stats_service import calculate_model_scores
-
-        # Create model with high RD (uncertain)
-        elo = ModelELO(model="uncertain-model", elo_rating=1800, rating_deviation=340)
-        session.add(elo)
-
-        user = User(username="testuser2", password_hash="x")
-        session.add(user)
-        session.flush()
-        query = Query(source_text="test2")
-        session.add(query)
-        session.flush()
-        t = Translation(
-            query_id=query.id,
-            model="uncertain-model",
-            translation="A",
-            system_prompt="sp",
-            position=1,
-            user_id=user.id,
-        )
-        session.add(t)
-        session.flush()
-        vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=1)
-        session.add(vote)
-        session.commit()
-
-        with patch("app.services.stats_service.db_session", session):
-            scores = calculate_model_scores()
-        model_score = next(s for s in scores if s["model_name"] == "uncertain-model")
-
-        # Score mapping: rating=1 -> score=0, so average_score=0
-        # normalized_avg = (0+2)/5 = 0.4
-        # With RD=340, confidence = 1 - 340/350 ≈ 0.029
-        # normalized_elo = 0.8, normalized_avg = 0.4
-        # combined ≈ 0.8*0.03 + 0.4*0.97 ≈ 0.411
-        # Star rating should dominate over Glicko
-        assert model_score["combined_score"] < 0.5
-        assert model_score["combined_score"] > 0.35
-
-    def test_weights_sum_to_one(self, session):
-        """Confidence + (1 - confidence) should always equal 1.0."""
-        from unittest.mock import patch
-
-        from app.services.stats_service import calculate_model_scores
-
-        for rd in [80, 150, 250, 350]:
-            model_name = f"rd-test-{rd}"
-            elo = ModelELO(model=model_name, elo_rating=1500, rating_deviation=rd)
-            session.add(elo)
-
-            user = User(username=f"user-{rd}", password_hash="x")
-            session.add(user)
-            session.flush()
-            query = Query(source_text=f"q-{rd}")
-            session.add(query)
-            session.flush()
-            t = Translation(
-                query_id=query.id,
-                model=model_name,
-                translation="A",
-                system_prompt="sp",
-                position=1,
-                user_id=user.id,
-            )
-            session.add(t)
-            session.flush()
-            vote = Vote(user_id=user.id, query_id=query.id, translation_id=t.id, rating=2)
-            session.add(vote)
-        session.commit()
-
-        with patch("app.services.stats_service.db_session", session):
-            scores = calculate_model_scores()
-        for rd in [80, 150, 250, 350]:
-            model_name = f"rd-test-{rd}"
-            ms = next(s for s in scores if s["model_name"] == model_name)
-            confidence = 1.0 - (rd / 350.0)
-            # Score mapping: rating=2 -> score=1, so average_score=1.0
-            # normalized_avg = (1+2)/5 = 0.6
-            # normalized_elo = (1500-1000)/1000 = 0.5
-            normalized_elo = max(0.0, min(1.0, (1500 - 1000) / 1000))
-            normalized_avg = max(0.0, min(1.0, (1.0 + 2) / 5))
-            expected = normalized_elo * confidence + normalized_avg * (1 - confidence)
-            assert ms["combined_score"] == pytest.approx(expected, abs=0.01), (
-                f"RD={rd}: expected {expected}, got {ms['combined_score']}"
-            )
+        assert [item["model"] for item in rankings] == ["confident", "uncertain"]
+        assert rankings[0]["is_provisional"] is False
+        assert rankings[1]["is_provisional"] is True
 
 
 # --- Cost-aware model selection tests ---

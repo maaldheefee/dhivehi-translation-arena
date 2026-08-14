@@ -66,8 +66,8 @@
                     <th>{{ _('rating_distribution', total_votes=total_votes) }}</th>
                     <th data-sort="number">{{ _('avg_score') }}</th>
                     <th data-sort="number">{{ _('elo_rating') }}</th>
-                    <th data-sort="number">{{ _('combined_score') }}
-                    <div class="text-secondary" style="font-size: 0.75em;">Avg + ELO</div></th>
+                    <th data-sort="number">Conservative Rating
+                    <div class="text-secondary" style="font-size: 0.75em;">Rating − 2×RD</div></th>
                     <th data-sort="number">{{ _('projected_cost_100k') }}</th>
                     <th data-sort="number">{{ _('bang_for_buck_score') }}</th>
                 </tr>
@@ -116,19 +116,12 @@
                     </td>
                     <td data-sort-value="{{ model.elo_rating }}">
                         <div class="elo-badge">{{ "%.0f"|format(model.elo_rating) }}</div>
+                        {% if model.is_provisional %}<div class="text-secondary">Provisional</div>{% endif %}
                         <div class="win-rate">{{ "%.1f"|format(model.elo_win_rate) }}% WR</div>
                         <div class="rd-badge" title="Rating Deviation (uncertainty)">RD: {{ "%.0f"|format(model.rating_deviation) }}</div>
                     </td>
                     <td>
-                        {% set combined_val = (model.combined_score * 100) | round | int %}
-                        {% if combined_val > 70 %}
-                            {% set combined_class = 'high-score' %}
-                        {% elif combined_val < 40 %}
-                            {% set combined_class = 'low-score' %}
-                        {% else %}
-                            {% set combined_class = 'medium-score' %}
-                        {% endif %}
-                        <span class="score-badge {{ combined_class }}">{{ combined_val }}</span>
+                        <span class="score-badge">{{ "%.0f"|format(model.conservative_rating) }}</span>
                     </td>
                     <td>${{ "%.2f"|format(model.projected_cost_100k) }}</td>
                     <td data-sort-value="{{ model.bang_for_buck }}">
@@ -468,7 +461,7 @@
             }, 4000);
         }
 
-        const METHODOLOGY_TEXT = "The results are from an LLM arena where Large Language Models (LLMs) are scored and voted on for the quality and correctness of English/Arabic to Dhivehi translations. Users vote on a scale of 1 to 3 stars (or -1 for rejection). These scores are averaged to produce a preliminary rating. To refine the ranking, translations are also combined into pairs for Glicko-2 comparison, allowing for relative evaluation even when ratings are identical. A final score, normalized to a 0-1 range, is calculated as a convex blend of the normalized Glicko-2 rating and the normalized average star rating, weighted by a confidence factor derived from the Glicko-2 rating deviation (RD). When RD is low (high confidence), the Glicko-2 rating dominates; when RD is high (low confidence, e.g. new or under-tested models), star ratings dominate. Note that models use a default temperature of 0.85, while thinking/reasoning models use their specific default settings unless configured otherwise.";
+        const METHODOLOGY_TEXT = "Star ratings provide a fast absolute-quality profile. Each immutable ballot also produces one simultaneous, normalized Glicko-2 rating period for relative ranking; direct comparisons are full-weight periods. Models are ordered by the conservative rating (rating minus twice the effective RD). RD increases with inactivity at read time, and high-RD models are marked provisional. Star averages remain visible but are not blended into the canonical relative rank.";
 
         function getStatsExportData() {
             return {

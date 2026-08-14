@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import get_config
 from app.database import db_session
 from app.models import ModelELO, Query, Translation, Vote
+from app.services.elo_service import effective_rating_deviation
 
 
 class GroupedStats(TypedDict):
@@ -131,7 +132,9 @@ def calculate_model_scores():
         # Get ELO data if available
         elo_record = elo_records.get(model_name)
         elo_rating = elo_record.elo_rating if elo_record else 1500.0
-        rating_deviation = elo_record.rating_deviation if elo_record else 350.0
+        rating_deviation = (
+            effective_rating_deviation(elo_record, datetime.datetime.now(datetime.UTC)) if elo_record else 350.0
+        )
         elo_wins = elo_record.wins if elo_record else 0
         elo_losses = elo_record.losses if elo_record else 0
         elo_ties = elo_record.ties if elo_record else 0
@@ -140,25 +143,10 @@ def calculate_model_scores():
 
         # --- Advanced Scoring Logic ---
 
-        # 1. Normalize Average Score: Map [-2, 3] -> [0, 1]
-        # Range is 5. -2 maps to 0. 3 maps to 1.
-        # norm = (score - min) / (max - min) = (score + 2) / 5
-        normalized_avg_score = (average_score + 2) / 5
-        normalized_avg_score = max(0.0, min(1.0, normalized_avg_score))  # Clamp
-
-        # 2. Normalize ELO (Glicko-2): Map [1000, 2000] -> [0, 1]
-        # Center 1500 -> 0.5
-        normalized_elo = (elo_rating - 1000) / 1000
-        normalized_elo = max(0.0, min(1.0, normalized_elo))  # Clamp
-
-        # 3. Confidence-weighted Combined Score
-        # confidence = 1 - (RD / 350) — RD=350 -> 0.0, RD=80 -> 0.77
-        # Convex blend: weights always sum to 1.0
-        # High RD (uncertain) -> star ratings dominate
-        # Low RD (confident) -> Glicko-2 dominates
-        confidence = 1.0 - (rating_deviation / 350.0)
-        confidence = max(0.0, min(1.0, confidence))
-        combined_score = normalized_elo * confidence + normalized_avg_score * (1.0 - confidence)
+        # Canonical relative ordering is Glicko-2. Star ratings remain an
+        # independent absolute-quality profile rather than a hidden prior.
+        conservative_rating = elo_rating - 2 * rating_deviation
+        combined_score = max(0.0, min(1.0, (conservative_rating - 1000) / 1000))
 
         # 4. Bang for Buck: Soft floor + cubic quality / log(cost)
         # Soft floor: subtract 0.3 from combined_score so models below 0.3 get
@@ -197,6 +185,8 @@ def calculate_model_scores():
                 # ELO data
                 "elo_rating": elo_rating,
                 "rating_deviation": rating_deviation,
+                "conservative_rating": conservative_rating,
+                "is_provisional": rating_deviation > 200,
                 "elo_wins": elo_wins,
                 "elo_losses": elo_losses,
                 "elo_ties": elo_ties,
@@ -233,7 +223,7 @@ def calculate_model_scores():
             else:
                 s["bang_for_buck"] = 5  # All same value, default to middle
 
-    stats_list.sort(key=lambda x: x["combined_score"], reverse=True)
+    stats_list.sort(key=lambda x: (x["conservative_rating"], x["elo_rating"]), reverse=True)
 
     return stats_list
 

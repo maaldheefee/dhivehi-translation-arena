@@ -90,14 +90,16 @@ def list_users_command() -> None:
 @click.option("--user-id", type=int, default=None, help="Filter by user ID")
 @with_appcontext
 def derive_elo_command(user_id) -> None:
-    """Derive ELO comparisons from existing votes."""
+    """Deprecated alias for rebuilding the deterministic rating projection."""
     from app.services.elo_service import get_elo_service
 
     try:
         elo_service = get_elo_service()
-        print("Deriving ELO comparisons from existing votes...")
-        count = elo_service.derive_from_existing_votes(user_id=user_id)
-        print(f"Successfully derived {count} new pairwise comparisons.")
+        if user_id is not None:
+            raise click.UsageError("Per-user derivation is no longer supported; ballots are immutable source evidence")
+        print("Rebuilding deterministic ratings from ballot periods...")
+        count = elo_service.rebuild_ratings_from_comparisons()
+        print(f"Successfully replayed {count} comparisons.")
     except Exception as e:
         print(f"Error deriving ELO comparisons: {e}")
 
@@ -125,6 +127,21 @@ def rebuild_ratings_command() -> None:
         print(f"Error rebuilding ratings: {e}")
 
 
+@click.command("correct-vote")
+@click.argument("user_id", type=int)
+@click.argument("query_id", type=int)
+@click.argument("translation_id", type=int)
+@click.argument("rating", type=click.Choice(["3", "2", "1", "-1"]))
+@click.confirmation_option(prompt="This exceptional action rewrites recorded evidence. Continue?")
+@with_appcontext
+def correct_vote_command(user_id: int, query_id: int, translation_id: int, rating: str) -> None:
+    """Correct a mistaken immutable vote and rebuild its projections."""
+    from app.services.vote_service import correct_vote
+
+    correct_vote(user_id, query_id, translation_id, int(rating))
+    click.echo("Vote corrected and ratings rebuilt.")
+
+
 def register_commands(app) -> None:
     app.cli.add_command(init_db_command)
     app.cli.add_command(add_user_command)
@@ -132,3 +149,4 @@ def register_commands(app) -> None:
     app.cli.add_command(list_users_command)
     app.cli.add_command(derive_elo_command)
     app.cli.add_command(rebuild_ratings_command)
+    app.cli.add_command(correct_vote_command)

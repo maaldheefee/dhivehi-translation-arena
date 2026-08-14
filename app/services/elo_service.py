@@ -55,6 +55,13 @@ def _serialize_rating_state(records: list[ModelELO]) -> tuple[tuple, ...]:
     )
 
 
+def effective_rating_deviation(record: ModelELO, observed_at: datetime) -> float:
+    """Return read-time RD, including inactivity since the stored projection."""
+    weeks = _weeks_between(record.last_comparison_at, observed_at)
+    decayed = math.sqrt(record.rating_deviation**2 + Config.GLICKO_C_PER_WEEK**2 * weeks)
+    return min(Config.GLICKO_INITIAL_RD, decayed)
+
+
 def _glicko2_update(
     rating: float,
     rd: float,
@@ -308,41 +315,82 @@ class ELOService:
                    1.0 for wins, 0.5 for ties. For derived comparisons, pass
                    the fractional score based on star rating gap.
         """
-        if score is None:
-            score = 0.5 if not winner_model else 1.0
+        try:
+            if source not in ("derived", "explicit"):
+                raise ValueError("Comparison source must be derived or explicit")
+            if score is None:
+                score = 0.5 if not winner_model else 1.0
+            if not 0.0 <= score <= 1.0:
+                raise ValueError("Comparison score must be between zero and one")
+            if not translation_a_id or not translation_b_id or translation_a_id == translation_b_id:
+                raise ValueError("A comparison requires two distinct translations")
 
-        comparison = PairwiseComparison(
-            query_id=query_id,
-            user_id=user_id,
-            winner_model=winner_model,
-            loser_model=loser_model,
-            translation_a_id=translation_a_id,
-            translation_b_id=translation_b_id,
-            source=source,
-            score=score,
-        )
-        self.session.add(comparison)
-
-        # Update ratings based on result
-        if winner_model and loser_model:
-            self._apply_glicko2(winner_model, loser_model, score)
-        elif translation_a_id and translation_b_id and not winner_model:
-            # Tie - get model names from translations
             t_a = self.session.get(Translation, translation_a_id)
             t_b = self.session.get(Translation, translation_b_id)
-            if t_a and t_b:
-                self._apply_glicko2(str(t_a.model), str(t_b.model), 0.5)
+            if not t_a or not t_b or t_a.query_id != query_id or t_b.query_id != query_id:
+                raise ValueError("Compared translations must belong to the comparison query")
+            model_a, model_b = str(t_a.model), str(t_b.model)
+            if model_a == model_b:
+                raise ValueError("A model cannot be compared with itself")
 
-        return comparison
+            if source == "explicit":
+                duplicate = (
+                    self.session.query(PairwiseComparison)
+                    .filter(
+                        PairwiseComparison.user_id == user_id,
+                        PairwiseComparison.source == "explicit",
+                        PairwiseComparison.translation_a_id.in_([translation_a_id, translation_b_id]),
+                        PairwiseComparison.translation_b_id.in_([translation_a_id, translation_b_id]),
+                    )
+                    .first()
+                )
+                if duplicate:
+                    return duplicate
 
-    def get_all_rankings(self) -> list[dict]:
-        """Get all models ranked by Glicko-2 rating."""
-        records = self.session.query(ModelELO).order_by(ModelELO.elo_rating.desc()).all()
+            observed_at = datetime.now(UTC)
+            comparison = PairwiseComparison(
+                query_id=query_id,
+                user_id=user_id,
+                winner_model=winner_model,
+                loser_model=loser_model,
+                translation_a_id=translation_a_id,
+                translation_b_id=translation_b_id,
+                source=source,
+                score=score,
+                evidence_weight=1.0,
+                created_at=observed_at,
+            )
+            self.session.add(comparison)
+            game = (
+                (winner_model, loser_model, score, 1.0)
+                if winner_model and loser_model
+                else (model_a, model_b, 0.5, 1.0)
+            )
+            self.apply_rating_period([game], observed_at)
+            self.session.commit()
+            return comparison
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def get_all_rankings(self, observed_at: datetime | None = None) -> list[dict]:
+        """Get models by conservative Glicko rating at the supplied clock."""
+        observed_at = observed_at or datetime.now(UTC)
+        records = self.session.query(ModelELO).all()
+        records.sort(
+            key=lambda record: (
+                record.elo_rating - 2 * effective_rating_deviation(record, observed_at),
+                record.elo_rating,
+            ),
+            reverse=True,
+        )
         return [
             {
                 "model": r.model,
                 "elo_rating": r.elo_rating,
-                "rating_deviation": r.rating_deviation or Config.GLICKO_INITIAL_RD,
+                "rating_deviation": effective_rating_deviation(r, observed_at),
+                "conservative_rating": r.elo_rating - 2 * effective_rating_deviation(r, observed_at),
+                "is_provisional": effective_rating_deviation(r, observed_at) > 200,
                 "volatility": r.volatility or Config.GLICKO_INITIAL_VOLATILITY,
                 "wins": r.wins,
                 "losses": r.losses,
