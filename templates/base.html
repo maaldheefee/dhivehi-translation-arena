@@ -42,7 +42,7 @@
             </a>
 
             <div class="header-actions">
-                <nav class="main-nav" id="main-nav">
+                <nav class="main-nav" id="main-nav" aria-label="Primary navigation">
                     <ul>
                         <li><a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">{{ _('nav_home') }}</a></li>
                         <li><a href="{{ url_for('main.compare_ui') }}" class="nav-link {% if request.endpoint == 'main.compare_ui' %}active{% endif %}">{{ _('nav_compare') }}</a></li>
@@ -51,7 +51,8 @@
                 </nav>
 
                 <div class="controls-group">
-                    <button class="icon-btn mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle Menu">
+                    <button class="icon-btn mobile-menu-toggle" id="mobile-menu-toggle" type="button"
+                        aria-label="Open navigation menu" aria-controls="main-nav" aria-expanded="false">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                         </svg>
@@ -99,6 +100,8 @@
                 </div>
             </div>
         </div>
+        <button class="mobile-menu-backdrop" id="mobile-menu-backdrop" type="button" tabindex="-1"
+            aria-label="Close navigation menu"></button>
     </header>
 
     <main class="container main-content">

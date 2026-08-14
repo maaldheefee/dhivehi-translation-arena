@@ -20,6 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
 		userPassword: document.getElementById("user-password"),
 		loginBtn: document.getElementById("login-btn"),
 		currentUsername: document.getElementById("current-username"),
+		mobileMenuToggle: document.getElementById("mobile-menu-toggle"),
+		mobileMenuBackdrop: document.getElementById("mobile-menu-backdrop"),
+		mainNav: document.getElementById("main-nav"),
 
 		translateBtn: document.getElementById("translate-btn"),
 		queryInput: document.getElementById("query-input"),
@@ -540,12 +543,37 @@ document.addEventListener("DOMContentLoaded", () => {
 			});
 		});
 
-		// Mobile Menu Toggle
-		const mobileMenuToggle = document.getElementById("mobile-menu-toggle");
-		const mainNav = document.getElementById("main-nav");
-		if (mobileMenuToggle && mainNav) {
-			mobileMenuToggle.addEventListener("click", () => {
-				mainNav.classList.toggle("active");
+		// Mobile navigation
+		if (elements.mobileMenuToggle && elements.mainNav) {
+			const setMobileMenuOpen = (isOpen) => {
+				elements.mainNav.classList.toggle("active", isOpen);
+				elements.mobileMenuBackdrop?.classList.toggle("active", isOpen);
+				elements.mobileMenuToggle.classList.toggle("active", isOpen);
+				elements.mobileMenuToggle.setAttribute("aria-expanded", String(isOpen));
+				elements.mobileMenuToggle.setAttribute(
+					"aria-label",
+					isOpen ? "Close navigation menu" : "Open navigation menu",
+				);
+			};
+
+			elements.mobileMenuToggle.addEventListener("click", (event) => {
+				event.stopPropagation();
+				setMobileMenuOpen(!elements.mainNav.classList.contains("active"));
+			});
+			elements.mobileMenuBackdrop?.addEventListener("click", () =>
+				setMobileMenuOpen(false),
+			);
+			elements.mainNav.querySelectorAll("a").forEach((link) => {
+				link.addEventListener("click", () => setMobileMenuOpen(false));
+			});
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape" && elements.mainNav.classList.contains("active")) {
+					setMobileMenuOpen(false);
+					elements.mobileMenuToggle.focus();
+				}
+			});
+			window.addEventListener("resize", () => {
+				if (window.innerWidth > 768) setMobileMenuOpen(false);
 			});
 		}
 	}

@@ -71,6 +71,7 @@
 	--gradient-accent: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
 	--gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
 	--gradient-danger: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+	--focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.2);
 
 	--glass-bg: rgba(255, 255, 255, 0.7);
 	--glass-border: rgba(255, 255, 255, 0.5);
@@ -149,6 +150,13 @@ body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	transition: background-color var(--transition-base), color var(--transition-base);
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background-image:
+		radial-gradient(circle at 15% 0%, var(--primary-ghost), transparent 28rem),
+		radial-gradient(circle at 85% 20%, var(--accent-light), transparent 32rem);
+	background-attachment: fixed;
 }
 
 a {
@@ -169,6 +177,16 @@ button {
 	color: inherit;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
 input,
 textarea,
 select {
@@ -184,28 +202,28 @@ select {
    Layout
    -------------------------------------------------------------------------- */
 .container {
-	max-width: 960px;
+	width: min(100% - 2rem, 1120px);
 	margin: 0 auto;
-	padding: 0 1.5rem;
 }
 
 .main-content {
-	padding: 2.5rem 0;
+	padding-block: clamp(1.5rem, 4vw, 3.5rem);
 	min-height: 80vh;
+	flex: 1;
 }
 
 .translation-shell {
-	max-width: 960px;
+	max-width: 1040px;
 	margin: 0 auto;
 }
 
 .hero-text {
 	text-align: center;
-	margin-bottom: 2.5rem;
+	margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
 }
 
 .hero-text h2 {
-	font-size: 2rem;
+	font-size: clamp(1.75rem, 5vw, 2.5rem);
 	font-weight: 700;
 	margin-bottom: 0.5rem;
 	background: var(--gradient-primary);
@@ -227,7 +245,7 @@ select {
 	backdrop-filter: blur(16px) saturate(180%);
 	-webkit-backdrop-filter: blur(16px) saturate(180%);
 	border-bottom: 1px solid var(--border-color);
-	padding: 0.875rem 0;
+	padding: 0.75rem 0;
 	position: sticky;
 	top: 0;
 	z-index: 100;
@@ -238,6 +256,7 @@ select {
 	justify-content: space-between;
 	align-items: center;
 	gap: 1rem;
+	min-height: 3rem;
 }
 
 .app-title {
@@ -251,8 +270,8 @@ select {
 }
 
 .app-logo {
-	width: 32px;
-	height: 32px;
+	width: 36px;
+	height: 36px;
 	object-fit: contain;
 	border-radius: var(--radius-sm);
 }
@@ -268,7 +287,7 @@ select {
 	color: var(--text-secondary);
 	font-weight: 500;
 	font-size: 0.95rem;
-	padding: 0.5rem 0.875rem;
+	padding: 0.625rem 0.9rem;
 	border-radius: var(--radius-md);
 	transition: all var(--transition-fast);
 }
@@ -367,7 +386,9 @@ select {
 }
 
 .icon-btn {
-	padding: 0.5rem;
+	width: 2.75rem;
+	height: 2.75rem;
+	padding: 0.625rem;
 	border-radius: var(--radius-md);
 	display: flex;
 	align-items: center;
@@ -410,7 +431,7 @@ select {
 .card {
 	background-color: var(--bg-card);
 	border: 1px solid var(--border-color);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-xl);
 	box-shadow: var(--shadow-sm);
 	padding: 1.5rem;
 	transition: transform var(--transition-base), box-shadow var(--transition-base);
@@ -522,7 +543,7 @@ select {
 .clean-details {
 	background-color: var(--bg-card);
 	border: 1px solid var(--border-color);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-xl);
 	overflow: hidden;
 	transition: box-shadow var(--transition-base);
 }
@@ -536,7 +557,8 @@ select {
 	display: flex;
 	align-items: center;
 	gap: 0.625rem;
-	padding: 0.875rem 1.25rem;
+	padding: 1rem 1.25rem;
+	min-height: 3.5rem;
 	cursor: pointer;
 	font-weight: 600;
 	font-size: 0.95rem;
@@ -787,7 +809,7 @@ select {
 .translation-card {
 	background-color: var(--bg-card);
 	border: 1px solid var(--border-color);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-xl);
 	box-shadow: var(--shadow-sm);
 	display: flex;
 	flex-direction: column;
@@ -1754,6 +1776,10 @@ input:checked + .toggle-slider::before {
 	font-size: 0.85rem;
 }
 
+.mobile-menu-backdrop {
+	display: none;
+}
+
 /* --------------------------------------------------------------------------
    Settings Modal
    -------------------------------------------------------------------------- */
@@ -1956,7 +1982,7 @@ input:checked + .toggle-slider::before {
    -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
 	.container {
-		padding: 0 1rem;
+		width: min(100% - 1.5rem, 1120px);
 	}
 
 	.app-header {
@@ -1964,11 +1990,15 @@ input:checked + .toggle-slider::before {
 	}
 
 	.header-content {
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
+		gap: 0.5rem;
 	}
 
 	.app-title {
 		font-size: 1.15rem;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.header-actions {
@@ -1980,8 +2010,15 @@ input:checked + .toggle-slider::before {
 	}
 
 	.mobile-menu-toggle {
-		display: flex;
-		order: 10;
+		display: inline-flex;
+		order: -1;
+		position: relative;
+		z-index: 1002;
+	}
+
+	.mobile-menu-toggle.active {
+		background: var(--primary-light);
+		color: var(--primary);
 	}
 
 	.header-budget {
@@ -2002,14 +2039,15 @@ input:checked + .toggle-slider::before {
 		display: none;
 		position: absolute;
 		top: 100%;
-		left: 0;
-		right: 0;
-		margin-top: 0;
+		inset-inline: 0;
+		margin: 0.5rem auto 0;
+		width: min(calc(100% - 1.5rem), 32rem);
 		background-color: var(--bg-card);
-		border-bottom: 1px solid var(--border-color);
-		box-shadow: var(--shadow-md);
+		border: 1px solid var(--border-color);
+		box-shadow: var(--shadow-xl);
 		z-index: 1000;
-		border-radius: 0 0 var(--radius-md) var(--radius-md);
+		border-radius: var(--radius-xl);
+		padding: 0.5rem;
 	}
 
 	.main-nav.active {
@@ -2023,7 +2061,7 @@ input:checked + .toggle-slider::before {
 	}
 
 	.main-nav li {
-		border-bottom: 1px solid var(--border-color);
+		border-bottom: 0;
 	}
 
 	.main-nav li:last-child {
@@ -2033,12 +2071,22 @@ input:checked + .toggle-slider::before {
 	.nav-link {
 		display: block;
 		padding: 0.875rem 1rem;
-		text-align: center;
-		border-radius: 0;
+		text-align: start;
+		border-radius: var(--radius-md);
+		font-size: 1rem;
+	}
+
+	.mobile-menu-backdrop.active {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 99;
+		background: rgba(15, 23, 42, 0.32);
+		backdrop-filter: blur(2px);
 	}
 
 	.main-content {
-		padding: 1.5rem 0;
+		padding-block: 1.5rem;
 	}
 
 	.hero-text h2 {
@@ -2059,6 +2107,31 @@ input:checked + .toggle-slider::before {
 
 	.form-textarea {
 		min-height: 120px;
+		padding: 1rem;
+	}
+
+	.card,
+	.stat-card,
+	.stats-section .chart-container,
+	.filter-panel {
+		padding: 1rem;
+	}
+
+	.results-header,
+	.results-header-actions {
+		align-items: stretch;
+	}
+
+	.results-header-actions {
+		display: flex;
+		flex-wrap: wrap;
+		width: 100%;
+		gap: 0.5rem;
+	}
+
+	.results-header-actions .btn {
+		flex: 1 1 auto;
+		justify-content: center;
 	}
 
 	.stats-details table {
@@ -2109,7 +2182,6 @@ input:checked + .toggle-slider::before {
 /* Mobile menu toggle — hidden on desktop */
 .mobile-menu-toggle {
 	display: none;
-	padding: 0.5rem;
 }
 
 .mobile-menu-toggle svg {
@@ -2118,7 +2190,65 @@ input:checked + .toggle-slider::before {
 }
 
 @media (max-width: 480px) {
+	.mobile-menu-toggle {
+		display: inline-flex;
+	}
+
+	.app-title {
+		font-size: 0;
+	}
+
+	.app-logo {
+		width: 34px;
+		height: 34px;
+	}
+
+	#theme-toggle {
+		display: none;
+	}
+
+	.dropdown-menu {
+		position: fixed;
+		inset-inline: 0.75rem;
+		top: 4.5rem;
+		min-width: 0;
+	}
+
+	.clean-summary,
+	.clean-details .info-content,
+	.clean-details .options-content,
+	.query-chips,
+	.card-header,
+	.card-body,
+	.card-footer {
+		padding-inline: 1rem;
+	}
+
+	.textarea-actions .btn,
+	.compare-actions .btn {
+		width: 100%;
+		justify-content: center;
+	}
+
 	.global-stats-grid {
 		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 768px) {
+	/* Kept after the desktop default so the mobile toggle wins the cascade. */
+	.mobile-menu-toggle {
+		display: inline-flex;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
 	}
 }
