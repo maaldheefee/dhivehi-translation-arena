@@ -22,6 +22,39 @@ logger = logging.getLogger(__name__)
 DEFAULT_ELO = Config.DEFAULT_RATING
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Return a timezone-aware UTC datetime without changing the instant."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _weeks_between(last_observed_at: datetime | None, observed_at: datetime) -> float:
+    """Calculate non-negative elapsed weeks using an explicit observation clock."""
+    if last_observed_at is None:
+        return 0.0
+    delta = _as_utc(observed_at) - _as_utc(last_observed_at)
+    return max(0.0, delta.total_seconds() / (7 * 24 * 3600))
+
+
+def _serialize_rating_state(records: list[ModelELO]) -> tuple[tuple, ...]:
+    """Create a stable snapshot suitable for deterministic rebuild checks."""
+    return tuple(
+        (
+            record.model,
+            record.elo_rating,
+            record.rating_deviation,
+            record.volatility,
+            record.legacy_elo_rating,
+            record.last_comparison_at,
+            record.wins,
+            record.losses,
+            record.ties,
+        )
+        for record in sorted(records, key=lambda item: item.model)
+    )
+
+
 def _glicko2_update(
     rating: float,
     rd: float,
@@ -156,16 +189,9 @@ class ELOService:
             self.session.flush()
         return record
 
-    def _weeks_since_last_comparison(self, record: ModelELO) -> float:
+    def _weeks_since_last_comparison(self, record: ModelELO, observed_at: datetime | None = None) -> float:
         """Calculate weeks since last comparison for RD time decay."""
-        if record.last_comparison_at is None:
-            return 0.0
-        now = datetime.now(UTC)
-        last = record.last_comparison_at
-        if last.tzinfo is None:
-            last = last.replace(tzinfo=UTC)
-        delta = now - last
-        return max(0.0, delta.total_seconds() / (7 * 24 * 3600))
+        return _weeks_between(record.last_comparison_at, observed_at or datetime.now(UTC))
 
     def _apply_glicko2(
         self,

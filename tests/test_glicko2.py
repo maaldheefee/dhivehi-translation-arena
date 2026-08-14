@@ -1,6 +1,7 @@
 """Tests for Glicko-2 rating system, fractional scoring, and rebuild logic."""
 
 import math
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine
@@ -9,7 +10,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from app.config import Config
 from app.database import Base
 from app.models import ModelELO, PairwiseComparison, Query, Translation, User, Vote
-from app.services.elo_service import ELOService, _glicko2_update
+from app.services.elo_service import ELOService, _glicko2_update, _serialize_rating_state, _weeks_between
 from app.services.vote_service import _gap_to_score, _should_skip_pair
 
 
@@ -28,6 +29,75 @@ def session():
 def elo_service(session):
     """Create an ELOService with the test session."""
     return ELOService(session)
+
+
+class TestDeterministicRatingInputs:
+    """Characterize the inputs a deterministic projection must preserve."""
+
+    def test_elapsed_weeks_uses_supplied_observation_time(self):
+        last = datetime(2025, 1, 1, tzinfo=UTC)
+        observed = last + timedelta(days=10, hours=12)
+
+        assert _weeks_between(last, observed) == pytest.approx(1.5)
+        assert _weeks_between(observed, last) == 0.0
+        assert _weeks_between(None, observed) == 0.0
+
+    def test_rating_state_snapshot_has_stable_model_order(self):
+        a = ModelELO(
+            model="model-a",
+            elo_rating=1510.0,
+            rating_deviation=120.0,
+            volatility=0.05,
+            wins=2,
+            losses=1,
+            ties=0,
+        )
+        b = ModelELO(
+            model="model-b",
+            elo_rating=1490.0,
+            rating_deviation=130.0,
+            volatility=0.06,
+            wins=1,
+            losses=2,
+            ties=0,
+        )
+
+        assert _serialize_rating_state([b, a]) == _serialize_rating_state([a, b])
+
+    def test_raw_comparisons_have_a_total_replay_order(self, session):
+        user = User(username="clock", password_hash="x")
+        query = Query(source_text="ordering")
+        session.add_all([user, query])
+        session.flush()
+        observed = datetime(2025, 2, 1)
+        later = PairwiseComparison(
+            query_id=query.id,
+            user_id=user.id,
+            winner_model="model-a",
+            loser_model="model-b",
+            source="explicit",
+            score=1.0,
+            created_at=observed + timedelta(seconds=1),
+        )
+        first = PairwiseComparison(
+            query_id=query.id,
+            user_id=user.id,
+            winner_model="model-b",
+            loser_model="model-a",
+            source="explicit",
+            score=1.0,
+            created_at=observed,
+        )
+        session.add_all([later, first])
+        session.flush()
+
+        ordered = (
+            session.query(PairwiseComparison)
+            .order_by(PairwiseComparison.created_at.asc(), PairwiseComparison.id.asc())
+            .all()
+        )
+
+        assert [comparison.id for comparison in ordered] == [first.id, later.id]
 
 
 # --- Glicko-2 algorithm tests ---
