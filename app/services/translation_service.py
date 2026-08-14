@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionFactory
 from app.llm_clients import get_translation_client
-from app.models import Query, Translation
+from app.models import Translation
 from app.repositories.query_repository import QueryRepository
 from app.repositories.translation_repository import TranslationRepository
 
@@ -35,13 +35,7 @@ def get_translation_for_model(source_text: str, model: str, position: int, user_
         query_repo = QueryRepository(session)
         translation_repo = TranslationRepository(session)
 
-        query = query_repo.get_by_source_text(source_text)
-        if not query:
-            session.rollback()
-            query = query_repo.get_by_source_text(source_text)
-            if not query:
-                query = Query(source_text=source_text)
-                query = query_repo.add(query)
+        query = query_repo.create_if_not_exists(source_text)
 
         existing = translation_repo.get_by_query_and_model(query.id, model)
         if existing:

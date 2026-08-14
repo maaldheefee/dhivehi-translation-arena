@@ -1,5 +1,6 @@
 """Query repository for database operations related to Query model."""
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Query
@@ -31,12 +32,21 @@ class QueryRepository:
         return self.db_session.query(Query).all()
 
     def create_if_not_exists(self, source_text: str) -> Query:
-        """Create a new query if it doesn't exist, otherwise return existing."""
+        """Create a query or reuse one committed by a concurrent worker."""
         query = self.get_by_source_text(source_text)
-        if not query:
-            query = Query(source_text=source_text)
-            self.db_session.add(query)
+        if query:
+            return query
+
+        query = Query(source_text=source_text)
+        self.db_session.add(query)
+        try:
             self.db_session.commit()
+        except IntegrityError:
+            self.db_session.rollback()
+            query = self.get_by_source_text(source_text)
+            if query is None:
+                raise
+
         return query
 
     def update(self, query: Query) -> Query:
