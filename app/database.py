@@ -26,6 +26,10 @@ def init_db(app) -> None:
 
     db_session.configure(bind=engine)
 
+    from app.schema_migrations import run_schema_migrations
+
+    run_schema_migrations(engine)
+
 
 def shutdown_session(exception=None) -> None:
     db_session.remove()

@@ -20,6 +20,9 @@ def init_db_command() -> None:
         msg = "Database engine is not initialized. Ensure init_db(app) was called."
         raise RuntimeError(msg)
     Base.metadata.create_all(bind=engine, checkfirst=True)
+    from app.schema_migrations import run_schema_migrations
+
+    run_schema_migrations(engine)
     print("Database schema checked/created successfully.")
 
     default_users = [

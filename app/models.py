@@ -44,6 +44,27 @@ class Query(Base):
         return f"<Query id={self.id} source_text={self.source_text[:20]}...>"
 
 
+class RatingBallot(Base):
+    """Immutable star-rating evidence submitted at one observation time."""
+
+    __tablename__ = "rating_ballots"
+    __table_args__ = (
+        UniqueConstraint("user_id", "query_id", "fingerprint", name="unique_rating_ballot_fingerprint"),
+        Index("ix_rating_ballots_observed", "observed_at", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    query_id: Mapped[int] = mapped_column(Integer, ForeignKey("queries.id"), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
+
+    votes = relationship("Vote", back_populates="ballot")
+    comparisons = relationship("PairwiseComparison", back_populates="ballot")
+
+
 class Translation(Base):
     __tablename__ = "translations"
     __table_args__ = (
@@ -89,10 +110,13 @@ class Vote(Base):
     rating: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )  # 3=Excellent, 2=Good/Meaning Correct, 1=Okay/Understandable, -1=Trash
+    ballot_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("rating_ballots.id"), nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
     user = relationship("User")
     translation = relationship("Translation", back_populates="votes")
     query = relationship("Query", back_populates="votes")
+    ballot = relationship("RatingBallot", back_populates="votes")
 
     def __repr__(self) -> str:
         return f"<Vote id={self.id} user_id={self.user_id} query_id={self.query_id} translation_id={self.translation_id} rating={self.rating}>"
@@ -123,12 +147,15 @@ class PairwiseComparison(Base):
     translation_b_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("translations.id"), nullable=True)
     source: Mapped[str] = mapped_column(String(20), nullable=False)  # 'derived' or 'explicit'
     score: Mapped[float | None] = mapped_column(Float, nullable=True)  # Glicko-2 game score [0, 1]
+    evidence_weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    ballot_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("rating_ballots.id"), nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
     query = relationship("Query")
     user = relationship("User")
     translation_a = relationship("Translation", foreign_keys=[translation_a_id])
     translation_b = relationship("Translation", foreign_keys=[translation_b_id])
+    ballot = relationship("RatingBallot", back_populates="comparisons")
 
     def __repr__(self) -> str:
         return f"<PairwiseComparison id={self.id} winner={self.winner_model} loser={self.loser_model}>"
