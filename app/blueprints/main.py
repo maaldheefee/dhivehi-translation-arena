@@ -35,6 +35,7 @@ from app.services.acquisition_policy import (
 )
 from app.services.cost_service import check_user_budget
 from app.services.elo_service import get_elo_service
+from app.services.judge_service import JUDGE_MODEL, judge_translations
 from app.services.stats_service import (
     get_model_usage_stats,
     get_pair_comparison_counts,
@@ -622,6 +623,7 @@ def get_random_comparison() -> Response | tuple[Response, int]:
                 },
             ],
             "stats": stats,
+            "judge_session_cost": float(session.get("comparison_judge_cost", 0.0)),
         }
     )
 
@@ -764,3 +766,47 @@ def submit_comparison() -> Response | tuple[Response, int]:
     except Exception as e:
         current_app.logger.exception("Error recording comparison")
         return jsonify({"error": str(e)}), 500
+
+
+@main_bp.route("/compare/judge", methods=["POST"])
+@login_required
+def judge_comparison() -> Response | tuple[Response, int]:
+    """Ask the configured AI judge to assess the currently displayed pair."""
+    data = request.json
+    if data is None:
+        return jsonify({"error": "Invalid JSON data"}), 400
+
+    query_id = data.get("query_id")
+    translation_ids = data.get("translation_ids", [])
+    if not query_id or not isinstance(translation_ids, list) or len(translation_ids) != 2:
+        return jsonify({"error": "Missing query_id or translation_ids"}), 400
+    if translation_ids[0] == translation_ids[1]:
+        return jsonify({"error": "Translations must be distinct"}), 400
+
+    query = db_session.get(Query, query_id)
+    translations = db_session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
+    translations_by_id = {translation.id: translation for translation in translations}
+    first = translations_by_id.get(translation_ids[0])
+    second = translations_by_id.get(translation_ids[1])
+    if not query or not first or not second:
+        return jsonify({"error": "Comparison data not found"}), 404
+    if first.query_id != query.id or second.query_id != query.id:
+        return jsonify({"error": "Translations do not belong to this query"}), 400
+
+    try:
+        result = judge_translations(query.source_text, first.translation, second.translation)
+    except Exception as error:
+        current_app.logger.exception("AI judge failed")
+        return jsonify({"error": str(error)}), 502
+
+    session_total = float(session.get("comparison_judge_cost", 0.0)) + result.cost
+    session["comparison_judge_cost"] = session_total
+    return jsonify(
+        {
+            "winner": result.winner,
+            "comments": result.comments,
+            "cost": result.cost,
+            "session_total_cost": session_total,
+            "model": JUDGE_MODEL,
+        }
+    )

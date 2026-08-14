@@ -15,6 +15,9 @@
     <div class="results-header" style="margin-bottom: 1.5rem;">
         <div></div>
         <div class="results-header-actions">
+            <div class="cost-badge" title="Total direct AI judge cost in this session">
+                <span>Judge $</span><span id="judge-session-cost">0.000000</span>
+            </div>
             <button id="compare-copy-json-btn" class="btn secondary sm-btn" title="Only copy JSON data">
                 <span>{}</span>
                 <span>JSON</span>
@@ -26,6 +29,10 @@
             <button id="compare-ai-judge-btn" class="btn secondary sm-btn" title="Copy an AI Judge Prompt">
                 <span>⚖️</span>
                 <span>{{ _('ai_judge') }}</span>
+            </button>
+            <button id="compare-direct-judge-btn" class="btn primary sm-btn" title="Judge directly with Gemini">
+                <span>✨</span>
+                <span>Judge with Gemini</span>
             </button>
         </div>
     </div>
@@ -124,6 +131,11 @@
         <div class="compare-actions">
             <button id="tie-btn" class="btn secondary">{{ _('mark_as_tie') }}</button>
             <button id="skip-btn" class="text-btn">{{ _('skip') }}</button>
+        </div>
+
+        <div id="judge-result" class="card hidden" style="margin-top: 1rem; padding: 1rem;">
+            <strong id="judge-verdict"></strong>
+            <p id="judge-comments" class="text-secondary hidden" style="margin-top: 0.5rem;"></p>
         </div>
 
         <div id="stats-container" class="compare-stats"></div>

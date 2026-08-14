@@ -10,6 +10,7 @@ from app.database import Base
 from app.models import Query, Translation, User, Vote
 from app.services import vote_service
 from app.services.acquisition_policy import EvaluationSession
+from app.services.judge_service import JudgeResult
 
 
 def _app() -> Flask:
@@ -88,6 +89,87 @@ def test_available_models_preserves_hidden_exclusions_and_requested_count(monkey
     assert payload["models"]["target"]["selected"] is True
     assert payload["models"]["anchor"]["selected"] is True
     assert payload["models"]["hidden"]["selected"] is False
+
+
+def test_direct_judge_returns_verdict_and_accumulates_session_cost(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    database = scoped_session(sessionmaker(bind=engine))
+    user = User(username="judge-user", password_hash="x")
+    query = Query(source_text="source")
+    database.add_all([user, query])
+    database.flush()
+    translations = [
+        Translation(
+            query_id=query.id,
+            model=f"model-{position}",
+            translation=f"translation-{position}",
+            system_prompt="sp",
+            position=position,
+            user_id=user.id,
+        )
+        for position in (1, 2)
+    ]
+    database.add_all(translations)
+    database.commit()
+    monkeypatch.setattr(main_module, "db_session", database)
+    monkeypatch.setattr(
+        main_module,
+        "judge_translations",
+        lambda *_args: JudgeResult(winner="b", comments="B is more accurate.", cost=0.000123),
+    )
+    client = _app().test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["username"] = user.username
+        browser_session["comparison_judge_cost"] = 0.0001
+
+    response = client.post(
+        "/compare/judge",
+        json={"query_id": query.id, "translation_ids": [translations[0].id, translations[1].id]},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "winner": "b",
+        "comments": "B is more accurate.",
+        "cost": 0.000123,
+        "session_total_cost": 0.000223,
+        "model": "google/gemini-3.7-flash",
+    }
+
+
+def test_direct_judge_rejects_translations_from_another_query(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    database = scoped_session(sessionmaker(bind=engine))
+    user = User(username="judge-user", password_hash="x")
+    queries = [Query(source_text="first"), Query(source_text="second")]
+    database.add_all([user, *queries])
+    database.flush()
+    translations = [
+        Translation(
+            query_id=query.id,
+            model=f"model-{position}",
+            translation=f"translation-{position}",
+            system_prompt="sp",
+            position=position,
+            user_id=user.id,
+        )
+        for position, query in enumerate(queries, 1)
+    ]
+    database.add_all(translations)
+    database.commit()
+    monkeypatch.setattr(main_module, "db_session", database)
+    client = _app().test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["username"] = user.username
+
+    response = client.post(
+        "/compare/judge",
+        json={"query_id": queries[0].id, "translation_ids": [translations[0].id, translations[1].id]},
+    )
+
+    assert response.status_code == 400
 
 
 def test_vote_rejects_mixed_query_ballot_as_bad_request_without_writes(monkeypatch):

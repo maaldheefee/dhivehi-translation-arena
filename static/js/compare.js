@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	// State
 	let currentComparison = null;
 	let isSubmitting = false;
+	let isJudging = false;
 	let availableModels = {};
 	const selectedModels = new Set();
 
@@ -208,6 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		// Reset selections
 		elements.optionA.className = "compare-card";
 		elements.optionB.className = "compare-card";
+		document.getElementById("judge-result")?.classList.add("hidden");
 
 		// Reset model name visibility
 		elements.optionA.querySelector(".model-name").classList.add("hidden");
@@ -231,6 +233,9 @@ document.addEventListener("DOMContentLoaded", () => {
 		if (data.stats) {
 			renderStats(data.stats);
 		}
+		document.getElementById("judge-session-cost").textContent = Number(
+			data.judge_session_cost || 0,
+		).toFixed(6);
 
 		showInterface();
 	}
@@ -295,6 +300,45 @@ document.addEventListener("DOMContentLoaded", () => {
 			console.error("Error submitting comparison:", err);
 			showToast("Failed to submit comparison", "error");
 			isSubmitting = false;
+		}
+	}
+
+	async function judgeComparison() {
+		if (isJudging || !currentComparison) return;
+		isJudging = true;
+		const button = document.getElementById("compare-direct-judge-btn");
+		button.disabled = true;
+		try {
+			const res = await fetch("/compare/judge", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+				body: JSON.stringify({
+					query_id: currentComparison.query_id,
+					translation_ids: currentComparison.translations.map((item) => item.id),
+				}),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || "Judge request failed");
+
+			elements.optionA.classList.toggle("selected", data.winner === "a");
+			elements.optionB.classList.toggle("selected", data.winner === "b");
+			elements.optionA.querySelector(".model-name").classList.remove("hidden");
+			elements.optionB.querySelector(".model-name").classList.remove("hidden");
+
+			const result = document.getElementById("judge-result");
+			document.getElementById("judge-verdict").textContent =
+				data.winner === "tie" ? "Gemini prefers a tie" : `Gemini prefers Option ${data.winner.toUpperCase()}`;
+			const comments = document.getElementById("judge-comments");
+			comments.textContent = data.comments || "";
+			comments.classList.toggle("hidden", !data.comments);
+			document.getElementById("judge-session-cost").textContent = Number(data.session_total_cost).toFixed(6);
+			result.classList.remove("hidden");
+		} catch (err) {
+			console.error("AI judge failed:", err);
+			showToast(err.message, "error");
+		} finally {
+			isJudging = false;
+			button.disabled = false;
 		}
 	}
 
@@ -512,5 +556,10 @@ ${JSON.stringify(data, null, 2)}
 	if (compareAiJudgeBtn) {
 		// Currently the Analysis Prompt for Compare is the AI Judge prompt.
 		compareAiJudgeBtn.addEventListener("click", copyComparisonPrompt);
+	}
+
+	const compareDirectJudgeBtn = document.getElementById("compare-direct-judge-btn");
+	if (compareDirectJudgeBtn) {
+		compareDirectJudgeBtn.addEventListener("click", judgeComparison);
 	}
 });

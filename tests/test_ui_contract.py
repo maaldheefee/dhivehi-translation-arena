@@ -37,3 +37,17 @@ def test_rating_run_keeps_retries_and_votes_bound_to_one_query():
     assert "retrySingle(run, modelKey)" in script
     assert "retrySingle(elements.queryInput.value" not in script
     assert "card.dataset.queryId === String(queryId)" in script
+
+
+def test_comparison_exposes_manual_and_direct_ai_judging():
+    template = (PROJECT_ROOT / "templates" / "compare.html").read_text()
+    script = (PROJECT_ROOT / "static" / "js" / "compare.js").read_text()
+
+    assert 'id="compare-ai-judge-btn"' in template
+    assert 'id="compare-direct-judge-btn"' in template
+    assert 'id="judge-comments"' in template
+    assert 'id="judge-session-cost"' in template
+    assert 'fetch("/compare/judge"' in script
+    assert 'classList.toggle("selected", data.winner === "a")' in script
+    assert 'classList.toggle("selected", data.winner === "b")' in script
+    assert 'compareAiJudgeBtn.addEventListener("click", copyComparisonPrompt)' in script
