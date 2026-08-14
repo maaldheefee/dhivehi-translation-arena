@@ -62,6 +62,7 @@ def _glicko2_update(
     opp_ratings: list[float],
     opp_rds: list[float],
     scores: list[float],
+    weights: list[float] | None = None,
     tau: float = Config.GLICKO_TAU,
     c_per_week: float = Config.GLICKO_C_PER_WEEK,
     weeks_inactive: float = 0.0,
@@ -82,6 +83,15 @@ def _glicko2_update(
     Returns:
         (new_rating, new_rd, new_volatility) on Glicko-2 scale.
     """
+    if weights is None:
+        weights = [1.0] * len(scores)
+    if not (len(opp_ratings) == len(opp_rds) == len(scores) == len(weights)):
+        msg = "Opponent ratings, RDs, scores, and weights must have equal lengths"
+        raise ValueError(msg)
+    if any(weight <= 0 for weight in weights):
+        msg = "Evidence weights must be positive"
+        raise ValueError(msg)
+
     # Step 1: Apply time-based RD increase for inactivity
     if weeks_inactive > 0:
         rd = math.sqrt(rd**2 + (c_per_week**2) * weeks_inactive)
@@ -109,12 +119,16 @@ def _glicko2_update(
 
         # Step 4: Compute v (estimated variance)
         v_inv = sum(
-            g(pj) ** 2 * expected(mu, mj, pj) * (1 - expected(mu, mj, pj)) for mj, pj in zip(mu_js, phi_js, strict=True)
+            weight * g(pj) ** 2 * expected(mu, mj, pj) * (1 - expected(mu, mj, pj))
+            for mj, pj, weight in zip(mu_js, phi_js, weights, strict=True)
         )
         v = 1.0 / v_inv if v_inv > 0 else 1e6
 
         # Step 5: Compute Δ (improvement)
-        delta_sum = sum(g(pj) * (s - expected(mu, mj, pj)) for mj, pj, s in zip(mu_js, phi_js, scores, strict=True))
+        delta_sum = sum(
+            weight * g(pj) * (s - expected(mu, mj, pj))
+            for mj, pj, s, weight in zip(mu_js, phi_js, scores, weights, strict=True)
+        )
         delta = v * delta_sum
 
         # Step 6: Compute new volatility (iterative)
@@ -206,54 +220,61 @@ class ELOService:
             model_b: Loser's model name (or second model for ties)
             score_a: Score for model_a on [0, 1]. model_b gets 1 - score_a.
         """
-        rec_a = self.get_or_create(model_a)
-        rec_b = self.get_or_create(model_b)
-
-        weeks_a = self._weeks_since_last_comparison(rec_a)
-        weeks_b = self._weeks_since_last_comparison(rec_b)
-
-        # Each comparison is a single-game "rating period"
-        new_rating_a, new_rd_a, new_vol_a = _glicko2_update(
-            rec_a.elo_rating,
-            rec_a.rating_deviation,
-            rec_a.volatility,
-            [rec_b.elo_rating],
-            [rec_b.rating_deviation],
-            [score_a],
-            weeks_inactive=weeks_a,
-        )
-        new_rating_b, new_rd_b, new_vol_b = _glicko2_update(
-            rec_b.elo_rating,
-            rec_b.rating_deviation,
-            rec_b.volatility,
-            [rec_a.elo_rating],
-            [rec_a.rating_deviation],
-            [1.0 - score_a],
-            weeks_inactive=weeks_b,
-        )
-
         now = datetime.now(UTC)
-        rec_a.elo_rating = new_rating_a
-        rec_a.rating_deviation = new_rd_a
-        rec_a.volatility = new_vol_a
-        rec_a.last_comparison_at = now
-        rec_b.elo_rating = new_rating_b
-        rec_b.rating_deviation = new_rd_b
-        rec_b.volatility = new_vol_b
-        rec_b.last_comparison_at = now
-
-        # Update win/loss/tie counters
-        if score_a > 0.5:
-            rec_a.wins += 1
-            rec_b.losses += 1
-        elif score_a < 0.5:
-            rec_a.losses += 1
-            rec_b.wins += 1
-        else:
-            rec_a.ties += 1
-            rec_b.ties += 1
-
+        self.apply_rating_period([(model_a, model_b, score_a, 1.0)], now)
         self.session.commit()
+
+    def apply_rating_period(
+        self,
+        games: list[tuple[str, str, float, float]],
+        observed_at: datetime,
+    ) -> None:
+        """Apply all games simultaneously from the pre-period rating state."""
+        if not games:
+            return
+        models = sorted({model for game in games for model in game[:2]})
+        records = {model: self.get_or_create(model) for model in models}
+        snapshots = {
+            model: (record.elo_rating, record.rating_deviation, record.volatility, record.last_comparison_at)
+            for model, record in records.items()
+        }
+        schedules: dict[str, list[tuple[str, float, float]]] = {model: [] for model in models}
+        for model_a, model_b, score_a, weight in games:
+            schedules[model_a].append((model_b, score_a, weight))
+            schedules[model_b].append((model_a, 1.0 - score_a, weight))
+
+        updates: dict[str, tuple[float, float, float]] = {}
+        for model, schedule in schedules.items():
+            rating, rd, volatility, last_observed = snapshots[model]
+            updates[model] = _glicko2_update(
+                rating,
+                rd,
+                volatility,
+                [snapshots[opponent][0] for opponent, _, _ in schedule],
+                [snapshots[opponent][1] for opponent, _, _ in schedule],
+                [score for _, score, _ in schedule],
+                [weight for _, _, weight in schedule],
+                weeks_inactive=_weeks_between(last_observed, observed_at),
+            )
+
+        for model, (rating, rd, volatility) in updates.items():
+            record = records[model]
+            record.elo_rating = rating
+            record.rating_deviation = rd
+            record.volatility = volatility
+            record.last_comparison_at = observed_at
+
+        for model_a, model_b, score_a, _ in games:
+            rec_a, rec_b = records[model_a], records[model_b]
+            if score_a > 0.5:
+                rec_a.wins += 1
+                rec_b.losses += 1
+            elif score_a < 0.5:
+                rec_a.losses += 1
+                rec_b.wins += 1
+            else:
+                rec_a.ties += 1
+                rec_b.ties += 1
 
     def update_ratings(self, winner: str, loser: str, score: float = 1.0) -> tuple[float, float]:
         """Update ratings after a match. Returns (new_winner_rating, new_loser_rating)."""
@@ -333,18 +354,28 @@ class ELOService:
         ]
 
     def rebuild_ratings_from_comparisons(self) -> int:
-        """Rebuild all Glicko-2 ratings from raw PairwiseComparison data.
-
-        Wipes ModelELO, replays all comparisons in stable order
-        (created_at asc, then id asc). Returns number of comparisons processed.
-        """
+        """Deterministically project rating periods from raw comparisons."""
         from app.models import Translation as Trans
 
-        # Wipe existing ModelELO rows
+        seeds = {
+            record.model: record.legacy_elo_rating
+            for record in self.session.query(ModelELO).all()
+            if record.legacy_elo_rating is not None
+        }
         self.session.query(ModelELO).delete()
         self.session.flush()
+        for model, seed in seeds.items():
+            self.session.add(
+                ModelELO(
+                    model=model,
+                    elo_rating=seed,
+                    rating_deviation=Config.GLICKO_INITIAL_RD,
+                    volatility=Config.GLICKO_INITIAL_VOLATILITY,
+                    legacy_elo_rating=seed,
+                )
+            )
+        self.session.flush()
 
-        # Fetch all comparisons in stable order
         comparisons = (
             self.session.query(PairwiseComparison)
             .order_by(PairwiseComparison.created_at.asc(), PairwiseComparison.id.asc())
@@ -364,9 +395,8 @@ class ELOService:
             translations = self.session.query(Trans).filter(Trans.id.in_(trans_ids)).all()
             trans_map = {t.id: str(t.model) for t in translations}
 
-        count = 0
+        periods: dict[tuple[str, int], list[tuple[PairwiseComparison, str, str, float, float]]] = {}
         for c in comparisons:
-            # Determine the two models and the score
             if c.winner_model and c.loser_model:
                 model_a = c.winner_model
                 model_b = c.loser_model
@@ -379,70 +409,27 @@ class ELOService:
                 score_a = c.score if c.score is not None else 0.5
             else:
                 continue
+            if model_a == model_b:
+                continue
+            key = ("ballot", c.ballot_id) if c.source == "derived" and c.ballot_id else ("comparison", c.id)
+            periods.setdefault(key, []).append((c, model_a, model_b, score_a, c.evidence_weight or 1.0))
 
-            # Get or create records (without committing each time)
-            rec_a = self.get_or_create(model_a)
-            rec_b = self.get_or_create(model_b)
+        epoch = datetime(1970, 1, 1, tzinfo=UTC)
 
-            # Compute weeks since each model's last comparison for RD time decay
-            comp_time = c.created_at
-            if comp_time is not None and comp_time.tzinfo is None:
-                comp_time = comp_time.replace(tzinfo=UTC)
+        def period_order(items):
+            comparisons_in_period = [item[0] for item in items]
+            ballot = comparisons_in_period[0].ballot
+            observed_at = ballot.observed_at if ballot else comparisons_in_period[0].created_at
+            return (_as_utc(observed_at) if observed_at else epoch, min(item.id for item in comparisons_in_period))
 
-            weeks_a = 0.0
-            weeks_b = 0.0
-            if comp_time is not None:
-                if rec_a.last_comparison_at is not None:
-                    last_a = rec_a.last_comparison_at
-                    if last_a.tzinfo is None:
-                        last_a = last_a.replace(tzinfo=UTC)
-                    weeks_a = max(0.0, (comp_time - last_a).total_seconds() / (7 * 24 * 3600))
-                if rec_b.last_comparison_at is not None:
-                    last_b = rec_b.last_comparison_at
-                    if last_b.tzinfo is None:
-                        last_b = last_b.replace(tzinfo=UTC)
-                    weeks_b = max(0.0, (comp_time - last_b).total_seconds() / (7 * 24 * 3600))
-
-            # Apply Glicko-2 update with time decay
-            new_rating_a, new_rd_a, new_vol_a = _glicko2_update(
-                rec_a.elo_rating,
-                rec_a.rating_deviation,
-                rec_a.volatility,
-                [rec_b.elo_rating],
-                [rec_b.rating_deviation],
-                [score_a],
-                weeks_inactive=weeks_a,
-            )
-            new_rating_b, new_rd_b, new_vol_b = _glicko2_update(
-                rec_b.elo_rating,
-                rec_b.rating_deviation,
-                rec_b.volatility,
-                [rec_a.elo_rating],
-                [rec_a.rating_deviation],
-                [1.0 - score_a],
-                weeks_inactive=weeks_b,
-            )
-
-            rec_a.elo_rating = new_rating_a
-            rec_a.rating_deviation = new_rd_a
-            rec_a.volatility = new_vol_a
-            rec_a.last_comparison_at = comp_time
-            rec_b.elo_rating = new_rating_b
-            rec_b.rating_deviation = new_rd_b
-            rec_b.volatility = new_vol_b
-            rec_b.last_comparison_at = comp_time
-
-            if score_a > 0.5:
-                rec_a.wins += 1
-                rec_b.losses += 1
-            elif score_a < 0.5:
-                rec_a.losses += 1
-                rec_b.wins += 1
-            else:
-                rec_a.ties += 1
-                rec_b.ties += 1
-
-            count += 1
+        count = 0
+        for items in sorted(periods.values(), key=period_order):
+            first = items[0][0]
+            observed_at = first.ballot.observed_at if first.ballot else first.created_at
+            observed_at = _as_utc(observed_at) if observed_at else epoch
+            games = [(model_a, model_b, score, weight) for _, model_a, model_b, score, weight in items]
+            self.apply_rating_period(games, observed_at)
+            count += len(games)
 
         self.session.commit()
         logger.info("Rebuilt ratings from %d comparisons", count)

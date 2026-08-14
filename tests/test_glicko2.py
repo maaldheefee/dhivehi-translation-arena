@@ -9,7 +9,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.config import Config
 from app.database import Base
-from app.models import ModelELO, PairwiseComparison, Query, Translation, User, Vote
+from app.models import ModelELO, PairwiseComparison, Query, RatingBallot, Translation, User, Vote
 from app.services.elo_service import ELOService, _glicko2_update, _serialize_rating_state, _weeks_between
 from app.services.vote_service import _gap_to_score, _should_skip_pair
 
@@ -189,6 +189,37 @@ class TestGlicko2Update:
         )
         # Full win should move rating more than fractional win
         assert abs(new_r_win - 1500.0) > abs(new_r_frac - 1500.0)
+
+    def test_fractional_outcome_and_evidence_weight_are_independent(self):
+        full = _glicko2_update(1500.0, 200.0, 0.06, [1500.0], [200.0], [1.0], [1.0])
+        fractional = _glicko2_update(1500.0, 200.0, 0.06, [1500.0], [200.0], [0.7], [1.0])
+        weak = _glicko2_update(1500.0, 200.0, 0.06, [1500.0], [200.0], [1.0], [0.25])
+
+        assert full[1] == pytest.approx(fractional[1])
+        assert weak[1] > full[1]
+        assert full[0] > fractional[0] > 1500.0
+
+    def test_normalized_ballots_bound_four_vs_six_model_confidence(self):
+        four = _glicko2_update(
+            1500.0,
+            350.0,
+            0.06,
+            [1500.0] * 3,
+            [350.0] * 3,
+            [0.5] * 3,
+            [1 / 3] * 3,
+        )
+        six = _glicko2_update(
+            1500.0,
+            350.0,
+            0.06,
+            [1500.0] * 5,
+            [350.0] * 5,
+            [0.5] * 5,
+            [1 / 5] * 5,
+        )
+
+        assert four[1] == pytest.approx(six[1], abs=0.01)
 
     def test_tie_against_equal(self):
         """A tie (0.5) against equal opponent should barely change rating."""
@@ -702,178 +733,70 @@ class TestVoteDerivation:
         assert comp.loser_model is None
         assert comp.score == 0.5
 
-    def test_delete_before_rederive(self, session):
-        """Re-voting should delete old derived comparisons before re-deriving."""
+    def test_identical_retry_is_noop_and_conflict_is_rejected(self, session, monkeypatch):
+        """Ballot evidence is immutable at the normal submission boundary."""
         user, query, t1, t2 = self._create_test_data(session)
+        from app.services import vote_service
 
-        from app.services.vote_service import _derive_pairwise_from_votes
-
-        # First vote: 3 vs 1
-        votes_data = [
+        monkeypatch.setattr(vote_service, "db_session", session)
+        payload = [
             {"translation_id": t1.id, "rating": 3},
             {"translation_id": t2.id, "rating": 1},
         ]
-        _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
-        session.commit()
+        observed = datetime(2025, 3, 1, tzinfo=UTC)
 
-        initial_count = (
-            session.query(PairwiseComparison)
-            .filter(
-                PairwiseComparison.source == "derived",
-                PairwiseComparison.query_id == query.id,
-            )
-            .count()
+        assert vote_service.process_votes(user.id, query.id, payload, observed)["success"] is True
+        original_state = _serialize_rating_state(session.query(ModelELO).all())
+        assert vote_service.process_votes(user.id, query.id, list(reversed(payload)), observed)["success"] is True
+        assert session.query(RatingBallot).count() == 1
+        assert session.query(PairwiseComparison).count() == 1
+        assert _serialize_rating_state(session.query(ModelELO).all()) == original_state
+
+        ELOService(session).rebuild_ratings_from_comparisons()
+        assert _serialize_rating_state(session.query(ModelELO).all()) == original_state
+
+        conflict = vote_service.process_votes(
+            user.id,
+            query.id,
+            [{"translation_id": t1.id, "rating": 1}],
+            observed,
         )
-        assert initial_count == 1
+        assert conflict["success"] is False
+        assert session.get(Vote, 1).rating == 3
 
-        # Re-vote: 1 vs 3 (reversed)
-        votes_data = [
-            {"translation_id": t1.id, "rating": 1},
-            {"translation_id": t2.id, "rating": 3},
-        ]
-        _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
-        session.commit()
-
-        # Should still have only 1 comparison (old one deleted, new one created)
-        comps = (
-            session.query(PairwiseComparison)
-            .filter(
-                PairwiseComparison.source == "derived",
-                PairwiseComparison.query_id == query.id,
-            )
-            .all()
-        )
-        assert len(comps) == 1
-        # Winner should now be model-b
-        assert comps[0].winner_model == "model-b"
-
-    def test_revote_rebuilds_ratings(self, elo_service, session):
-        """Re-voting must rebuild ratings to match stored comparisons."""
+    def test_later_new_model_uses_existing_votes_as_anchors(self, session, monkeypatch):
         user, query, t1, t2 = self._create_test_data(session)
-
-        from app.services.vote_service import _derive_pairwise_from_votes
-
-        # First vote: 3 vs 1 -> model-a wins with score 0.85
-        votes_data = [
-            {"translation_id": t1.id, "rating": 3},
-            {"translation_id": t2.id, "rating": 1},
-        ]
-        _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
-        session.commit()
-
-        # Re-vote: 1 vs 3 -> model-b wins with score 0.85 (reversed)
-        votes_data = [
-            {"translation_id": t1.id, "rating": 1},
-            {"translation_id": t2.id, "rating": 3},
-        ]
-        _derive_pairwise_from_votes(session, int(user.id), int(query.id), votes_data)
-        session.commit()
-
-        # Ratings should now reflect model-b winning, not stacked on top of old
-        rec_a = elo_service.get_or_create("model-a")
-        rec_b = elo_service.get_or_create("model-b")
-
-        # model-a should now be below default (it lost)
-        assert rec_a.elo_rating < Config.DEFAULT_RATING
-        # model-b should now be above default (it won)
-        assert rec_b.elo_rating > Config.DEFAULT_RATING
-
-        # Verify by doing a fresh rebuild — ratings should match
-        elo_service.rebuild_ratings_from_comparisons()
-        rec_a_rebuild = elo_service.get_or_create("model-a")
-        rec_b_rebuild = elo_service.get_or_create("model-b")
-        assert rec_a.elo_rating == pytest.approx(rec_a_rebuild.elo_rating, abs=0.01)
-        assert rec_b.elo_rating == pytest.approx(rec_b_rebuild.elo_rating, abs=0.01)
-
-    def test_partial_vote_preserves_all_comparisons(self, session):
-        """Partial vote submission must re-derive from ALL persisted votes.
-
-        Simulates what process_votes does: after upserting a partial vote set,
-        fetch ALL persisted votes for the user+query and pass them to
-        _derive_pairwise_from_votes.
-        """
-        user = User(username="testuser", password_hash="x")
-        session.add(user)
-        session.flush()
-
-        query = Query(source_text="test")
-        session.add(query)
-        session.flush()
-
-        # Create 3 translations for 3 models
-        translations = []
-        for i, model in enumerate(["model-a", "model-b", "model-c"]):
-            t = Translation(
-                query_id=query.id,
-                model=model,
-                translation=f"T{i}",
-                system_prompt="sp",
-                position=i + 1,
-                user_id=user.id,
-            )
-            session.add(t)
-            translations.append(t)
-        session.flush()
-
-        t1, t2, t3 = translations
-
-        # Persist initial votes: 3, 1, 2
-        for tid, rating in [(t1.id, 3), (t2.id, 1), (t3.id, 2)]:
-            vote = Vote(
-                user_id=user.id,
-                query_id=query.id,
-                translation_id=tid,
-                rating=rating,
-            )
-            session.add(vote)
-        session.flush()
-
-        # Derive from all persisted votes (as process_votes does)
-        from app.services.vote_service import _derive_pairwise_from_votes
-
-        persisted = session.query(Vote).filter(Vote.user_id == user.id, Vote.query_id == query.id).all()
-        all_votes_data = [
-            {"translation_id": v.translation_id, "rating": v.rating} for v in persisted if v.rating is not None
-        ]
-        _derive_pairwise_from_votes(session, int(user.id), int(query.id), all_votes_data)
-        session.commit()
-
-        initial_count = (
-            session.query(PairwiseComparison)
-            .filter(
-                PairwiseComparison.source == "derived",
-                PairwiseComparison.query_id == query.id,
-            )
-            .count()
+        t3 = Translation(
+            query_id=query.id,
+            model="model-c",
+            translation="C",
+            system_prompt="sp",
+            position=3,
+            user_id=user.id,
         )
-        assert initial_count == 3  # C(3,2) = 3 pairs
-
-        # Simulate partial update: change t1 and t2 ratings in persisted votes
-        for v in session.query(Vote).filter(Vote.query_id == query.id, Vote.user_id == user.id).all():
-            if v.translation_id == t1.id:
-                v.rating = 1
-            elif v.translation_id == t2.id:
-                v.rating = 3
+        session.add(t3)
         session.flush()
+        from app.services import vote_service
 
-        # Fetch ALL persisted votes (as process_votes does after the fix)
-        persisted_votes = session.query(Vote).filter(Vote.user_id == user.id, Vote.query_id == query.id).all()
-        all_votes_data = [
-            {"translation_id": v.translation_id, "rating": v.rating} for v in persisted_votes if v.rating is not None
-        ]
-        _derive_pairwise_from_votes(session, int(user.id), int(query.id), all_votes_data)
-        session.commit()
-
-        # Should still have 3 comparisons (all 3 persisted votes considered)
-        final_count = (
-            session.query(PairwiseComparison)
-            .filter(
-                PairwiseComparison.source == "derived",
-                PairwiseComparison.query_id == query.id,
-            )
-            .count()
+        monkeypatch.setattr(vote_service, "db_session", session)
+        vote_service.process_votes(
+            user.id,
+            query.id,
+            [{"translation_id": t1.id, "rating": 3}, {"translation_id": t2.id, "rating": 1}],
+            datetime(2025, 3, 1, tzinfo=UTC),
         )
-        assert final_count == 3
+        result = vote_service.process_votes(
+            user.id,
+            query.id,
+            [{"translation_id": t3.id, "rating": 2}],
+            datetime(2025, 3, 8, tzinfo=UTC),
+        )
+
+        assert result["success"] is True
+        assert session.query(RatingBallot).count() == 2
+        assert session.query(PairwiseComparison).count() == 3
+        second_ballot = session.query(RatingBallot).order_by(RatingBallot.id.desc()).first()
+        assert {comparison.evidence_weight for comparison in second_ballot.comparisons} == {0.5}
 
 
 # --- Pair priority tests ---

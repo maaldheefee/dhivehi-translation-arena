@@ -14,16 +14,16 @@ class VoteRepository:
         self.db_session = db_session
 
     def add(self, vote: Vote) -> Vote:
-        """Add a new vote to the database."""
+        """Add a new vote; the application service owns the transaction."""
         self.db_session.add(vote)
-        self.db_session.commit()
+        self.db_session.flush()
         return vote
 
     def bulk_add(self, votes: list[Vote]) -> None:
         """Add multiple votes to the database."""
         for vote in votes:
             self.db_session.add(vote)
-        self.db_session.commit()
+        self.db_session.flush()
 
     def get_by_id(self, vote_id: int) -> Vote | None:
         """Get vote by ID."""
@@ -56,14 +56,14 @@ class VoteRepository:
         votes = self.get_by_user_and_query(user_id, query_id)
         for vote in votes:
             self.db_session.delete(vote)
-        self.db_session.commit()
+        self.db_session.flush()
 
     def delete(self, vote: Vote) -> None:
         """Delete a vote."""
         self.db_session.delete(vote)
-        self.db_session.commit()
+        self.db_session.flush()
 
     def update(self, vote: Vote) -> Vote:
         """Update an existing vote."""
-        self.db_session.commit()
+        self.db_session.flush()
         return vote

@@ -1,16 +1,18 @@
 """Vote service for processing hybrid voting system votes."""
 
 import logging
+from datetime import UTC, datetime
+from hashlib import sha256
 from itertools import combinations
 from typing import cast
 
 from sqlalchemy.orm import Session
 
 from app.database import db_session
-from app.models import PairwiseComparison, Translation, Vote
+from app.models import PairwiseComparison, RatingBallot, Translation, Vote
 from app.repositories.vote_repository import VoteRepository
 from app.services.elo_service import get_elo_service
-from app.services.stats_service import get_query_difficulty, invalidate_caches
+from app.services.stats_service import invalidate_caches
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,33 @@ def _should_skip_pair(r1: int, r2: int, query_difficulty: str = "unknown") -> bo
     return bool(r1 == -1 and r2 == -1)
 
 
-def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | str]:
+def _canonical_votes(votes_data) -> list[tuple[int, int]]:
+    """Validate and canonicalize one ballot payload."""
+    ratings: dict[int, int] = {}
+    for item in votes_data:
+        translation_id = item.get("translation_id")
+        rating = item.get("rating")
+        if not isinstance(translation_id, int) or rating not in (3, 2, 1, -1):
+            raise ValueError("Every ballot item must contain a translation ID and valid rating")
+        if translation_id in ratings and ratings[translation_id] != rating:
+            raise ValueError("A translation cannot have conflicting ratings in one ballot")
+        ratings[translation_id] = rating
+    if not ratings:
+        raise ValueError("A ballot must contain at least one rating")
+    return sorted(ratings.items())
+
+
+def _ballot_fingerprint(canonical_votes: list[tuple[int, int]]) -> str:
+    payload = "|".join(f"{translation_id}:{rating}" for translation_id, rating in canonical_votes)
+    return sha256(payload.encode()).hexdigest()
+
+
+def process_votes(
+    user_id: int,
+    query_id: int,
+    votes_data,
+    observed_at: datetime | None = None,
+) -> dict[str, bool | str]:
     """
     Process votes for a query from a user.
 
@@ -64,58 +92,71 @@ def process_votes(user_id: int, query_id: int, votes_data) -> dict[str, bool | s
         dict: Result of the voting process
     """
     session = cast(Session, db_session)
-    vote_repo = VoteRepository(session)
-
     try:
-        # Pre-fetch existing votes for the user and query to avoid N+1 query
+        canonical = _canonical_votes(votes_data)
+        translation_ids = {translation_id for translation_id, _ in canonical}
+        translations = session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
+        translation_map = {translation.id: translation for translation in translations}
+        if set(translation_map) != translation_ids or any(t.query_id != query_id for t in translations):
+            raise ValueError("Every rated translation must belong to the ballot query")
+
+        vote_repo = VoteRepository(session)
         existing_votes = vote_repo.get_by_user_and_query(user_id, query_id)
         vote_map = {v.translation_id: v for v in existing_votes}
+        conflicts = [
+            translation_id
+            for translation_id, rating in canonical
+            if translation_id in vote_map and vote_map[translation_id].rating != rating
+        ]
+        if conflicts:
+            raise ValueError("Ratings are immutable; use the correction command for exceptional changes")
 
-        # Process votes with Upsert logic
-        processed_votes = []
-        for vote_data in votes_data:
-            translation_id = vote_data.get("translation_id")
-            rating = vote_data.get("rating")
+        new_items = [(translation_id, rating) for translation_id, rating in canonical if translation_id not in vote_map]
+        if not new_items:
+            return {"success": True, "message": "Identical ballot already recorded"}
 
-            # Validate data
-            if not translation_id:
-                continue
+        observed_at = observed_at or datetime.now(UTC)
+        ballot = RatingBallot(
+            user_id=user_id,
+            query_id=query_id,
+            fingerprint=_ballot_fingerprint(canonical),
+            observed_at=observed_at,
+            is_synthetic=False,
+        )
+        session.add(ballot)
+        session.flush()
+        for translation_id, rating in new_items:
+            vote = Vote(
+                user_id=user_id,
+                query_id=query_id,
+                translation_id=translation_id,
+                rating=rating,
+                ballot_id=ballot.id,
+                created_at=observed_at,
+            )
+            session.add(vote)
+            vote_map[translation_id] = vote
+        session.flush()
 
-            # Validate rating value
-            if rating not in [3, 2, 1, -1]:
-                continue
+        _derive_pairwise_from_votes(
+            session,
+            user_id,
+            query_id,
+            [
+                {"translation_id": vote.translation_id, "rating": vote.rating}
+                for vote in vote_map.values()
+                if vote.rating is not None
+            ],
+            ballot=ballot,
+            new_translation_ids={translation_id for translation_id, _ in new_items},
+        )
+        session.commit()
 
-            # Check if vote already exists in the pre-fetched map
-            existing_vote = vote_map.get(translation_id)
-
-            if existing_vote:
-                existing_vote.rating = rating
-                vote_repo.update(existing_vote)
-                processed_votes.append({"translation_id": translation_id, "rating": rating})
-            else:
-                vote = Vote(
-                    user_id=user_id,
-                    query_id=query_id,
-                    translation_id=translation_id,
-                    rating=rating,
-                )
-                vote_repo.add(vote)
-                # Update map to avoid creating duplicates if translation_id repeats in votes_data
-                vote_map[translation_id] = vote
-                processed_votes.append({"translation_id": translation_id, "rating": rating})
-
-        # Derive pairwise comparisons from ALL persisted votes for this user+query
-        all_votes = vote_repo.get_by_user_and_query(user_id, query_id)
-        if len(all_votes) >= 2:
-            all_votes_data = [
-                {"translation_id": v.translation_id, "rating": v.rating} for v in all_votes if v.rating is not None
-            ]
-            if len(all_votes_data) >= 2:
-                difficulty_map = get_query_difficulty()
-                query_difficulty = difficulty_map.get(query_id, "unknown")
-                _derive_pairwise_from_votes(session, user_id, query_id, all_votes_data, query_difficulty)
-
+    except ValueError as error:
+        session.rollback()
+        return {"success": False, "error": str(error)}
     except Exception:
+        session.rollback()
         logger.exception("Error processing votes")
         return {"success": False, "error": "An error occurred while processing votes"}
 
@@ -130,32 +171,29 @@ def _derive_pairwise_from_votes(
     query_id: int,
     votes_data,
     query_difficulty: str = "unknown",
+    ballot: RatingBallot | None = None,
+    new_translation_ids: set[int] | None = None,
 ) -> None:
     """Derive pairwise comparisons from star rating votes.
 
-    Deletes existing derived comparisons for (user_id, query_id) first,
-    then re-derives from the complete persisted vote set. Uses fractional
-    scoring based on star rating gap and applies tie-skip logic.
-
-    After re-derivation, rebuilds all Glicko-2 ratings from stored
-    comparisons to ensure live ModelELO matches the source of truth.
+    New ballot periods compare newly observed translations with each other and
+    with existing anchors. Historical derived evidence is never rewritten.
     """
     elo_service = get_elo_service(session)
-
-    # Delete existing derived comparisons for this user+query (mutable derived comparisons)
-    session.query(PairwiseComparison).filter(
-        PairwiseComparison.user_id == user_id,
-        PairwiseComparison.query_id == query_id,
-        PairwiseComparison.source == "derived",
-    ).delete()
-    session.flush()
 
     # Pre-fetch translations to avoid N+1 query
     translation_ids = {v["translation_id"] for v in votes_data if v.get("translation_id")}
     translations = session.query(Translation).filter(Translation.id.in_(translation_ids)).all()
     translation_map = {t.id: t for t in translations}
 
-    for v1, v2 in combinations(votes_data, 2):
+    participant_count = len(translation_map)
+    evidence_weight = 1.0 / max(1, participant_count - 1)
+    games: list[tuple[str, str, float, float]] = []
+    for v1, v2 in combinations(sorted(votes_data, key=lambda vote: vote["translation_id"]), 2):
+        if new_translation_ids is not None and not (
+            v1["translation_id"] in new_translation_ids or v2["translation_id"] in new_translation_ids
+        ):
+            continue
         t1 = translation_map.get(v1["translation_id"])
         t2 = translation_map.get(v2["translation_id"])
 
@@ -194,9 +232,15 @@ def _derive_pairwise_from_votes(
                 translation_b_id=v2["translation_id"],
                 source="derived",
                 score=score,
+                evidence_weight=evidence_weight,
+                ballot_id=ballot.id if ballot else None,
+                created_at=ballot.observed_at if ballot else datetime.now(UTC),
             )
             session.add(comp)
             session.flush()
+            model_a = winner_model or str(t1.model)
+            model_b = loser_model or str(t2.model)
+            games.append((model_a, model_b, score, evidence_weight))
         except Exception:
             logger.exception(
                 "Error recording pairwise comparison for %s vs %s",
@@ -204,5 +248,5 @@ def _derive_pairwise_from_votes(
                 t2.model,
             )
 
-    # Rebuild all ratings from stored comparisons to ensure consistency
-    elo_service.rebuild_ratings_from_comparisons()
+    observed_at = ballot.observed_at if ballot else datetime.now(UTC)
+    elo_service.apply_rating_period(games, observed_at)
