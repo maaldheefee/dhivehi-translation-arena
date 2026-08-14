@@ -332,12 +332,20 @@ def vote() -> Response | tuple[Response, int]:
     data = request.json
     if data is None:
         return jsonify({"error": "Invalid JSON data"}), 400
-    query_id = data.get("query_id")
+    raw_query_id = data.get("query_id")
     votes = data.get("votes", [])
     username = session.get("username", "Guest")
 
-    if not query_id or not votes:
+    if raw_query_id is None or not votes:
         return jsonify({"error": "Missing query ID or votes"}), 400
+    if isinstance(raw_query_id, bool):
+        return jsonify({"error": "Invalid query ID"}), 400
+    try:
+        query_id = int(raw_query_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid query ID"}), 400
+    if query_id <= 0:
+        return jsonify({"error": "Invalid query ID"}), 400
 
     user = db_session.query(User).filter(User.username == username).first()
     if not user:
@@ -347,7 +355,7 @@ def vote() -> Response | tuple[Response, int]:
 
     if result["success"]:
         return jsonify({"status": "success"})
-    return jsonify({"error": result["error"]}), 500
+    return jsonify({"error": result["error"]}), int(result.get("status_code", 500))
 
 
 @main_bp.route("/retry-single", methods=["POST"])

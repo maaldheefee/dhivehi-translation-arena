@@ -27,3 +27,13 @@ def test_mobile_toggle_override_follows_desktop_default():
 
     assert desktop_default > 0
     assert mobile_override > desktop_default
+
+
+def test_rating_run_keeps_retries_and_votes_bound_to_one_query():
+    script = (PROJECT_ROOT / "static" / "js" / "main.js").read_text()
+
+    assert "const run = { sourceText: query, queryId: null, eventSource: null };" in script
+    assert "if (activeRun !== run) return;" in script
+    assert "retrySingle(run, modelKey)" in script
+    assert "retrySingle(elements.queryInput.value" not in script
+    assert "card.dataset.queryId === String(queryId)" in script

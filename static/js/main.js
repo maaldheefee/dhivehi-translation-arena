@@ -41,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	};
 
 	let eventSource = null;
+	let activeRun = null;
 	let currentTotalCost = 0;
 	const seenHashes = new Set();
 
@@ -231,6 +232,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		// Reset UI
 		if (eventSource) eventSource.close();
+		const run = { sourceText: query, queryId: null, eventSource: null };
+		activeRun = run;
 
 		elements.resultsSection.classList.remove("hidden");
 		elements.translationsContainer.innerHTML = "";
@@ -264,8 +267,10 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 
 		eventSource = new EventSource(`/stream-translate?${params.toString()}`);
+		run.eventSource = eventSource;
 
 		eventSource.onmessage = (e) => {
+			if (activeRun !== run) return;
 			const data = JSON.parse(e.data);
 			if (data.error) {
 				if (data.type === "auth_error") {
@@ -274,19 +279,21 @@ document.addEventListener("DOMContentLoaded", () => {
 					elements.submitVotesBtn.classList.add("hidden");
 					return;
 				}
-				renderError(data.model, data.error);
+				renderError(data.model, data.error, run);
 			} else {
-				renderTranslation(data);
+				renderTranslation(data, run);
 			}
 		};
 
 		eventSource.addEventListener("end", () => {
+			if (activeRun !== run) return;
 			eventSource.close();
 			elements.submitVotesBtn.classList.remove("hidden");
 			showToast(t("toast_translation_complete"), "success");
 		});
 
 		eventSource.onerror = (e) => {
+			if (activeRun !== run) return;
 			console.error("Stream error", e);
 
 			// Check for auth error
@@ -315,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			pendingCards.forEach((card) => {
 				const modelKey = card.dataset.modelKey;
 				if (modelKey) {
-					renderError(modelKey, "Stream connection lost / Model failed");
+					renderError(modelKey, "Stream connection lost / Model failed", run);
 				}
 			});
 
@@ -324,7 +331,17 @@ document.addEventListener("DOMContentLoaded", () => {
 		};
 	}
 
-	function renderTranslation(data) {
+	function renderTranslation(data, run = activeRun) {
+		if (activeRun !== run) return;
+		if (run.queryId !== null && String(data.query_id) !== String(run.queryId)) {
+			renderError(data.model, "Translation belongs to a different query", run);
+			return;
+		}
+		if (run.queryId === null) {
+			run.queryId = data.query_id;
+			elements.queryId.value = data.query_id;
+		}
+
 		const card = document.querySelector(
 			`.translation-card[data-model-key="${data.model}"]`,
 		);
@@ -332,9 +349,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		card.classList.remove("placeholder");
 		card.dataset.id = data.id;
+		card.dataset.queryId = data.query_id;
 		card.innerHTML = ""; // Clear placeholder content
-
-		if (!elements.queryId.value) elements.queryId.value = data.query_id;
 
 		// Update cost
 		currentTotalCost += data.cost;
@@ -372,7 +388,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		card.appendChild(content);
 	}
 
-	function renderError(modelKey, errorMsg) {
+	function renderError(modelKey, errorMsg, run = activeRun) {
+		if (activeRun !== run) return;
 		const card = document.querySelector(
 			`.translation-card[data-model-key="${modelKey}"]`,
 		);
@@ -384,7 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		const retryTmpl = document.getElementById("retry-button-template");
 		const retryBtn = retryTmpl.content.cloneNode(true);
 		retryBtn.querySelector(".retry-btn").addEventListener("click", () => {
-			retrySingle(elements.queryInput.value, modelKey);
+			retrySingle(run, modelKey);
 		});
 
 		const footer = document.createElement("div");
@@ -454,7 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 
 	async function submitVotes() {
-		const queryId = elements.queryId.value;
+		const queryId = activeRun?.queryId;
 		if (!queryId) return;
 
 		const votes = [];
@@ -462,7 +479,12 @@ document.addEventListener("DOMContentLoaded", () => {
 			const input = card.querySelector(".rating-value");
 			const translationId = parseInt(card.dataset.id, 10);
 			// Only include cards with valid translation IDs (skip error cards)
-			if (input && input.value !== "0" && !Number.isNaN(translationId)) {
+			if (
+				input &&
+				input.value !== "0" &&
+				!Number.isNaN(translationId) &&
+				card.dataset.queryId === String(queryId)
+			) {
 				votes.push({
 					translation_id: translationId,
 					rating: parseInt(input.value, 10),
@@ -579,7 +601,8 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 
 	// Retry a single failed model translation
-	async function retrySingle(query, modelKey) {
+	async function retrySingle(run, modelKey) {
+		if (activeRun !== run) return;
 		const card = document.querySelector(
 			`.translation-card[data-model-key="${modelKey}"]`,
 		);
@@ -604,26 +627,26 @@ document.addEventListener("DOMContentLoaded", () => {
 					"Content-Type": "application/json",
 					"X-CSRFToken": getCSRFToken(),
 				},
-				body: JSON.stringify({ query, model: modelKey }),
+				body: JSON.stringify({ query: run.sourceText, model: modelKey }),
 			});
 
 			if (res.status === 401) {
 				showToast(t("Authentication required. Please login."), "error");
-				renderError(modelKey, "Authentication required");
+				renderError(modelKey, "Authentication required", run);
 				return;
 			}
 
 			const data = await res.json();
 
 			if (data.error) {
-				renderError(modelKey, data.error);
+				renderError(modelKey, data.error, run);
 			} else {
-				renderTranslation(data);
+				renderTranslation(data, run);
 				showToast(t("toast_retry_success") || "Retry successful!", "success");
 			}
 		} catch (err) {
 			console.error("Retry error:", err);
-			renderError(modelKey, "Network error during retry");
+			renderError(modelKey, "Network error during retry", run);
 		}
 	}
 	const RUBRIC_TEXT = `Scoring Rubric:

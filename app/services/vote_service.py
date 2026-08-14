@@ -77,7 +77,7 @@ def process_votes(
     query_id: int,
     votes_data,
     observed_at: datetime | None = None,
-) -> dict[str, bool | str]:
+) -> dict[str, bool | str | int]:
     """
     Process votes for a query from a user.
 
@@ -154,11 +154,11 @@ def process_votes(
 
     except ValueError as error:
         session.rollback()
-        return {"success": False, "error": str(error)}
+        return {"success": False, "error": str(error), "status_code": 400}
     except Exception:
         session.rollback()
         logger.exception("Error processing votes")
-        return {"success": False, "error": "An error occurred while processing votes"}
+        return {"success": False, "error": "An error occurred while processing votes", "status_code": 500}
 
     else:
         invalidate_caches()

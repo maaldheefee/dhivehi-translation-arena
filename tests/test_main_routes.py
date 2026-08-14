@@ -2,8 +2,13 @@ import json
 from types import SimpleNamespace
 
 from flask import Flask
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app.blueprints import main as main_module
+from app.database import Base
+from app.models import Query, Translation, User, Vote
+from app.services import vote_service
 from app.services.acquisition_policy import EvaluationSession
 
 
@@ -83,3 +88,86 @@ def test_available_models_preserves_hidden_exclusions_and_requested_count(monkey
     assert payload["models"]["target"]["selected"] is True
     assert payload["models"]["anchor"]["selected"] is True
     assert payload["models"]["hidden"]["selected"] is False
+
+
+def test_vote_rejects_mixed_query_ballot_as_bad_request_without_writes(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    database = scoped_session(sessionmaker(bind=engine))
+    user = User(username="tester", password_hash="x")
+    first_query = Query(source_text="first")
+    second_query = Query(source_text="second")
+    database.add_all([user, first_query, second_query])
+    database.flush()
+    translations = [
+        Translation(
+            query_id=query.id,
+            model=f"model-{position}",
+            translation=f"translation-{position}",
+            system_prompt="sp",
+            position=position,
+            user_id=user.id,
+        )
+        for position, query in enumerate((first_query, second_query), 1)
+    ]
+    database.add_all(translations)
+    database.commit()
+    monkeypatch.setattr(main_module, "db_session", database)
+    monkeypatch.setattr(vote_service, "db_session", database)
+    client = _app().test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["username"] = user.username
+
+    response = client.post(
+        "/vote",
+        json={
+            "query_id": first_query.id,
+            "votes": [
+                {"translation_id": translations[0].id, "rating": 3},
+                {"translation_id": translations[1].id, "rating": 2},
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "Every rated translation must belong to the ballot query"}
+    assert database.query(Vote).count() == 0
+    database.remove()
+
+
+def test_vote_accepts_numeric_string_query_id_from_browser(monkeypatch):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    database = scoped_session(sessionmaker(bind=engine))
+    user = User(username="tester", password_hash="x")
+    query = Query(source_text="query")
+    database.add_all([user, query])
+    database.flush()
+    translation = Translation(
+        query_id=query.id,
+        model="model",
+        translation="translation",
+        system_prompt="sp",
+        position=1,
+        user_id=user.id,
+    )
+    database.add(translation)
+    database.commit()
+    monkeypatch.setattr(main_module, "db_session", database)
+    monkeypatch.setattr(vote_service, "db_session", database)
+    client = _app().test_client()
+    with client.session_transaction() as browser_session:
+        browser_session["username"] = user.username
+
+    response = client.post(
+        "/vote",
+        json={
+            "query_id": str(query.id),
+            "votes": [{"translation_id": translation.id, "rating": 3}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "success"}
+    assert database.query(Vote).count() == 1
+    database.remove()
