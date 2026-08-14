@@ -1,11 +1,15 @@
 """Centralized configuration for Dhivehi Translation Arena."""
 
+import logging
 import os
+import threading
 import warnings
 from pathlib import Path
 from typing import Any, ClassVar, NotRequired, TypedDict
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 class ModelConfig(TypedDict):
@@ -92,6 +96,48 @@ def _load_models_from_yaml(path: Path | None = None) -> dict[str, ModelConfig]:
         raise ValueError(msg)
 
     return models
+
+
+class _ModelsReloader:
+    """Keep a last-known-good model snapshot and refresh it when the file changes."""
+
+    def __init__(self, path: Path, models: dict[str, ModelConfig]) -> None:
+        self._path = path
+        self._models = models
+        self._lock = threading.Lock()
+        self._observed_version = self._file_version()
+
+    def _file_version(self) -> tuple[int, int, int] | None:
+        try:
+            stat = self._path.stat()
+        except OSError:
+            return None
+        return (stat.st_ino, stat.st_size, stat.st_mtime_ns)
+
+    def get(self) -> dict[str, ModelConfig]:
+        version = self._file_version()
+        if version == self._observed_version:
+            return self._models
+
+        with self._lock:
+            version = self._file_version()
+            if version == self._observed_version:
+                return self._models
+
+            try:
+                models = _load_models_from_yaml(self._path)
+            except (OSError, ValueError, yaml.YAMLError):
+                logger.exception(
+                    "Could not reload %s; continuing with the last valid model configuration",
+                    self._path,
+                )
+            else:
+                self._models = models
+
+            # Do not retry the same broken save on every request. A subsequent
+            # file change gets a new version and triggers another attempt.
+            self._observed_version = version
+            return self._models
 
 
 class Config:
@@ -194,14 +240,15 @@ config = {
 
 
 _config_instance: Config | None = None
+_models_reloader = _ModelsReloader(_resolve_models_path(), Config.MODELS)
 
 
 def get_config(config_name: str | None = None) -> Config:
     """Get configuration instance (cached)."""
     global _config_instance
-    if _config_instance is not None:
-        return _config_instance
-    if config_name is None:
-        config_name = os.environ.get("FLASK_ENV", "default")
-    _config_instance = config.get(config_name, config["default"])()
+    if _config_instance is None:
+        if config_name is None:
+            config_name = os.environ.get("FLASK_ENV", "default")
+        _config_instance = config.get(config_name, config["default"])()
+    _config_instance.MODELS = _models_reloader.get()  # ty: ignore[invalid-attribute-access]
     return _config_instance

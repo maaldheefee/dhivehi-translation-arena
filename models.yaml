@@ -132,7 +132,7 @@ gemini-3-flash-t1.0:
 
 gemini-3-flash-low-t1.0:
   name: google/gemini-3-flash-preview
-  display_name: Gemini 3 Flash (Low, T1.0)
+  display_name: Gemini 3 Flash (Minimal Thinking, T1.0)
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
@@ -142,7 +142,7 @@ gemini-3-flash-low-t1.0:
   timeout: 180.0
   base_model: Gemini 3 Flash Preview
   temperature: 1.0
-  preset_name: Min Reasoning, Temp 1.0
+  preset_name: Minimal Thinking, Temp 1.0
 
 gemini-3-flash-t0.3:
   name: google/gemini-3-flash-preview
@@ -159,7 +159,7 @@ gemini-3-flash-t0.3:
 
 gemini-3-flash-low-t0.3:
   name: google/gemini-3-flash-preview
-  display_name: Gemini 3 Flash (Low, T0.3)
+  display_name: Gemini 3 Flash (Minimal Thinking, T0.3)
   type: openrouter
   input_cost_per_mtok: 0.5
   output_cost_per_mtok: 3.0
@@ -170,7 +170,7 @@ gemini-3-flash-low-t0.3:
   timeout: 180.0
   base_model: Gemini 3 Flash Preview
   temperature: 0.3
-  preset_name: Min Reasoning, Temp 0.3
+  preset_name: Minimal Thinking, Temp 0.3
 
 # ==================== Gemini 3.1 Flash Lite ====================
 
@@ -201,7 +201,7 @@ gemini-3.1-flash-lite-t0.1:
 
 gemini-3.5-flash-t1.0:
   name: google/gemini-3.5-flash
-  display_name: Gemini 3.5 Flash (T1.0)
+  display_name: Gemini 3.5 Flash (Provider-Default Medium Thinking, T1.0)
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 9.0
@@ -209,11 +209,11 @@ gemini-3.5-flash-t1.0:
   timeout: 180.0
   base_model: Gemini 3.5 Flash
   temperature: 1.0
-  preset_name: Default, Temp 1.0
+  preset_name: Provider-Default Medium Thinking, Temp 1.0
 
 gemini-3.5-flash-t0.3:
   name: google/gemini-3.5-flash
-  display_name: Gemini 3.5 Flash (T0.3)
+  display_name: Gemini 3.5 Flash (Provider-Default Medium Thinking, T0.3)
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 9.0
@@ -222,7 +222,7 @@ gemini-3.5-flash-t0.3:
   timeout: 180.0
   base_model: Gemini 3.5 Flash
   temperature: 0.3
-  preset_name: Temp 0.3
+  preset_name: Provider-Default Medium Thinking, Temp 0.3
 
 # ==================== Gemini 2.5 Pro ====================
 
@@ -558,7 +558,7 @@ deepseek-v4-pro-t0.1:
 
 gpt-5.6-luna-t0.85:
   name: openai/gpt-5.6-luna
-  display_name: GPT-5.6 Luna (T0.85)
+  display_name: GPT-5.6 Luna (No Reasoning, T0.85)
   type: openrouter
   input_cost_per_mtok: 1.0
   output_cost_per_mtok: 6.0
@@ -568,11 +568,11 @@ gpt-5.6-luna-t0.85:
     effort: none
   base_model: GPT-5.6 Luna
   temperature: 0.85
-  preset_name: Temp 0.85
+  preset_name: No Reasoning, Temp 0.85
 
 gpt-5.6-luna-t0.1:
   name: openai/gpt-5.6-luna
-  display_name: GPT-5.6 Luna (T0.1)
+  display_name: GPT-5.6 Luna (No Reasoning, T0.1)
   type: openrouter
   input_cost_per_mtok: 1.0
   output_cost_per_mtok: 6.0
@@ -582,13 +582,13 @@ gpt-5.6-luna-t0.1:
     effort: none
   base_model: GPT-5.6 Luna
   temperature: 0.1
-  preset_name: Temp 0.1
+  preset_name: No Reasoning, Temp 0.1
 
 # ==================== GPT-5.6 Sol ====================
 
 gpt-5.6-sol-t0.85:
   name: openai/gpt-5.6-sol
-  display_name: GPT-5.6 Sol (T0.85)
+  display_name: GPT-5.6 Sol (No Reasoning, T0.85)
   type: openrouter
   input_cost_per_mtok: 5.0
   output_cost_per_mtok: 30.0
@@ -598,11 +598,11 @@ gpt-5.6-sol-t0.85:
     effort: none
   base_model: GPT-5.6 Sol
   temperature: 0.85
-  preset_name: Temp 0.85
+  preset_name: No Reasoning, Temp 0.85
 
 gpt-5.6-sol-t0.1:
   name: openai/gpt-5.6-sol
-  display_name: GPT-5.6 Sol (T0.1)
+  display_name: GPT-5.6 Sol (No Reasoning, T0.1)
   type: openrouter
   input_cost_per_mtok: 5.0
   output_cost_per_mtok: 30.0
@@ -612,13 +612,13 @@ gpt-5.6-sol-t0.1:
     effort: none
   base_model: GPT-5.6 Sol
   temperature: 0.1
-  preset_name: Temp 0.1
+  preset_name: No Reasoning, Temp 0.1
 
 # ==================== GPT-5.6 Terra ====================
 
 gpt-5.6-terra-t0.85:
   name: openai/gpt-5.6-terra
-  display_name: GPT-5.6 Terra (T0.85)
+  display_name: GPT-5.6 Terra (No Reasoning, T0.85)
   type: openrouter
   input_cost_per_mtok: 2.5
   output_cost_per_mtok: 15.0
@@ -628,11 +628,11 @@ gpt-5.6-terra-t0.85:
     effort: none
   base_model: GPT-5.6 Terra
   temperature: 0.85
-  preset_name: Temp 0.85
+  preset_name: No Reasoning, Temp 0.85
 
 gpt-5.6-terra-t0.1:
   name: openai/gpt-5.6-terra
-  display_name: GPT-5.6 Terra (T0.1)
+  display_name: GPT-5.6 Terra (No Reasoning, T0.1)
   type: openrouter
   input_cost_per_mtok: 2.5
   output_cost_per_mtok: 15.0
@@ -642,13 +642,13 @@ gpt-5.6-terra-t0.1:
     effort: none
   base_model: GPT-5.6 Terra
   temperature: 0.1
-  preset_name: Temp 0.1
+  preset_name: No Reasoning, Temp 0.1
 
 # ==================== Gemini 3.6 Flash ====================
 
 gemini-3.6-flash-t1.0:
   name: google/gemini-3.6-flash
-  display_name: Gemini 3.6 Flash (T1.0)
+  display_name: Gemini 3.6 Flash (Provider-Default Medium Thinking, T1.0)
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 7.5
@@ -657,11 +657,11 @@ gemini-3.6-flash-t1.0:
   timeout: 180.0
   base_model: Gemini 3.6 Flash
   temperature: 1.0
-  preset_name: Default, Temp 1.0
+  preset_name: Provider-Default Medium Thinking, Temp 1.0
 
 gemini-3.6-flash-t0.3:
   name: google/gemini-3.6-flash
-  display_name: Gemini 3.6 Flash (T0.3)
+  display_name: Gemini 3.6 Flash (Provider-Default Medium Thinking, T0.3)
   type: openrouter
   input_cost_per_mtok: 1.5
   output_cost_per_mtok: 7.5
@@ -669,7 +669,7 @@ gemini-3.6-flash-t0.3:
   timeout: 180.0
   base_model: Gemini 3.6 Flash
   temperature: 0.3
-  preset_name: Temp 0.3
+  preset_name: Provider-Default Medium Thinking, Temp 0.3
 
 # ==================== Gemini 3.5 Flash Lite ====================
 
@@ -701,7 +701,7 @@ gemini-3.5-flash-lite-t0.1:
 
 gemini-3.7-flash-t1.0:
   name: google/gemini-3.7-flash
-  display_name: Gemini 3.7 Flash (T1.0)
+  display_name: Gemini 3.7 Flash (Low Thinking, T1.0)
   type: openrouter
   input_cost_per_mtok: 0.375
   output_cost_per_mtok: 1.875
@@ -711,11 +711,11 @@ gemini-3.7-flash-t1.0:
   temperature: 1.0
   reasoning:
     effort: low
-  preset_name: Default, Temp 1.0
+  preset_name: Low Thinking, Temp 1.0
 
 gemini-3.7-flash-t0.3:
   name: google/gemini-3.7-flash
-  display_name: Gemini 3.7 Flash (T0.3)
+  display_name: Gemini 3.7 Flash (Low Thinking, T0.3)
   type: openrouter
   input_cost_per_mtok: 0.375
   output_cost_per_mtok: 1.875
@@ -725,13 +725,27 @@ gemini-3.7-flash-t0.3:
   temperature: 0.3
   reasoning:
     effort: low
-  preset_name: Temp 0.3
+  preset_name: Low Thinking, Temp 0.3
+
+gemini-3.7-flash-medium-t1.0:
+  name: google/gemini-3.7-flash
+  display_name: Gemini 3.7 Flash (Medium Thinking, T1.0)
+  type: openrouter
+  input_cost_per_mtok: 0.375
+  output_cost_per_mtok: 1.875
+  is_active: true
+  timeout: 180.0
+  base_model: Gemini 3.7 Flash
+  temperature: 1.0
+  reasoning:
+    effort: medium
+  preset_name: Medium Thinking, Temp 1.0
 
 # ==================== Meta Muse Glimmer 30B ====================
 
 muse-glimmer-30b-t1.0:
   name: meta/muse-glimmer-30b
-  display_name: Muse Glimmer 30B (T1.0)
+  display_name: Muse Glimmer 30B (Low Reasoning, T1.0)
   type: openrouter
   input_cost_per_mtok: 0.35
   output_cost_per_mtok: 1.5
@@ -741,11 +755,11 @@ muse-glimmer-30b-t1.0:
   temperature: 1.0
   reasoning:
     effort: low
-  preset_name: Default, Temp 1.0
+  preset_name: Low Reasoning, Temp 1.0
 
 muse-glimmer-30b-t0.3:
   name: meta/muse-glimmer-30b
-  display_name: Muse Glimmer 30B (T0.3)
+  display_name: Muse Glimmer 30B (Low Reasoning, T0.3)
   type: openrouter
   input_cost_per_mtok: 0.35
   output_cost_per_mtok: 1.5
@@ -755,13 +769,13 @@ muse-glimmer-30b-t0.3:
   temperature: 0.3
   reasoning:
     effort: low
-  preset_name: Temp 0.3
+  preset_name: Low Reasoning, Temp 0.3
 
 # ==================== Meta Muse Spark 1.2 ====================
 
 muse-spark-1.2-t1.0:
   name: meta/muse-spark-1.2
-  display_name: Muse Spark 1.2 (T1.0)
+  display_name: Muse Spark 1.2 (Minimal Reasoning, T1.0)
   type: openrouter
   input_cost_per_mtok: 1.25
   output_cost_per_mtok: 4.25
@@ -771,11 +785,11 @@ muse-spark-1.2-t1.0:
   temperature: 1.0
   reasoning:
     effort: minimal
-  preset_name: Default, Temp 1.0
+  preset_name: Minimal Reasoning, Temp 1.0
 
 muse-spark-1.2-t0.3:
   name: meta/muse-spark-1.2
-  display_name: Muse Spark 1.2 (T0.3)
+  display_name: Muse Spark 1.2 (Minimal Reasoning, T0.3)
   type: openrouter
   input_cost_per_mtok: 1.25
   output_cost_per_mtok: 4.25
@@ -785,13 +799,13 @@ muse-spark-1.2-t0.3:
   temperature: 0.3
   reasoning:
     effort: minimal
-  preset_name: Temp 0.3
+  preset_name: Minimal Reasoning, Temp 0.3
 
 # ==================== DeepSeek V4 Pro 0813 ====================
 
 deepseek-v4-pro-0813-t1.0:
   name: deepseek/deepseek-v4-pro-0813
-  display_name: DeepSeek V4 Pro 0813 (T1.0)
+  display_name: DeepSeek V4 Pro 0813 (No Reasoning, T1.0)
   type: openrouter
   input_cost_per_mtok: 0.435
   output_cost_per_mtok: 0.87
@@ -801,11 +815,11 @@ deepseek-v4-pro-0813-t1.0:
   temperature: 1.0
   reasoning:
     effort: none
-  preset_name: Default, Temp 1.0
+  preset_name: No Reasoning, Temp 1.0
 
 deepseek-v4-pro-0813-t0.3:
   name: deepseek/deepseek-v4-pro-0813
-  display_name: DeepSeek V4 Pro 0813 (T0.3)
+  display_name: DeepSeek V4 Pro 0813 (No Reasoning, T0.3)
   type: openrouter
   input_cost_per_mtok: 0.435
   output_cost_per_mtok: 0.87
@@ -815,13 +829,13 @@ deepseek-v4-pro-0813-t0.3:
   temperature: 0.3
   reasoning:
     effort: none
-  preset_name: Temp 0.3
+  preset_name: No Reasoning, Temp 0.3
 
 # ==================== DeepSeek V4 Flash 0731 ====================
 
 deepseek-v4-flash-0731-t1.0:
   name: deepseek/deepseek-v4-flash-0731
-  display_name: DeepSeek V4 Flash 0731 (T1.0)
+  display_name: DeepSeek V4 Flash 0731 (No Reasoning, T1.0)
   type: openrouter
   input_cost_per_mtok: 0.08
   output_cost_per_mtok: 0.18
@@ -831,11 +845,11 @@ deepseek-v4-flash-0731-t1.0:
   temperature: 1.0
   reasoning:
     effort: none
-  preset_name: Default, Temp 1.0
+  preset_name: No Reasoning, Temp 1.0
 
 deepseek-v4-flash-0731-t0.3:
   name: deepseek/deepseek-v4-flash-0731
-  display_name: DeepSeek V4 Flash 0731 (T0.3)
+  display_name: DeepSeek V4 Flash 0731 (No Reasoning, T0.3)
   type: openrouter
   input_cost_per_mtok: 0.08
   output_cost_per_mtok: 0.18
@@ -845,4 +859,4 @@ deepseek-v4-flash-0731-t0.3:
   temperature: 0.3
   reasoning:
     effort: none
-  preset_name: Temp 0.3
+  preset_name: No Reasoning, Temp 0.3

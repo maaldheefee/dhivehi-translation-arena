@@ -1,6 +1,93 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
-from app.config import _load_models_from_yaml
+from app import config as config_module
+from app.config import _load_models_from_yaml, _ModelsReloader
+
+
+def _model_yaml(display_name: str) -> str:
+    return f"""
+test-model:
+  name: provider/test-model
+  display_name: {display_name}
+  type: openrouter
+  input_cost_per_mtok: 0.5
+  output_cost_per_mtok: 2.0
+  is_active: true
+"""
+
+
+def test_models_reloader_returns_same_snapshot_when_file_is_unchanged(tmp_path):
+    yaml_file = tmp_path / "models.yaml"
+    yaml_file.write_text(_model_yaml("Original"), encoding="utf-8")
+    initial = _load_models_from_yaml(yaml_file)
+    reloader = _ModelsReloader(yaml_file, initial)
+
+    assert reloader.get() is initial
+
+
+def test_models_reloader_loads_valid_file_changes(tmp_path):
+    yaml_file = tmp_path / "models.yaml"
+    yaml_file.write_text(_model_yaml("Original"), encoding="utf-8")
+    reloader = _ModelsReloader(yaml_file, _load_models_from_yaml(yaml_file))
+
+    yaml_file.write_text(_model_yaml("Updated model"), encoding="utf-8")
+
+    assert reloader.get()["test-model"]["display_name"] == "Updated model"
+
+
+def test_get_config_exposes_reloaded_models(tmp_path, monkeypatch):
+    yaml_file = tmp_path / "models.yaml"
+    yaml_file.write_text(_model_yaml("Original"), encoding="utf-8")
+    reloader = _ModelsReloader(yaml_file, _load_models_from_yaml(yaml_file))
+    monkeypatch.setattr(config_module, "_models_reloader", reloader)
+    monkeypatch.setattr(config_module, "_config_instance", None)
+
+    config = config_module.get_config("testing")
+    yaml_file.write_text(_model_yaml("Updated through get_config"), encoding="utf-8")
+    reloaded_config = config_module.get_config("testing")
+
+    assert reloaded_config is config
+    assert reloaded_config.MODELS["test-model"]["display_name"] == "Updated through get_config"
+
+
+def test_models_reloader_keeps_last_valid_snapshot_and_recovers(tmp_path, caplog):
+    yaml_file = tmp_path / "models.yaml"
+    yaml_file.write_text(_model_yaml("Original"), encoding="utf-8")
+    initial = _load_models_from_yaml(yaml_file)
+    reloader = _ModelsReloader(yaml_file, initial)
+
+    yaml_file.write_text("incomplete: [", encoding="utf-8")
+
+    assert reloader.get() is initial
+    assert "continuing with the last valid model configuration" in caplog.text
+
+    yaml_file.write_text(_model_yaml("Recovered model"), encoding="utf-8")
+
+    assert reloader.get()["test-model"]["display_name"] == "Recovered model"
+
+
+def test_models_reloader_only_reloads_once_for_concurrent_readers(tmp_path, monkeypatch):
+    yaml_file = tmp_path / "models.yaml"
+    yaml_file.write_text(_model_yaml("Original"), encoding="utf-8")
+    reloader = _ModelsReloader(yaml_file, _load_models_from_yaml(yaml_file))
+    yaml_file.write_text(_model_yaml("Updated concurrently"), encoding="utf-8")
+    original_loader = config_module._load_models_from_yaml
+    load_count = 0
+
+    def counting_loader(path):
+        nonlocal load_count
+        load_count += 1
+        return original_loader(path)
+
+    monkeypatch.setattr(config_module, "_load_models_from_yaml", counting_loader)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        snapshots = list(executor.map(lambda _: reloader.get(), range(32)))
+
+    assert load_count == 1
+    assert all(snapshot["test-model"]["display_name"] == "Updated concurrently" for snapshot in snapshots)
 
 
 def test_load_valid_yaml(tmp_path):
@@ -233,7 +320,7 @@ def test_mandatory_reasoning_models_not_set_to_none():
 
     Per OpenRouter GET /api/v1/models, these models report reasoning.mandatory=true,
     so effort=none is rejected. They must use the lowest supported effort level:
-      - Gemini 3.7 Flash (mandatory): supports high,medium,low  -> low
+      - Gemini 3.7 Flash (mandatory): supports high,medium,low -> low or medium
       - Muse Glimmer 30B (mandatory): supports xhigh,high,medium,low -> low
       - Muse Spark 1.2 (mandatory): supports xhigh,high,medium,low,minimal -> minimal
 
@@ -245,6 +332,7 @@ def test_mandatory_reasoning_models_not_set_to_none():
     expected_effort = {
         "gemini-3.7-flash-t1.0": "low",
         "gemini-3.7-flash-t0.3": "low",
+        "gemini-3.7-flash-medium-t1.0": "medium",
         "muse-glimmer-30b-t1.0": "low",
         "muse-glimmer-30b-t0.3": "low",
         "muse-spark-1.2-t1.0": "minimal",
@@ -276,4 +364,27 @@ def test_mandatory_reasoning_models_not_set_to_none():
         assert reasoning is not None, f"DeepSeek model '{key}' should define a reasoning block"
         assert reasoning.get("effort") == "none", (
             f"DeepSeek model '{key}' (mandatory=false) must keep effort='none'"
+        )
+
+
+def test_reasoning_effort_is_visible_in_preset_labels():
+    """Explicit reasoning settings must not be hidden behind generic labels."""
+    models = _load_models_from_yaml()
+
+    labels = {
+        "none": ("No Reasoning", "No Thinking"),
+        "minimal": ("Minimal Reasoning", "Minimal Thinking"),
+        "low": ("Low Reasoning", "Low Thinking"),
+        "medium": ("Medium Reasoning", "Medium Thinking"),
+    }
+    for key, model in models.items():
+        effort = (model.get("reasoning") or {}).get("effort")
+        if effort not in labels:
+            continue
+
+        expected_labels = labels[effort]
+        preset_name = model.get("preset_name") or ""
+        assert any(label in preset_name for label in expected_labels), (
+            f"Model '{key}' uses reasoning effort='{effort}', but preset_name "
+            f"does not include one of {expected_labels}"
         )
