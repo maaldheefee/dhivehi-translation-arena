@@ -850,6 +850,11 @@ class TestVoteDerivation:
         second_ballot = session.query(RatingBallot).order_by(RatingBallot.id.desc()).first()
         assert {comparison.evidence_weight for comparison in second_ballot.comparisons} == {0.5}
 
+        session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").delete()
+        session.commit()
+        assert vote_service.rebuild_rating_projections() == 3
+        assert session.query(PairwiseComparison).count() == 3
+
 
 # --- Pair priority tests ---
 

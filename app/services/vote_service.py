@@ -305,3 +305,35 @@ def correct_vote(user_id: int, query_id: int, translation_id: int, rating: int) 
     except Exception:
         session.rollback()
         raise
+
+
+def rebuild_rating_projections() -> int:
+    """Recreate derived comparisons from ballots, then rebuild canonical ratings."""
+    session = cast(Session, db_session)
+    try:
+        session.query(PairwiseComparison).filter(PairwiseComparison.source == "derived").delete()
+        ballots = session.query(RatingBallot).order_by(RatingBallot.observed_at.asc(), RatingBallot.id.asc()).all()
+        seen: dict[tuple[int, int], dict[int, Vote]] = {}
+        for ballot in ballots:
+            key = (ballot.user_id, ballot.query_id)
+            accumulated = seen.setdefault(key, {})
+            for vote in sorted(ballot.votes, key=lambda item: item.translation_id):
+                accumulated[vote.translation_id] = vote
+            _derive_pairwise_from_votes(
+                session,
+                ballot.user_id,
+                ballot.query_id,
+                [
+                    {"translation_id": vote.translation_id, "rating": vote.rating}
+                    for vote in accumulated.values()
+                    if vote.rating is not None
+                ],
+                ballot=ballot,
+                new_translation_ids={vote.translation_id for vote in ballot.votes},
+            )
+        count = get_elo_service(session).rebuild_ratings_from_comparisons()
+        invalidate_caches()
+        return count
+    except Exception:
+        session.rollback()
+        raise

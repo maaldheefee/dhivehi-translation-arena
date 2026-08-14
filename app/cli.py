@@ -94,11 +94,12 @@ def derive_elo_command(user_id) -> None:
     from app.services.elo_service import get_elo_service
 
     try:
-        elo_service = get_elo_service()
         if user_id is not None:
             raise click.UsageError("Per-user derivation is no longer supported; ballots are immutable source evidence")
+        from app.services.vote_service import rebuild_rating_projections
+
         print("Rebuilding deterministic ratings from ballot periods...")
-        count = elo_service.rebuild_ratings_from_comparisons()
+        count = rebuild_rating_projections()
         print(f"Successfully replayed {count} comparisons.")
     except Exception as e:
         print(f"Error deriving ELO comparisons: {e}")
@@ -111,9 +112,11 @@ def rebuild_ratings_command() -> None:
     from app.services.elo_service import get_elo_service
 
     try:
-        elo_service = get_elo_service()
+        from app.services.vote_service import rebuild_rating_projections
+
         print("Rebuilding Glicko-2 ratings from comparisons...")
-        count = elo_service.rebuild_ratings_from_comparisons()
+        count = rebuild_rating_projections()
+        elo_service = get_elo_service()
         print(f"Replayed {count} comparisons.")
         rankings = elo_service.get_all_rankings()
         print("\nUpdated Rankings:")
