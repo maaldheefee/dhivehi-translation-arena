@@ -453,11 +453,22 @@ Please evaluate both translations based on:
 4. **Style**: Is the tone and register appropriate?
 5. **Cultural Appropriateness**: Does it use culturally appropriate terms and expressions?
 
+## Scoring Rubric
+- **3 Stars (Excellent)**: Perfect or perfectly acceptable. No editing needed.
+- **2 Stars (Good)**: Correct meaning, but needs polish or editing.
+- **1 Star (Okay)**: Errors or mistakes are present, but the translation is generally understandable.
+- **Reject (Trash)**: Did not follow instructions, is gibberish, or conveys an entirely wrong meaning.
+
 ## Your Response
 Provide your analysis in the following format:
 
 ### Analysis
 [Detailed comparison of both translations addressing each criterion]
+
+### Ratings (Original Order)
+Rate both translations using exactly one rubric label. Give the ratings in the original order below—Translation A first, then Translation B—even if B is better. Do not reorder the ratings by quality.
+- **Translation A**: [3 Stars (Excellent) / 2 Stars (Good) / 1 Star (Okay) / Reject (Trash)] — [Brief rationale]
+- **Translation B**: [3 Stars (Excellent) / 2 Stars (Good) / 1 Star (Okay) / Reject (Trash)] — [Brief rationale]
 
 ### Verdict
 - **Winner**: [A / B / Tie]

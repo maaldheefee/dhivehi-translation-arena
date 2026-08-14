@@ -713,8 +713,9 @@ Please evaluate all translations based on:
 
 ## Your Response Format
 1. **Analysis**: Discuss strengths and weaknesses of each option.
-2. **Rankings**: Rank the translations from best to worst.
-3. **Verdict**: Declare a clear winner and explain why.
+2. **Ratings (Original Order)**: Rate every option using exactly one rubric label: **3 Stars (Excellent)**, **2 Stars (Good)**, **1 Star (Okay)**, or **Reject (Trash)**. List the ratings in the exact original order shown above (Option 1, Option 2, and so on), preserving each option number and model name. Do not reorder this list by quality. Use this format for each line: Option N — Model: Rating — brief rationale.
+3. **Rankings (Best to Worst)**: Separately rank the translations from best to worst. This section may reorder the options by quality.
+4. **Verdict**: Declare a clear winner and explain why.
 
 ## Reference Data (JSON)
 \`\`\`json
