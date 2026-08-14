@@ -28,8 +28,9 @@ Glicko-2 ratings from this data to rank models by translation quality.
   dormancy via time-based decay (c ≈ 48.6/week).
 - **Volatility**: How much a model's rating fluctuates between rating
   periods. Controlled by system constant τ = 0.5.
-- **Rating Period**: Each comparison is processed immediately (no
-  batching). Equivalent to a degenerate Glicko-2 period with 1 game.
+- **Rating Period**: All Derived Comparisons inferred from one Rating
+  Ballot are processed together from the same pre-ballot model state.
+  Each Explicit Comparison is a separate rating period.
 - **MIN_RD**: Floor of 80. Prevents ratings from becoming unresponsive
   after many comparisons.
 
@@ -37,9 +38,8 @@ Glicko-2 ratings from this data to rank models by translation quality.
 
 - **Derived Comparison**: Pairwise comparison inferred from star ratings.
   If Translation A gets 3★ and B gets 1★, A wins over B. Uses fractional
-  scores based on the rating gap. Derived comparisons are replaced (deleted
-  and re-derived) when a user changes their star rating for a query.
-  Explicit comparisons are immutable events.
+  scores based on the rating gap. It is a projection of a Rating Ballot,
+  not an independently observed event.
 - **Explicit Comparison**: Direct user choice in Quick Compare mode.
   User picks winner, loser, or tie. Always binary score (1.0/0.0/0.5).
 - **Fractional Score**: Glicko-2 game score on [0, 1] continuum. For
@@ -55,6 +55,10 @@ Glicko-2 ratings from this data to rank models by translation quality.
 
 ### Star Ratings
 
+- **Rating Ballot**: The immutable group of star ratings a user submits for
+  the Translations of one Query at one evaluation moment. An identical retry
+  is a no-op; a conflicting retry is rejected. Exceptional corrections use a
+  deliberate maintenance operation rather than the normal voting workflow.
 - **Star Rating Scale**: 3 = Excellent, 2 = Meaning Correct,
   1 = Understandable, -1 = Trash.
 - **Tie Logic**: Both 3★ → skip (perfection = query ease, not skill).
@@ -110,11 +114,11 @@ Glicko-2 ratings from this data to rank models by translation quality.
 
 ### Data Architecture
 
-- **Raw Data**: `Vote` (star ratings) and `PairwiseComparison`
-  (pairwise results with scores) are the source of truth.
-- **Derived Data**: `ModelELO` (Glicko-2 ratings) is computed from
-  raw comparison data. Can be rebuilt at any time by replaying all
-  `PairwiseComparison` records.
+- **Raw Data**: Rating Ballots (currently represented by `Vote` rows) and
+  Explicit Comparisons are the source of truth.
+- **Derived Data**: Derived Comparisons and `ModelELO` (Glicko-2 ratings)
+  are projections of the raw evidence. They can be rebuilt without changing
+  the meaning or observation time of that evidence.
 - **Rebuild**: `rebuild_ratings_from_comparisons()` function replays
   all comparisons through Glicko-2 to reconstruct ratings from scratch.
 
