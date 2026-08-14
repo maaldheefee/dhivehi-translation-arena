@@ -1,7 +1,7 @@
 import json
+import math
 import random
 import time
-from collections import defaultdict
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 from flask import (
@@ -26,9 +26,15 @@ from app.decorators import login_required
 from app.llm_clients import get_available_models
 from app.models import PairwiseComparison, Query, Translation, User, Vote
 from app.predefined_queries import PREDEFINED_QUERIES
+from app.services.acquisition_policy import (
+    EvaluationSession,
+    ModelCandidate,
+    QueryCandidate,
+    select_burst_models,
+    select_evaluation_session,
+)
 from app.services.cost_service import check_user_budget
 from app.services.elo_service import get_elo_service
-from app.services.acquisition_policy import ModelCandidate, select_burst_models
 from app.services.stats_service import (
     get_model_usage_stats,
     get_pair_comparison_counts,
@@ -49,191 +55,96 @@ def _select_models(
     excluded_models: set[str] | None = None,
     rating_deviations: dict[str, float] | None = None,
 ):
-    """
-    Selects up to MAX_MODELS models with balanced randomness and strategic grouping.
-
-    Main objective:
-    - Random selection of models limited to MAX_MODELS
-
-    Secondary objectives:
-    - Prioritize models with low usage/votes to build up data evenly
-    - Group preset variants of the same base model together (e.g., thinking vs no-thinking,
-      high temp vs low temp) to enable quality ELO comparisons between configurations
-
-    Algorithm:
-    1. Group models by base_model
-    2. Calculate average usage per group (to prioritize low-usage groups)
-    3. Shuffle groups with similar usage to add randomness
-    4. Select groups in priority order, including all variants from each group
-    5. Stop when we would exceed MAX_MODELS
-    """
+    """Compatibility adapter for callers that only need burst model keys."""
     max_models = max_models if max_models is not None else config.MAX_MODELS_SELECTION
     excluded_models = excluded_models or set()
 
-    if rating_deviations is not None:
-        candidates = [
-            ModelCandidate(
-                key=key,
-                base_model=config.MODELS.get(key, {}).get("base_model", key),
-                usage=usage_stats.get(key, 0),
-                rating_deviation=rating_deviations.get(key, config.GLICKO_INITIAL_RD),
-                output_cost=config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0),
+    candidates = [
+        ModelCandidate(
+            key=key,
+            base_model=str(config.MODELS.get(key, {}).get("base_model") or key),
+            usage=usage_stats.get(key, 0),
+            rating_deviation=(rating_deviations or {}).get(key, config.GLICKO_INITIAL_RD),
+            output_cost=config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0),
+        )
+        for key in available_models_map
+        if key not in excluded_models
+    ]
+
+    return select_burst_models(candidates, max_models, config.COST_MID_MAX, config.MAX_EXPENSIVE_GROUPS)
+
+def _evaluation_session(
+    available_models_map: dict[str, str],
+    usage_stats: dict[str, int],
+    config: Config,
+    max_models: int | None = None,
+    excluded_models: set[str] | None = None,
+) -> EvaluationSession:
+    """Adapt stored evidence and configuration to the pure Evaluation Session policy."""
+    excluded_models = excluded_models or set()
+    max_models = max_models if max_models is not None else config.MAX_MODELS_SELECTION
+    rating_deviations = {item["model"]: item["rating_deviation"] for item in get_elo_service().get_all_rankings()}
+    models = [
+        ModelCandidate(
+            key=key,
+            base_model=str(config.MODELS.get(key, {}).get("base_model") or key),
+            usage=usage_stats.get(key, 0),
+            rating_deviation=rating_deviations.get(key, config.GLICKO_INITIAL_RD),
+            output_cost=config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0),
+        )
+        for key in available_models_map
+        if key not in excluded_models
+    ]
+
+    query_rows = db_session.query(Query).filter(Query.source_text.in_(PREDEFINED_QUERIES)).all()
+    query_by_id = {int(query.id): str(query.source_text) for query in query_rows}
+    ratings_by_text: dict[str, list[int]] = {text: [] for text in PREDEFINED_QUERIES}
+    rated_models_by_text: dict[str, set[str]] = {text: set() for text in PREDEFINED_QUERIES}
+    vote_rows = (
+        db_session.query(Vote.query_id, Vote.rating, Translation.model)
+        .join(Translation, Vote.translation_id == Translation.id)
+        .filter(Vote.query_id.in_(query_by_id), Vote.rating.isnot(None))
+        .all()
+        if query_by_id
+        else []
+    )
+    for vote in vote_rows:
+        text = query_by_id[int(vote.query_id)]
+        ratings_by_text[text].append(int(vote.rating))
+        rated_models_by_text[text].add(str(vote.model))
+
+    difficulty_by_id = get_query_difficulty()
+    difficulty_by_text = {query_by_id[qid]: tier for qid, tier in difficulty_by_id.items() if qid in query_by_id}
+    queries = []
+    for text in dict.fromkeys(PREDEFINED_QUERIES):
+        ratings = ratings_by_text[text]
+        queries.append(
+            QueryCandidate(
+                key=text,
+                text=text,
+                difficulty=difficulty_by_text.get(text, "unknown"),
+                rated_models=frozenset(rated_models_by_text[text]),
+                discrimination=(max(ratings) - min(ratings)) / 4.0 if len(ratings) >= 2 else 0.0,
+                estimated_tokens=max(1, math.ceil(len(text) / 4)),
+                observation_count=len(ratings),
             )
-            for key in available_models_map
-            if key not in excluded_models
-        ]
-        return select_burst_models(
-            candidates,
-            max_models,
-            config.COST_MID_MAX,
-            config.MAX_EXPENSIVE_GROUPS,
         )
 
-    # Group models by base_model
-    base_groups = defaultdict(list)
-    for key in available_models_map:
-        if key in excluded_models:
-            continue
-        base = config.MODELS.get(key, {}).get("base_model", key)
-        base_groups[base].append(key)
-
-    # Calculate average usage for each group (for prioritization)
-    # Lower average = higher priority
-    group_priorities = []
-    for base, model_keys in base_groups.items():
-        avg_usage = sum(usage_stats.get(k, 0) for k in model_keys) / len(model_keys)
-        group_priorities.append((avg_usage, base, model_keys))
-
-    # Sort by average usage (ascending = low usage first)
-    group_priorities.sort(key=lambda x: x[0])
-
-    # Add randomness: group by usage buckets and shuffle within buckets
-    # This prevents deterministic bias while still prioritizing low-usage models
-    bucketed_groups = []
-    current_bucket = []
-    current_bucket_max = -1
-
-    for avg_usage, base, model_keys in group_priorities:
-        # Create buckets of groups with similar usage (within 5 votes of each other)
-        if current_bucket_max < 0 or avg_usage <= current_bucket_max + 5:
-            current_bucket.append((avg_usage, base, model_keys))
-            current_bucket_max = max(current_bucket_max, avg_usage)
-        else:
-            # Shuffle current bucket and add to result
-            random.shuffle(current_bucket)
-            bucketed_groups.extend(current_bucket)
-            # Start new bucket
-            current_bucket = [(avg_usage, base, model_keys)]
-            current_bucket_max = avg_usage
-
-    # Don't forget the last bucket
-    if current_bucket:
-        random.shuffle(current_bucket)
-        bucketed_groups.extend(current_bucket)
-
-    # Select groups until we reach MAX_MODELS
-    selected_keys = []
-    for _, _base, model_keys in bucketed_groups:
-        # Check if adding this entire group would exceed the limit
-        if len(selected_keys) + len(model_keys) <= max_models:
-            # Include all variants from this base model
-            selected_keys.extend(model_keys)
-        elif len(selected_keys) < max_models:
-            # Partial selection: we have some room but not enough for all variants
-            # Randomly select variants to fill remaining slots
-            remaining_slots = max_models - len(selected_keys)
-            # Sort variants by usage within this group, then take top N
-            variants_by_usage = sorted(model_keys, key=lambda k: usage_stats.get(k, 0))
-            selected_keys.extend(variants_by_usage[:remaining_slots])
-            break
-        else:
-            # Already at capacity
-            break
-
-    # Cost-aware constraint: max MAX_EXPENSIVE_GROUPS expensive base model groups
-    expensive_groups = []
-    for key in selected_keys:
-        base = config.MODELS.get(key, {}).get("base_model", key)
-        output_cost = config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0)
-        if output_cost > config.COST_MID_MAX and base not in expensive_groups:
-            expensive_groups.append(base)
-
-    if len(expensive_groups) > config.MAX_EXPENSIVE_GROUPS:
-        # Keep only the first MAX_EXPENSIVE_GROUPS expensive groups (highest priority = lowest usage)
-        allowed_expensive = set(expensive_groups[: config.MAX_EXPENSIVE_GROUPS])
-        # Remove keys from disallowed expensive groups
-        removed_keys = []
-        for key in list(selected_keys):
-            base = config.MODELS.get(key, {}).get("base_model", key)
-            output_cost = config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0)
-            if output_cost > config.COST_MID_MAX and base not in allowed_expensive:
-                selected_keys.remove(key)
-                removed_keys.append(key)
-
-        # Backfill with cheap/mid models from remaining pool
-        # (exclude all expensive models to avoid re-adding disallowed groups)
-        remaining_pool = [
-            k
-            for k in available_models_map
-            if k not in selected_keys
-            and k not in excluded_models
-            and config.MODELS.get(k, {}).get("output_cost_per_mtok", 0.0) <= config.COST_MID_MAX
-        ]
-        # Sort by usage (low first) and add back
-        remaining_pool.sort(key=lambda k: usage_stats.get(k, 0))
-        for key in remaining_pool:
-            if len(selected_keys) >= max_models:
-                break
-            selected_keys.append(key)
-
-    return selected_keys
+    return select_evaluation_session(
+        models,
+        queries,
+        max_models,
+        config.STRATIFIED_TOTAL,
+        config.COST_MID_MAX,
+        config.MAX_EXPENSIVE_GROUPS,
+    )
 
 
 @main_bp.route("/")
 def index() -> str:
-    """Renders the main page with stratified query selection and cost-aware model selection."""
+    """Render the next Evaluation Session."""
     username = session.get("username", "Guest")
     conf = get_config()
-
-    # Stratified query selection based on difficulty
-    difficulty_map = get_query_difficulty()
-
-    # Build query -> difficulty mapping (using source_text as key since PREDEFINED_QUERIES are strings)
-    # Fetch Query IDs for predefined query texts
-    query_rows = db_session.query(Query).filter(Query.source_text.in_(PREDEFINED_QUERIES)).all()
-    text_to_id = {str(q.source_text): int(q.id) for q in query_rows}
-
-    # Categorize predefined queries by difficulty tier
-    tier_pools: dict[str, list[str]] = {
-        "easy": [],
-        "medium": [],
-        "hard": [],
-        "unknown": [],
-    }
-    for q_text in PREDEFINED_QUERIES:
-        qid = text_to_id.get(q_text)
-        tier = difficulty_map.get(qid, "unknown") if qid is not None else "unknown"
-        tier_pools[tier].append(q_text)
-
-    # Select queries per tier with backfill
-    selected_queries: list[str] = []
-    remaining: list[str] = []
-
-    for tier, target_count in conf.STRATIFIED_TARGETS.items():
-        pool = tier_pools.get(tier, [])
-        random.shuffle(pool)
-        take = min(target_count, len(pool))
-        selected_queries.extend(pool[:take])
-        remaining.extend(pool[take:])
-
-    # Backfill to reach STRATIFIED_TOTAL from remaining pool
-    shortfall = conf.STRATIFIED_TOTAL - len(selected_queries)
-    if shortfall > 0 and remaining:
-        random.shuffle(remaining)
-        selected_queries.extend(remaining[:shortfall])
-
-    # Shuffle final selection for display
-    random.shuffle(selected_queries)
 
     available_models = get_available_models()
     usage_stats = get_model_usage_stats()
@@ -241,9 +152,12 @@ def index() -> str:
     # Get user budget info
     is_allowed, user_monthly_cost = check_user_budget(username)
 
-    # Select models with smart grouping and cost-aware constraint
-    rating_deviations = {item["model"]: item["rating_deviation"] for item in get_elo_service().get_all_rankings()}
-    selected_model_keys = _select_models(available_models, usage_stats, conf, rating_deviations=rating_deviations)
+    evaluation_session = _evaluation_session(available_models, usage_stats, conf)
+    selected_queries = list(evaluation_session.query_keys)
+    selected_model_keys = list(evaluation_session.model_keys)
+
+    # Randomness here only changes presentation, never policy choice.
+    random.shuffle(selected_queries)
 
     # Create the dictionary for only the selected models
     final_models = {k: available_models[k] for k in selected_model_keys}
@@ -282,16 +196,14 @@ def available_models() -> Response:
     except (ValueError, TypeError):
         max_models = None
 
-    # Use smart selection logic
-    selected_keys = set(
-        _select_models(
-            available_models_map,
-            usage_stats,
-            conf,
-            max_models=max_models,
-            excluded_models=hidden_models,
-        )
+    evaluation_session = _evaluation_session(
+        available_models_map,
+        usage_stats,
+        conf,
+        max_models=max_models,
+        excluded_models=hidden_models,
     )
+    selected_keys = set(evaluation_session.model_keys)
 
     # Still sort the returned list by usage to show least used first
     sorted_model_keys = sorted(available_models_map.keys(), key=lambda m: usage_stats.get(m, 0))
