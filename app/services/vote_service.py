@@ -276,6 +276,12 @@ def correct_vote(user_id: int, query_id: int, translation_id: int, rating: int) 
 
         ballot = vote.ballot
         vote.rating = rating
+        corrected_values = sorted(
+            (item.translation_id, rating if item.id == vote.id else item.rating)
+            for item in ballot.votes
+            if item.rating is not None
+        )
+        ballot.fingerprint = _ballot_fingerprint(corrected_values)
         session.query(PairwiseComparison).filter(
             PairwiseComparison.source == "derived",
             PairwiseComparison.ballot_id == ballot.id,

@@ -28,6 +28,7 @@ from app.models import PairwiseComparison, Query, Translation, User, Vote
 from app.predefined_queries import PREDEFINED_QUERIES
 from app.services.cost_service import check_user_budget
 from app.services.elo_service import get_elo_service
+from app.services.acquisition_policy import ModelCandidate, select_burst_models
 from app.services.stats_service import (
     get_model_usage_stats,
     get_pair_comparison_counts,
@@ -46,6 +47,7 @@ def _select_models(
     config: Config,
     max_models: int | None = None,
     excluded_models: set[str] | None = None,
+    rating_deviations: dict[str, float] | None = None,
 ):
     """
     Selects up to MAX_MODELS models with balanced randomness and strategic grouping.
@@ -67,6 +69,25 @@ def _select_models(
     """
     max_models = max_models if max_models is not None else config.MAX_MODELS_SELECTION
     excluded_models = excluded_models or set()
+
+    if rating_deviations is not None:
+        candidates = [
+            ModelCandidate(
+                key=key,
+                base_model=config.MODELS.get(key, {}).get("base_model", key),
+                usage=usage_stats.get(key, 0),
+                rating_deviation=rating_deviations.get(key, config.GLICKO_INITIAL_RD),
+                output_cost=config.MODELS.get(key, {}).get("output_cost_per_mtok", 0.0),
+            )
+            for key in available_models_map
+            if key not in excluded_models
+        ]
+        return select_burst_models(
+            candidates,
+            max_models,
+            config.COST_MID_MAX,
+            config.MAX_EXPENSIVE_GROUPS,
+        )
 
     # Group models by base_model
     base_groups = defaultdict(list)
@@ -221,7 +242,8 @@ def index() -> str:
     is_allowed, user_monthly_cost = check_user_budget(username)
 
     # Select models with smart grouping and cost-aware constraint
-    selected_model_keys = _select_models(available_models, usage_stats, conf)
+    rating_deviations = {item["model"]: item["rating_deviation"] for item in get_elo_service().get_all_rankings()}
+    selected_model_keys = _select_models(available_models, usage_stats, conf, rating_deviations=rating_deviations)
 
     # Create the dictionary for only the selected models
     final_models = {k: available_models[k] for k in selected_model_keys}

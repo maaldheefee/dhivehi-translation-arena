@@ -147,11 +147,11 @@
                 <tr>
                     <th data-sort="string">Base Model</th>
                     <th data-sort="number">Avg Score</th>
-                    <th data-sort="number">Avg Combined</th>
+                    <th data-sort="number">Conservative Rating</th>
                     <th data-sort="number">Total Votes</th>
                     <th data-sort="number">Total Cost</th>
-                    <th>Best Preset</th>
-                    <th>Presets (sorted by score)</th>
+                    <th>Best-ranked Preset</th>
+                    <th>Presets (sorted by conservative rating)</th>
                 </tr>
             </thead>
             <tbody>
@@ -170,22 +170,14 @@
                         <span class="score-badge {{ gscore_class }}">{{ "%.2f"|format(gscore) }}</span>
                     </td>
                     <td>
-                        {% set gcombined = (group.avg_combined_score * 100) | round | int %}
-                        {% if gcombined > 70 %}
-                            {% set gcombined_class = 'high-score' %}
-                        {% elif gcombined < 40 %}
-                            {% set gcombined_class = 'low-score' %}
-                        {% else %}
-                            {% set gcombined_class = 'medium-score' %}
-                        {% endif %}
-                        <span class="score-badge {{ gcombined_class }}">{{ gcombined }}</span>
+                        <span class="score-badge">{{ "%.0f"|format(group.conservative_rating) }}</span>
                     </td>
                     <td>{{ group.total_votes }}</td>
                     <td>${{ "%.2f"|format(group.total_cost) }}</td>
                     <td class="latin-content">
                         {% if group.best_preset %}
                         <strong>{{ group.best_preset }}</strong>
-                        <div class="text-secondary" style="font-size: 0.85em;">{{ "%.2f"|format(group.best_preset_score) }} avg</div>
+                        <div class="text-secondary" style="font-size: 0.85em;">{{ "%.0f"|format(group.best_preset_score) }} conservative</div>
                         {% else %}
                         <span class="text-secondary">No votes</span>
                         {% endif %}
@@ -196,7 +188,7 @@
                             <div class="preset-item {% if loop.first and preset.votes_cast > 0 %}best-preset{% endif %} {% if not preset.is_active %}deprecated-model{% endif %}">
                                 <span class="preset-name" {% if not preset.is_active and preset.deactivation_reason %}title="{{ preset.deactivation_reason }}"{% endif %}>{{ preset.preset_name or preset.display_name }}</span>
                                 {% if preset.votes_cast > 0 %}
-                                <span class="preset-score score-badge {% if preset.average_score > 1.5 %}high-score{% elif preset.average_score >= 0.5 %}medium-score{% else %}low-score{% endif %}">{{ "%.2f"|format(preset.average_score) }}</span>
+                                <span class="preset-score score-badge">{{ "%.0f"|format(preset.conservative_rating) }}</span>
                                 {% else %}
                                 <span class="preset-score text-secondary">—</span>
                                 {% endif %}

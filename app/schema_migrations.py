@@ -97,13 +97,23 @@ def run_schema_migrations(engine: Engine) -> None:
                 },
             )
             if "pairwise_comparisons" in tables:
+                participant_count = connection.execute(
+                    text("SELECT COUNT(*) FROM votes WHERE user_id = :user_id AND query_id = :query_id"),
+                    {"user_id": user_id, "query_id": query_id},
+                ).scalar_one()
                 connection.execute(
                     text(
                         """
-                        UPDATE pairwise_comparisons SET ballot_id = :ballot_id
+                        UPDATE pairwise_comparisons
+                        SET ballot_id = :ballot_id, evidence_weight = :evidence_weight
                         WHERE user_id = :user_id AND query_id = :query_id
                           AND source = 'derived' AND ballot_id IS NULL
                         """
                     ),
-                    {"ballot_id": ballot_id, "user_id": user_id, "query_id": query_id},
+                    {
+                        "ballot_id": ballot_id,
+                        "evidence_weight": 1.0 / max(1, participant_count - 1),
+                        "user_id": user_id,
+                        "query_id": query_id,
+                    },
                 )
