@@ -333,8 +333,8 @@ gemma-4-26b:
   name: google/gemma-4-26b-a4b-it
   display_name: Gemma 4 26B Instruct (Default)
   type: openrouter
-  input_cost_per_mtok: 0.13
-  output_cost_per_mtok: 0.40
+  input_cost_per_mtok: 0.07
+  output_cost_per_mtok: 0.34
   is_active: false
   deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemma 4 26B Instruct
@@ -346,8 +346,8 @@ gemma-4-31b:
   name: google/gemma-4-31b-it
   display_name: Gemma 4 31B Instruct (Default)
   type: openrouter
-  input_cost_per_mtok: 0.14
-  output_cost_per_mtok: 0.40
+  input_cost_per_mtok: 0.10
+  output_cost_per_mtok: 0.34
   is_active: false
   deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemma 4 31B Instruct
@@ -357,8 +357,8 @@ gemma-4-31b-t0.85:
   name: google/gemma-4-31b-it
   display_name: Gemma 4 31B Instruct (T0.85)
   type: openrouter
-  input_cost_per_mtok: 0.14
-  output_cost_per_mtok: 0.40
+  input_cost_per_mtok: 0.10
+  output_cost_per_mtok: 0.34
   is_active: false
   deactivation_reason: "No votes collected. Base model had 0% win rate with all rejections."
   base_model: Gemma 4 31B Instruct
@@ -369,8 +369,8 @@ gemma-4-31b-t0.1:
   name: google/gemma-4-31b-it
   display_name: Gemma 4 31B Instruct (T0.1)
   type: openrouter
-  input_cost_per_mtok: 0.14
-  output_cost_per_mtok: 0.40
+  input_cost_per_mtok: 0.10
+  output_cost_per_mtok: 0.34
   is_active: false
   deactivation_reason: "All translations rejected (0% win rate, avg -2.0/3)."
   base_model: Gemma 4 31B Instruct
@@ -509,8 +509,8 @@ deepseek-v4-flash-t0.85:
   name: deepseek/deepseek-v4-flash
   display_name: DeepSeek V4 Flash (T0.85)
   type: openrouter
-  input_cost_per_mtok: 0.0983
-  output_cost_per_mtok: 0.1966
+  input_cost_per_mtok: 0.0798
+  output_cost_per_mtok: 0.1596
   is_active: false
   deactivation_reason: "Very poor quality: 20% win rate, avg -0.71/3, 43% of votes were rejections."
   base_model: DeepSeek V4 Flash
@@ -521,8 +521,8 @@ deepseek-v4-flash-t0.1:
   name: deepseek/deepseek-v4-flash
   display_name: DeepSeek V4 Flash (T0.1)
   type: openrouter
-  input_cost_per_mtok: 0.0983
-  output_cost_per_mtok: 0.1966
+  input_cost_per_mtok: 0.0798
+  output_cost_per_mtok: 0.1596
   is_active: false
   deactivation_reason: "Very poor quality: 21% win rate, avg -0.29/3, 43% of votes were rejections."
   base_model: DeepSeek V4 Flash
@@ -535,8 +535,8 @@ deepseek-v4-pro-t0.85:
   name: deepseek/deepseek-v4-pro
   display_name: DeepSeek V4 Pro (T0.85)
   type: openrouter
-  input_cost_per_mtok: 0.435
-  output_cost_per_mtok: 0.87
+  input_cost_per_mtok: 1.44
+  output_cost_per_mtok: 2.88
   is_active: true
   base_model: DeepSeek V4 Pro
   temperature: 0.85
@@ -546,8 +546,8 @@ deepseek-v4-pro-t0.1:
   name: deepseek/deepseek-v4-pro
   display_name: DeepSeek V4 Pro (T0.1)
   type: openrouter
-  input_cost_per_mtok: 0.435
-  output_cost_per_mtok: 0.87
+  input_cost_per_mtok: 1.44
+  output_cost_per_mtok: 2.88
   is_active: false
   deactivation_reason: "T0.85 variant is better on both metrics (avg 1.0 vs 0.86, ELO 1590 vs 1507)."
   base_model: DeepSeek V4 Pro
@@ -560,8 +560,8 @@ gpt-5.6-luna-t0.85:
   name: openai/gpt-5.6-luna
   display_name: GPT-5.6 Luna (No Reasoning, T0.85)
   type: openrouter
-  input_cost_per_mtok: 1.0
-  output_cost_per_mtok: 6.0
+  input_cost_per_mtok: 0.2
+  output_cost_per_mtok: 1.2
   is_active: false
   deactivation_reason: "Very poor quality: 8% win rate, avg -1.2/3, 60% of votes were rejections."
   reasoning:
@@ -574,8 +574,8 @@ gpt-5.6-luna-t0.1:
   name: openai/gpt-5.6-luna
   display_name: GPT-5.6 Luna (No Reasoning, T0.1)
   type: openrouter
-  input_cost_per_mtok: 1.0
-  output_cost_per_mtok: 6.0
+  input_cost_per_mtok: 0.2
+  output_cost_per_mtok: 1.2
   is_active: false
   deactivation_reason: "Very poor quality: 15% win rate, avg -0.4/3."
   reasoning:
@@ -620,8 +620,8 @@ gpt-5.6-terra-t0.85:
   name: openai/gpt-5.6-terra
   display_name: GPT-5.6 Terra (No Reasoning, T0.85)
   type: openrouter
-  input_cost_per_mtok: 2.5
-  output_cost_per_mtok: 15.0
+  input_cost_per_mtok: 2.0
+  output_cost_per_mtok: 12.0
   is_active: false
   deactivation_reason: "Poor quality at premium price ($29/100k words). Avg 1.2/3, 37% win rate."
   reasoning:
@@ -634,8 +634,8 @@ gpt-5.6-terra-t0.1:
   name: openai/gpt-5.6-terra
   display_name: GPT-5.6 Terra (No Reasoning, T0.1)
   type: openrouter
-  input_cost_per_mtok: 2.5
-  output_cost_per_mtok: 15.0
+  input_cost_per_mtok: 2.0
+  output_cost_per_mtok: 12.0
   is_active: false
   deactivation_reason: "Very poor quality at premium price. Avg -0.33/3, 25% win rate."
   reasoning:
@@ -650,8 +650,8 @@ gemini-3.6-flash-t1.0:
   name: google/gemini-3.6-flash
   display_name: Gemini 3.6 Flash (Provider-Default Medium Thinking, T1.0)
   type: openrouter
-  input_cost_per_mtok: 1.5
-  output_cost_per_mtok: 7.5
+  input_cost_per_mtok: 0.75
+  output_cost_per_mtok: 3.75
   is_active: false
   deactivation_reason: "T0.3 variant is better on both metrics (avg 2.33 vs 2.00, ELO 1954 vs 1792)."
   timeout: 180.0
@@ -663,8 +663,8 @@ gemini-3.6-flash-t0.3:
   name: google/gemini-3.6-flash
   display_name: Gemini 3.6 Flash (Provider-Default Medium Thinking, T0.3)
   type: openrouter
-  input_cost_per_mtok: 1.5
-  output_cost_per_mtok: 7.5
+  input_cost_per_mtok: 0.75
+  output_cost_per_mtok: 3.75
   is_active: true
   timeout: 180.0
   base_model: Gemini 3.6 Flash
@@ -807,8 +807,8 @@ deepseek-v4-pro-0813-t1.0:
   name: deepseek/deepseek-v4-pro-0813
   display_name: DeepSeek V4 Pro 0813 (No Reasoning, T1.0)
   type: openrouter
-  input_cost_per_mtok: 0.435
-  output_cost_per_mtok: 0.87
+  input_cost_per_mtok: 0.66
+  output_cost_per_mtok: 1.98
   is_active: true
   timeout: 180.0
   base_model: DeepSeek V4 Pro 0813
@@ -821,8 +821,8 @@ deepseek-v4-pro-0813-t0.3:
   name: deepseek/deepseek-v4-pro-0813
   display_name: DeepSeek V4 Pro 0813 (No Reasoning, T0.3)
   type: openrouter
-  input_cost_per_mtok: 0.435
-  output_cost_per_mtok: 0.87
+  input_cost_per_mtok: 0.66
+  output_cost_per_mtok: 1.98
   is_active: true
   timeout: 180.0
   base_model: DeepSeek V4 Pro 0813
@@ -837,8 +837,8 @@ deepseek-v4-flash-0731-t1.0:
   name: deepseek/deepseek-v4-flash-0731
   display_name: DeepSeek V4 Flash 0731 (No Reasoning, T1.0)
   type: openrouter
-  input_cost_per_mtok: 0.08
-  output_cost_per_mtok: 0.18
+  input_cost_per_mtok: 0.14
+  output_cost_per_mtok: 0.28
   is_active: true
   timeout: 180.0
   base_model: DeepSeek V4 Flash 0731
@@ -851,8 +851,8 @@ deepseek-v4-flash-0731-t0.3:
   name: deepseek/deepseek-v4-flash-0731
   display_name: DeepSeek V4 Flash 0731 (No Reasoning, T0.3)
   type: openrouter
-  input_cost_per_mtok: 0.08
-  output_cost_per_mtok: 0.18
+  input_cost_per_mtok: 0.14
+  output_cost_per_mtok: 0.28
   is_active: true
   timeout: 180.0
   base_model: DeepSeek V4 Flash 0731
