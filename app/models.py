@@ -81,6 +81,16 @@ class Translation(Base):
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)  # For blind testing, position in the UI (1, 2, or 3)
     cost: Mapped[float] = mapped_column(Float, default=0.0)  # Cost of the API call
+    cost_source: Mapped[str] = mapped_column(String(30), default="estimated", nullable=False)
+    input_word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    generation_id: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
+    served_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    provider_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    service_tier: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reasoning_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cached_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
@@ -159,6 +169,24 @@ class PairwiseComparison(Base):
 
     def __repr__(self) -> str:
         return f"<PairwiseComparison id={self.id} winner={self.winner_model} loser={self.loser_model}>"
+
+
+class JudgeCall(Base):
+    """Auditable OpenRouter usage for an AI comparison judgment."""
+
+    __tablename__ = "judge_calls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    query_id: Mapped[int] = mapped_column(Integer, ForeignKey("queries.id"), nullable=False)
+    translation_a_id: Mapped[int] = mapped_column(Integer, ForeignKey("translations.id"), nullable=False)
+    translation_b_id: Mapped[int] = mapped_column(Integer, ForeignKey("translations.id"), nullable=False)
+    model: Mapped[str] = mapped_column(String(120), nullable=False)
+    cost: Mapped[float] = mapped_column(Float, nullable=False)
+    generation_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    served_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    provider_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    service_tier: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
 
 
 class ModelELO(Base):

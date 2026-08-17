@@ -106,6 +106,11 @@ Create a `.env` file from `example.env` with:
 # OpenRouter API Key (used for all models including Gemini and Claude)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 
+# Optional: OpenRouter attribution and privacy controls
+OPENROUTER_HTTP_REFERER=https://your-arena.example
+OPENROUTER_APP_TITLE="Dhivehi Translation Arena"
+OPENROUTER_ENFORCE_ZDR=true
+
 # Flask secret key (used for session management)
 SECRET_KEY=your_secret_key_here
 ```

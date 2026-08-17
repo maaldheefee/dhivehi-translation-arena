@@ -1,4 +1,5 @@
 import hashlib
+import re
 
 from sqlalchemy.orm import Session
 
@@ -51,22 +52,32 @@ def get_translation_for_model(source_text: str, model: str, position: int, user_
 
         client = get_translation_client(model)
         try:
-            result_text, cost = client.translate(source_text)
+            result = client.translate(source_text, user_id=user_id)
         except Exception as e:
             msg = f"API call failed for {model}: {e!s}"
             raise ConnectionError(msg) from e
 
         # Calculate hash
-        response_hash = hashlib.sha256(result_text.encode("utf-8")).hexdigest()
+        response_hash = hashlib.sha256(result.text.encode("utf-8")).hexdigest()
 
         translation = Translation(
             query_id=query.id,
             user_id=user_id,
             model=model,
-            translation=result_text,
+            translation=result.text,
             system_prompt=client.SYSTEM_PROMPT,
             position=position,
-            cost=cost,
+            cost=result.cost,
+            cost_source=result.cost_source,
+            input_word_count=len(re.findall(r"\w+", source_text, flags=re.UNICODE)),
+            generation_id=result.generation_id,
+            served_model=result.served_model,
+            provider_name=result.provider_name,
+            service_tier=result.service_tier,
+            prompt_tokens=result.prompt_tokens,
+            completion_tokens=result.completion_tokens,
+            reasoning_tokens=result.reasoning_tokens,
+            cached_tokens=result.cached_tokens,
             response_hash=response_hash,
         )
         new_translation = translation_repo.add(translation)
@@ -81,8 +92,8 @@ def get_translation_for_model(source_text: str, model: str, position: int, user_
             "id": new_translation.id,
             "model": model,
             "position": position,
-            "translation": result_text,
-            "cost": cost,
+            "translation": result.text,
+            "cost": result.cost,
             "response_hash": response_hash,
         }
 

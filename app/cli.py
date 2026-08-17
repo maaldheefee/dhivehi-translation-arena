@@ -55,7 +55,7 @@ def add_user_command(username, password, admin) -> None:
     try:
         create_user(username, password, is_admin=admin)
         click.echo(f"User '{username}' added successfully.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI reports service failures to the operator
         click.echo(f"Error adding user: {e}")
 
 
@@ -91,8 +91,6 @@ def list_users_command() -> None:
 @with_appcontext
 def derive_elo_command(user_id) -> None:
     """Deprecated alias for rebuilding the deterministic rating projection."""
-    from app.services.elo_service import get_elo_service
-
     try:
         if user_id is not None:
             raise click.UsageError("Per-user derivation is no longer supported; ballots are immutable source evidence")
@@ -101,7 +99,7 @@ def derive_elo_command(user_id) -> None:
         print("Rebuilding deterministic ratings from ballot periods...")
         count = rebuild_rating_projections()
         print(f"Successfully replayed {count} comparisons.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI reports service failures to the operator
         print(f"Error deriving ELO comparisons: {e}")
 
 
@@ -126,7 +124,7 @@ def rebuild_ratings_command() -> None:
                 f"(RD={r['rating_deviation']:.1f}, "
                 f"{r['wins']}W/{r['losses']}L/{r['ties']}T)"
             )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI reports service failures to the operator
         print(f"Error rebuilding ratings: {e}")
 
 
@@ -145,6 +143,16 @@ def correct_vote_command(user_id: int, query_id: int, translation_id: int, ratin
     click.echo("Vote corrected and ratings rebuilt.")
 
 
+@click.command("reconcile-openrouter")
+@with_appcontext
+def reconcile_openrouter_command() -> None:
+    """Audit stored translation costs against OpenRouter generation records."""
+    from app.services.reconciliation_service import reconcile_openrouter_generations
+
+    summary = reconcile_openrouter_generations()
+    click.echo(f"Checked {summary.checked}; mismatches: {summary.mismatches}; missing: {summary.missing}.")
+
+
 def register_commands(app) -> None:
     app.cli.add_command(init_db_command)
     app.cli.add_command(add_user_command)
@@ -153,3 +161,4 @@ def register_commands(app) -> None:
     app.cli.add_command(derive_elo_command)
     app.cli.add_command(rebuild_ratings_command)
     app.cli.add_command(correct_vote_command)
+    app.cli.add_command(reconcile_openrouter_command)

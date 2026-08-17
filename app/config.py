@@ -30,6 +30,8 @@ class ModelConfig(TypedDict):
     base_model: NotRequired[str | None]
     timeout: NotRequired[float]  # API timeout in seconds, default 90
     deactivation_reason: NotRequired[str | None]  # Shown as tooltip for inactive models
+    provider: NotRequired[dict[str, Any]]
+    fallback_models: NotRequired[list[str]]
 
 
 _REQUIRED_MODEL_FIELDS = frozenset(
@@ -145,6 +147,10 @@ class Config:
 
     # Environment variables
     OPENROUTER_API_KEY: ClassVar[str | None] = os.environ.get("OPENROUTER_API_KEY")
+    OPENROUTER_HTTP_REFERER: ClassVar[str | None] = os.environ.get("OPENROUTER_HTTP_REFERER")
+    OPENROUTER_APP_TITLE: ClassVar[str] = os.environ.get("OPENROUTER_APP_TITLE", "Dhivehi Translation Arena")
+    OPENROUTER_APP_CATEGORIES: ClassVar[str | None] = os.environ.get("OPENROUTER_APP_CATEGORIES")
+    OPENROUTER_ENFORCE_ZDR: ClassVar[bool] = os.environ.get("OPENROUTER_ENFORCE_ZDR", "false").lower() == "true"
 
     # Database
     DATA_DIR: ClassVar[str] = os.environ.get("DATA_DIR", "data")

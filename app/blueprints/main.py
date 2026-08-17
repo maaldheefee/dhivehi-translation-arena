@@ -24,7 +24,7 @@ from app.config import Config, get_config
 from app.database import db_session
 from app.decorators import login_required
 from app.llm_clients import get_available_models
-from app.models import PairwiseComparison, Query, Translation, User, Vote
+from app.models import JudgeCall, PairwiseComparison, Query, Translation, User, Vote
 from app.predefined_queries import PREDEFINED_QUERIES
 from app.services.acquisition_policy import (
     EvaluationSession,
@@ -801,6 +801,20 @@ def judge_comparison() -> Response | tuple[Response, int]:
 
     session_total = float(session.get("comparison_judge_cost", 0.0)) + result.cost
     session["comparison_judge_cost"] = session_total
+    db_session.add(
+        JudgeCall(
+            query_id=query.id,
+            translation_a_id=first.id,
+            translation_b_id=second.id,
+            model=JUDGE_MODEL,
+            cost=result.cost,
+            generation_id=result.generation_id,
+            served_model=result.served_model,
+            provider_name=result.provider_name,
+            service_tier=result.service_tier,
+        )
+    )
+    db_session.commit()
     return jsonify(
         {
             "winner": result.winner,

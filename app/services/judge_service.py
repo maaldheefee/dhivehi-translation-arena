@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 
-from openai import OpenAI
+from openrouter import OpenRouter
 
 from app.config import get_config
 
@@ -15,6 +15,10 @@ class JudgeResult:
     winner: str
     comments: str | None
     cost: float
+    generation_id: str | None = None
+    served_model: str | None = None
+    provider_name: str | None = None
+    service_tier: str | None = None
 
 
 def judge_translations(source_text: str, translation_a: str, translation_b: str) -> JudgeResult:
@@ -23,8 +27,13 @@ def judge_translations(source_text: str, translation_a: str, translation_b: str)
     if not config.OPENROUTER_API_KEY:
         raise RuntimeError("OpenRouter API key is not configured")
 
-    client = OpenAI(base_url=config.OPENROUTER_BASE_URL, api_key=config.OPENROUTER_API_KEY)
-    response = client.chat.completions.create(
+    client = OpenRouter(
+        api_key=config.OPENROUTER_API_KEY,
+        http_referer=config.OPENROUTER_HTTP_REFERER,
+        x_open_router_title=config.OPENROUTER_APP_TITLE,
+        x_open_router_categories=config.OPENROUTER_APP_CATEGORIES,
+    )
+    response = client.chat.send(
         model=JUDGE_MODEL,
         messages=[
             {
@@ -59,7 +68,8 @@ def judge_translations(source_text: str, translation_a: str, translation_b: str)
             },
         },
         temperature=1.0,
-        timeout=90.0,
+        provider={"zdr": True} if config.OPENROUTER_ENFORCE_ZDR else None,
+        timeout_ms=90_000,
     )
     if not response.choices or not response.choices[0].message.content:
         raise RuntimeError("Judge returned no result")
@@ -69,8 +79,14 @@ def judge_translations(source_text: str, translation_a: str, translation_b: str)
     if winner not in {"a", "b", "tie"}:
         raise RuntimeError("Judge returned an invalid winner")
 
-    usage = response.usage
-    usage_data = usage.model_dump() if usage else {}
+    response_data = response.model_dump()
+    usage_data = response_data.get("usage") or {}
     cost = float(usage_data.get("cost") or 0.0)
     comments = payload.get("comments") or None
-    return JudgeResult(winner=winner, comments=comments, cost=cost)
+    attempts = ((response_data.get("openrouter_metadata") or {}).get("attempts") or [])
+    provider_name = attempts[-1].get("provider") if attempts else None
+    return JudgeResult(
+        winner=winner, comments=comments, cost=cost, generation_id=response_data.get("id"),
+        served_model=response_data.get("model"), provider_name=provider_name,
+        service_tier=response_data.get("service_tier"),
+    )

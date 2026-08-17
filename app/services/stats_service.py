@@ -46,7 +46,13 @@ def calculate_model_scores():
             Translation.model,
             func.count(Translation.id).label("appearances"),
             func.sum(Translation.cost).label("total_cost"),
-            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label("source_word_count"),
+            func.sum(
+                case(
+                    (Translation.input_word_count.is_not(None), Translation.input_word_count),
+                    (Query.source_text != "", word_count_expr),
+                    else_=0,
+                )
+            ).label("source_word_count"),
         )
         .outerjoin(Query, Translation.query_id == Query.id)
         .group_by(Translation.model)
@@ -590,7 +596,13 @@ def get_cost_breakdown():
             Translation.model,
             func.count(Translation.id).label("total_generations"),
             func.sum(Translation.cost).label("total_cost"),
-            func.sum(case((Query.source_text != "", word_count_expr), else_=0)).label("source_word_count"),
+            func.sum(
+                case(
+                    (Translation.input_word_count.is_not(None), Translation.input_word_count),
+                    (Query.source_text != "", word_count_expr),
+                    else_=0,
+                )
+            ).label("source_word_count"),
         )
         .outerjoin(Query, Translation.query_id == Query.id)
         .group_by(Translation.model)

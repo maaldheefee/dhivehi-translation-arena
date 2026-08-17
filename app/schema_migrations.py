@@ -20,6 +20,24 @@ def _add_column(engine: Engine, table: str, definition: str) -> None:
 def run_schema_migrations(engine: Engine) -> None:
     """Add ballot metadata and deterministically backfill legacy vote groups."""
     tables = set(inspect(engine).get_table_names())
+    if "translations" in tables:
+        from app.models import JudgeCall
+
+        cast(Table, JudgeCall.__table__).create(bind=engine, checkfirst=True)
+        for definition in (
+            "cost_source VARCHAR(30) NOT NULL DEFAULT 'estimated'",
+            "input_word_count INTEGER",
+            "generation_id VARCHAR(80)",
+            "served_model VARCHAR(120)",
+            "provider_name VARCHAR(120)",
+            "service_tier VARCHAR(30)",
+            "prompt_tokens INTEGER",
+            "completion_tokens INTEGER",
+            "reasoning_tokens INTEGER",
+            "cached_tokens INTEGER",
+        ):
+            _add_column(engine, "translations", definition)
+
     if "votes" not in tables:
         return
 

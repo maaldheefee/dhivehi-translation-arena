@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from app.llm_clients import TranslationResult
 from app.models import Query
 from app.repositories.query_repository import QueryRepository
 from app.services import translation_service
@@ -13,8 +14,8 @@ from app.services import translation_service
 class _TranslationClient:
     SYSTEM_PROMPT = "test prompt"
 
-    def translate(self, source_text: str) -> tuple[str, float]:
-        return f"translated: {source_text}", 0.0
+    def translate(self, source_text: str, user_id: int | None = None) -> TranslationResult:
+        return TranslationResult(f"translated: {source_text}", 0.0, "openrouter_billed")
 
 
 def test_concurrent_translation_workers_reuse_the_winning_query(monkeypatch, tmp_path):
