@@ -865,7 +865,7 @@ deepseek-v4-flash-0731-t0.3:
 
 glm-5.3-t1.0:
   name: z-ai/glm-5.3
-  display_name: GLM 5.3 (No Reasoning, T1.0)
+  display_name: GLM 5.3 (Provider-Default Thinking, T1.0)
   type: openrouter
   input_cost_per_mtok: 1.4
   output_cost_per_mtok: 4.4
@@ -873,13 +873,11 @@ glm-5.3-t1.0:
   timeout: 180.0
   base_model: GLM 5.3
   temperature: 1.0
-  reasoning:
-    effort: none
-  preset_name: No Reasoning, Temp 1.0
+  preset_name: Provider-Default Thinking, Temp 1.0
 
 glm-5.3-t0.3:
   name: z-ai/glm-5.3
-  display_name: GLM 5.3 (No Reasoning, T0.3)
+  display_name: GLM 5.3 (Provider-Default Thinking, T0.3)
   type: openrouter
   input_cost_per_mtok: 1.4
   output_cost_per_mtok: 4.4
@@ -887,15 +885,13 @@ glm-5.3-t0.3:
   timeout: 180.0
   base_model: GLM 5.3
   temperature: 0.3
-  reasoning:
-    effort: none
-  preset_name: No Reasoning, Temp 0.3
+  preset_name: Provider-Default Thinking, Temp 0.3
 
 # ==================== GLM 5.3 Flash ====================
 
 glm-5.3-flash-t1.0:
   name: z-ai/glm-5.3-flash
-  display_name: GLM 5.3 Flash (No Reasoning, T1.0)
+  display_name: GLM 5.3 Flash (Provider-Default Thinking, T1.0)
   type: openrouter
   input_cost_per_mtok: 0.075
   output_cost_per_mtok: 0.25
@@ -903,13 +899,11 @@ glm-5.3-flash-t1.0:
   timeout: 180.0
   base_model: GLM 5.3 Flash
   temperature: 1.0
-  reasoning:
-    effort: none
-  preset_name: No Reasoning, Temp 1.0
+  preset_name: Provider-Default Thinking, Temp 1.0
 
 glm-5.3-flash-t0.3:
   name: z-ai/glm-5.3-flash
-  display_name: GLM 5.3 Flash (No Reasoning, T0.3)
+  display_name: GLM 5.3 Flash (Provider-Default Thinking, T0.3)
   type: openrouter
   input_cost_per_mtok: 0.075
   output_cost_per_mtok: 0.25
@@ -917,6 +911,4 @@ glm-5.3-flash-t0.3:
   timeout: 180.0
   base_model: GLM 5.3 Flash
   temperature: 0.3
-  reasoning:
-    effort: none
-  preset_name: No Reasoning, Temp 0.3
+  preset_name: Provider-Default Thinking, Temp 0.3
